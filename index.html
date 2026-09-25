@@ -1002,27 +1002,41 @@
     say(`Não entendi “${esc(raw)}”. Tente ${code("ajuda")} ou um destes: ${code("resumo")}, ${code("criar gráfico de receita por mês")}, ${code("nova tarefa ...")}.`, "bot", "err");
   }
 
-  function exportSheet(sh, fmt) {
-    const data = [sh.columns, ...sh.rows.map((_, r) => sh.columns.map((_, c) => { const v = cellValue(sh, r, c).v; return v; }))];
+  // Dentro do visualizador do Claude, o download passa pela capacidade "downloads";
+  // aberto direto no navegador, usa um link de download comum.
+  const downloadsReady = window.claude?.use ? window.claude.use("downloads").catch(() => null) : Promise.resolve(null);
+
+  async function exportSheet(sh, fmt) {
+    const data = [sh.columns, ...sh.rows.map((_, r) => sh.columns.map((_, c) => cellValue(sh, r, c).v))];
     const base = sh.name.replace(/[^\w\-À-ú ]/g, "").trim() || "planilha";
-    try {
-      if (fmt === "xlsx" && window.XLSX) {
-        const ws = XLSX.utils.aoa_to_sheet(data);
-        ws["!cols"] = sh.columns.map(() => ({ wch: 16 }));
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, base.slice(0, 31));
-        XLSX.writeFile(wb, base + ".xlsx");
-      } else {
-        const csv = data.map(r => r.map(v => { const s = String(v ?? ""); return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }).join(";")).join("\n");
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
-        a.download = base + ".csv"; a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-      }
-      say(`Arquivo <b>${esc(base)}.${fmt}</b> gerado. Se o download não começar (alguns visualizadores bloqueiam), abra o <code>index.html</code> direto no navegador.`);
-    } catch (e) {
-      say("Não foi possível gerar o arquivo neste ambiente.", "bot", "err");
+    const filename = `${base}.${fmt}`;
+    let blob;
+    if (fmt === "xlsx") {
+      if (!window.XLSX) return say("A biblioteca de Excel não carregou. Tente " + code("exportar csv") + ".", "bot", "err");
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      ws["!cols"] = sh.columns.map(() => ({ wch: 16 }));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, base.slice(0, 31));
+      blob = new Blob([XLSX.write(wb, { type: "array", bookType: "xlsx" })]);
+    } else {
+      const csv = data.map(r => r.map(v => { const s = String(v ?? ""); return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }).join(";")).join("\n");
+      blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
     }
+    const downloads = await downloadsReady;
+    if (downloads) {
+      try {
+        await downloads.save({ filename, data: blob });
+        return say(`Arquivo <b>${esc(filename)}</b> salvo.`);
+      } catch (e) {
+        if (e?.code === "declined") return say("Download cancelado.");
+        return say("Não foi possível salvar o arquivo aqui. Abra o <code>index.html</code> direto no navegador para baixar.", "bot", "err");
+      }
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    say(`Arquivo <b>${esc(filename)}</b> gerado.`);
   }
 
   /* =====================================================================
