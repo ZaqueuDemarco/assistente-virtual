@@ -218,6 +218,10 @@
   }
   .grid tfoot td.rownum { text-align: center; }
   .grid tr.hl td { background: rgba(91,157,255,.08); }
+  .pager { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--text-2); }
+  .pager .pg { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .pager .btn { padding: 5px 10px; font-size: 12.5px; }
+  .pager .btn[disabled] { opacity: .4; cursor: default; }
 
   /* ---------- Tasks ---------- */
   .tasks { list-style: none; margin: 0; padding: 0; }
@@ -624,7 +628,17 @@
   let state;
   try { state = JSON.parse(localStorage.getItem(KEY)) || defaultState(); } catch { state = defaultState(); }
   const migrated = [];
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+  let saveTimer = null, warnedQuota = false;
+  function saveNow() {
+    clearTimeout(saveTimer); saveTimer = null;
+    try { localStorage.setItem(KEY, JSON.stringify(state)); }
+    catch {
+      if (!warnedQuota) { warnedQuota = true; setTimeout(() => say(`Seus dados passaram do limite que o navegador guarda (cerca de 5 MB). Eles continuam funcionando agora, mas <b>podem sumir ao fechar a página</b>. Para evitar: apague planilhas antigas, ou importe o relatório por período (ex.: um trimestre por vez).`, "bot", "err"), 0); }
+    }
+  }
+  const save = () => { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 500); };
+  addEventListener("pagehide", () => { if (saveTimer) saveNow(); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden && saveTimer) saveNow(); });
 
   const sheet = () => state.sheets.find(s => s.id === state.activeSheet) || state.sheets[0];
   // Versões anteriores não marcavam os exemplos; reconhece pelo conteúdo original.
@@ -780,7 +794,16 @@
   }
   const NUM_TYPES = ["numero", "moeda", "percentual", "duracao"];
   // Códigos (O.S., TAG, patrimônio...) nunca entram em somas, mesmo em planilhas importadas antes desta regra.
-  function isIdCol(sh, c) {
+  // Análise de colunas guardada até a próxima mudança nos dados (antes era refeita a cada célula).
+  let memo = new WeakMap();
+  const bust = () => { memo = new WeakMap(); };
+  function cached(sh, key, fn) {
+    let m = memo.get(sh); if (!m) memo.set(sh, m = new Map());
+    if (!m.has(key)) m.set(key, fn());
+    return m.get(key);
+  }
+  function isIdCol(sh, c) { return cached(sh, "id" + c, () => isIdColRaw(sh, c)); }
+  function isIdColRaw(sh, c) {
     const t = sh.types?.[c];
     if (sh.userSet?.[c]) return false; // o usuário escolheu o tipo: respeita
     if (t && t !== "numero" && t !== "texto") return false;
@@ -788,7 +811,8 @@
     return classifyNumbers(sh.rows.map(r => r[c]).filter(v => v !== "" && v != null), sh.columns[c]) != null;
   }
   // Tipo que o painel está usando para a coluna (definido na importação, pelo usuário ou deduzido).
-  function effType(sh, c) {
+  function effType(sh, c) { return cached(sh, "t" + c, () => effTypeRaw(sh, c)); }
+  function effTypeRaw(sh, c) {
     if (sh.types?.[c]) return sh.types[c];
     if (isIdCol(sh, c)) return "texto";
     const vals = sh.rows.map((_, r) => cellValue(sh, r, c).v).filter(v => v !== "");
@@ -796,6 +820,7 @@
     return new Set(vals).size < vals.length ? "categoria" : "texto";
   }
   function setType(sh, c, t) {
+    bust();
     if (!sh.types) sh.types = sh.columns.map((_, i) => effType(sh, i));
     while (sh.types.length < sh.columns.length) sh.types.push(effType(sh, sh.types.length));
     const was = sh.types[c];
@@ -805,12 +830,12 @@
     if (NUM_TYPES.includes(t)) sh.rows.forEach(r => { const v = r[c]; if (v && !String(v).startsWith("=")) { const n = t === "duracao" ? parseDuration(String(v)) : parseNum(v); if (!isNaN(n)) r[c] = String(n); } });
     return was;
   }
-  const numericCols = sh => sh.columns.map((_, c) => c).filter(c => {
+  const numericCols = sh => cached(sh, "num", () => sh.columns.map((_, c) => c).filter(c => {
     if (isIdCol(sh, c)) return false;
     if (sh.types?.[c]) return NUM_TYPES.includes(sh.types[c]);
     const vals = sh.rows.map((_, r) => cellValue(sh, r, c).v).filter(v => v !== "");
     return vals.length && vals.filter(v => typeof v === "number").length / vals.length >= .8;
-  });
+  })).slice();
   const textCols = sh => { const n = numericCols(sh); return sh.columns.map((_, c) => c).filter(c => !n.includes(c)); };
   const colTotal = (sh, c, rows) => rows.reduce((s, r) => { const v = cellValue(sh, r, c).v; return s + (typeof v === "number" ? v : 0); }, 0);
 
@@ -942,6 +967,7 @@
   function destroyCharts() { charts.forEach(c => c.destroy()); charts = []; }
 
   function render() {
+    bust();
     destroyCharts();
     renderNav();
     const v = $("#view");
@@ -1240,11 +1266,19 @@
 
   /* ---------- Planilhas ---------- */
   let selCell = null; // {r, c}
+  const PAGE = 100;
+  const gridPage = new Map();
   function viewPlanilhas() {
     const sh = sheet();
     const ncols = numericCols(sh);
     const f = state.filter;
-    const matches = new Set(f.val ? filteredRows(sh) : []);
+    // Mostra 100 linhas por vez; com filtro ativo, só as linhas filtradas.
+    const all = f.val ? filteredRows(sh) : sh.rows.map((_, i) => i);
+    const pages = Math.max(1, Math.ceil(all.length / PAGE));
+    const pageKey = `${sh.id}|${f.col}|${f.val}`; // cada filtro começa na primeira página
+    const page = Math.min(gridPage.get(pageKey) || 0, pages - 1);
+    const shown = all.slice(page * PAGE, page * PAGE + PAGE);
+    const totals = sh.rows.map((_, r) => r);
     return `
       <div class="topbar">
         <div><h1>${esc(sh.name)}</h1><p>Edite direto nas células. Fórmulas começam com <code style="font-family:var(--mono)">=</code>, como <code style="font-family:var(--mono)">=SOMA(C2:C10)</code> ou <code style="font-family:var(--mono)">=C2-D2</code>.</p></div>
@@ -1265,15 +1299,25 @@
         <div class="grid-wrap">
           <table class="grid">
             <thead><tr><th class="rownum"><span class="col-letter">&nbsp;</span>1</th>${sh.columns.map((c, i) => `<th><span class="col-letter">${colLetter(i)} · <select class="type-pick" data-settype="${i}" aria-label="Tipo da coluna ${esc(c)}" title="Mudar o tipo da coluna">${TYPES.map(t => `<option value="${t}" ${t === effType(sh, i) ? "selected" : ""}>${TYPE_LABEL[t]}</option>`).join("")}</select></span><input data-hcol="${i}" value="${esc(c)}" aria-label="Nome da coluna ${colLetter(i)}"></th>`).join("")}</tr></thead>
-            <tbody>${sh.rows.map((row, r) => `<tr class="${matches.has(r) ? "hl" : ""}"><td class="rownum">${r + 2}</td>${sh.columns.map((_, c) => {
+            <tbody>${shown.map(r => { const row = sh.rows[r]; return `<tr><td class="rownum">${r + 2}</td>${sh.columns.map((_, c) => {
               const raw = row[c] ?? "";
               const isF = String(raw).startsWith("=");
               const d = display(sh, r, c);
               const cls = [ncols.includes(c) ? "num" : "", isF ? "formula" : "", String(d).startsWith("#") && isF ? "err" : ""].join(" ");
               return `<td class="${cls}"><input data-r="${r}" data-c="${c}" value="${esc(d)}" aria-label="${colLetter(c)}${r + 2}"></td>`;
-            }).join("")}</tr>`).join("")}</tbody>
-            <tfoot><tr><td class="rownum">Σ</td>${sh.columns.map((c, i) => `<td>${ncols.includes(i) ? (isAvgCol(sh, i) ? "média " : "") + fmtCol(sh, i, colSummary(sh, i, sh.rows.map((_, r) => r))) : ""}</td>`).join("")}</tr></tfoot>
+            }).join("")}</tr>`; }).join("")}</tbody>
+            <tfoot><tr><td class="rownum">Σ</td>${sh.columns.map((c, i) => `<td>${ncols.includes(i) ? (isAvgCol(sh, i) ? "média " : "") + fmtCol(sh, i, colSummary(sh, i, totals)) : ""}</td>`).join("")}</tr></tfoot>
           </table>
+        </div>
+        <div class="pager">
+          <span>${all.length ? `Linhas ${nfNum.format(page * PAGE + 1)}–${nfNum.format(page * PAGE + shown.length)} de ${nfNum.format(all.length)}` : "Nenhuma linha"}${f.val ? ` · filtro: <b>${esc(f.val)}</b> <button class="btn ghost" data-fval="">limpar filtro</button>` : ""}</span>
+          ${pages > 1 ? `<span class="row">
+            <button class="btn" data-page="0" ${page === 0 ? "disabled" : ""}>« Primeira</button>
+            <button class="btn" data-page="${page - 1}" ${page === 0 ? "disabled" : ""}>‹ Anterior</button>
+            <span class="pg">Página ${page + 1} de ${nfNum.format(pages)}</span>
+            <button class="btn" data-page="${page + 1}" ${page >= pages - 1 ? "disabled" : ""}>Próxima ›</button>
+            <button class="btn" data-page="${pages - 1}" ${page >= pages - 1 ? "disabled" : ""}>Última »</button>
+          </span>` : ""}
         </div>
       </section>`;
   }
@@ -1370,6 +1414,7 @@
   }
 
   function run(input) {
+    bust();
     const raw = input.trim().replace(/^\//, "");
     if (!raw) return;
     say(esc(raw), "user");
@@ -1685,7 +1730,7 @@
   }
   function textToMatrix(text) {
     const lines = text.replace(/\r\n?/g, "\n").split("\n");
-    const filled = lines.filter(l => l.trim());
+    const filled = lines.filter(l => l.trim()).slice(0, 300); // amostra basta para achar o separador
     if (!filled.length) return [];
     // Escolhe o separador que aparece de forma mais consistente entre as linhas.
     let best = null, bestScore = 0;
@@ -2244,6 +2289,7 @@
     if (t.dataset.fval !== undefined) { state.filter.val = t.dataset.fval; render(); return; }
     if (t.dataset.deltask) { state.tasks = state.tasks.filter(x => x.id !== t.dataset.deltask); render(); return; }
     if (t.dataset.act === "import") { openImport(); return; }
+    if (t.dataset.page !== undefined) { gridPage.set(`${sheet().id}|${state.filter.col}|${state.filter.val}`, Math.max(0, +t.dataset.page)); render(); $(".grid-wrap").scrollTop = 0; return; }
     if (t.dataset.act === "wipe") { openWipe(); return; }
     if (t.dataset.delsheet) { state.activeSheet = t.dataset.delsheet; openWipe(); return; }
     if (t.dataset.wipe) { doWipe(t.dataset.wipe); return; }
@@ -2252,7 +2298,7 @@
       const sh = sheet(); snapshot(sh.name); removeSheets([sh.id]); render();
       say(`Planilha <b>${esc(sh.name)}</b> excluída, junto com os gráficos dela.${undoBtn}`); openAssist(); return;
     }
-    if (t.dataset.act === "addRow") { const sh = sheet(); sh.rows.push(sh.columns.map(() => "")); render(); const g = $(".grid-wrap"); g.scrollTop = g.scrollHeight; return; }
+    if (t.dataset.act === "addRow") { const sh = sheet(); sh.rows.push(sh.columns.map(() => "")); state.filter.val = ""; gridPage.set(`${sh.id}|${state.filter.col}|`, Math.floor((sh.rows.length - 1) / PAGE)); render(); const g = $(".grid-wrap"); g.scrollTop = g.scrollHeight; return; }
     if (t.dataset.act === "addCol") { const sh = sheet(); sh.columns.push("Coluna " + colLetter(sh.columns.length)); sh.rows.forEach(r => r.push("")); render(); return; }
     if (t.dataset.suggest) { run(t.dataset.suggest); return; }
   });
@@ -2284,7 +2330,7 @@
   function commitCell(r, c, value) {
     const sh = sheet();
     if ((sh.rows[r][c] ?? "") === value) return false;
-    sh.rows[r][c] = value; save(); return true;
+    sh.rows[r][c] = value; bust(); save(); return true;
   }
   function refreshCells() {
     const sh = sheet();
