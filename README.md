@@ -9,7 +9,7 @@ Abra o arquivo `index.html` no navegador. Não precisa instalar nada; os gráfic
 ## O que já funciona
 
 - **Importar e organizar dados**: cole dados (do Excel, Google Sheets, CSV, e-mail) ou arraste um arquivo `.xlsx`, `.xls`, `.csv` ou `.txt`. O assistente:
-  - encontra o cabeçalho mesmo quando o relatório tem título, filtros e data de emissão antes da tabela (como as exportações do Neovero e de ERPs);
+  - encontra o cabeçalho mesmo quando o relatório tem título, filtros e data de emissão antes da tabela (como as exportações de sistemas de gestão e ERPs);
   - ignora linhas de total, rodapé ("Página 1 de 3"), cabeçalhos repetidos a cada página e títulos de grupo;
   - reconhece se há cabeçalho e, se não houver, dá nomes às colunas pelo conteúdo;
   - trata códigos (Nº OS, TAG, patrimônio, série) como texto, mesmo quando só têm números;
