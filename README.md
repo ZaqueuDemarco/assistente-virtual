@@ -32,6 +32,20 @@ Abra o arquivo `index.html` no navegador. Não precisa instalar nada; os gráfic
 - Comandos: `apagar dados`, `apagar exemplos`, `apagar planilha Nome`, `apagar tudo`.
 - `desfazer` recupera a última exclusão. `ver dados de exemplo` traz os exemplos de volta sem apagar suas planilhas.
 
+## Gráficos do seu jeito
+
+Peça com suas palavras no assistente, usando os nomes das colunas da sua planilha:
+
+- `quantidade de O.S. por setor` — conta registros por grupo
+- `O.S. por mês` — evolução no tempo (agrupa qualquer coluna de data por mês; também `por ano`, `por dia`)
+- `top 10 equipamentos` — ranking dos maiores
+- `tempo médio por técnico` — média por grupo
+- `custo por tipo de manutenção` — soma em R$, só quando você pede
+- `pizza por situação`, `... em ranking`, `... em barras`
+- `limpar gráficos`, `esconder custo` / `mostrar custo`
+
+Ou clique em **Novo gráfico** para escolher o que medir, como agrupar, o tipo (barras, ranking, linhas, rosca) e quantos mostrar. O lápis em cada gráfico abre a edição. Ao importar, os gráficos automáticos contam registros; custo só aparece se você pedir.
+
 ## Custo ou número?
 
 Uma coluna só é tratada como dinheiro (R$) quando os valores têm "R$" ou o nome indica claramente dinheiro (custo, preço, valor, receita, despesa...). Quantidades, horas, contagens e códigos (O.S., TAG, patrimônio) nunca viram dinheiro nem entram em somas. Cada gráfico diz a unidade ("soma em R$", "soma (número, não é dinheiro)", "quantidade de registros").

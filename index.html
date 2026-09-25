@@ -321,6 +321,34 @@
   .start-tips ul { margin: 0 0 14px; padding-left: 18px; color: var(--text-2); display: flex; flex-direction: column; gap: 4px; }
   @media (max-width: 760px) { .start { grid-template-columns: minmax(0, 1fr); } }
 
+  .charts-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+  .charts-head h2 { margin: 0; font-size: 16px; font-weight: 600; }
+  .hint-line { margin: -8px 0 0; color: var(--muted); font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .ex-chip { background: var(--raised); border: 1px solid var(--border-strong); border-radius: 999px; padding: 3px 10px; font: 12px var(--mono); color: var(--text-2); cursor: pointer; }
+  .ex-chip:hover { border-color: var(--accent); color: var(--text); }
+  .kpi { position: relative; }
+  .kpi-x { position: absolute; top: 8px; right: 8px; opacity: 0; }
+  .kpi:hover .kpi-x, .kpi-x:focus-visible { opacity: .8; }
+  .chart-card .panel-head h2 { font-size: 14.5px; }
+  .chart-card .sub { margin-top: 2px; }
+  .rank-body { height: auto !important; min-height: 120px; padding: 10px 16px 16px !important; }
+  .rank { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; font-variant-numeric: tabular-nums; }
+  .rank li { display: grid; grid-template-columns: 22px minmax(90px, 1.1fr) minmax(60px, 1.4fr) auto; gap: 10px; align-items: center; font-size: 13px; }
+  .rank .rk-pos { color: var(--muted); font: 11px var(--mono); text-align: right; }
+  .rank .rk-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+  .rank .rk-bar { height: 10px; background: var(--grid); border-radius: 5px; overflow: hidden; }
+  .rank .rk-bar i { display: block; height: 100%; background: var(--s1); border-radius: 5px; }
+  .rank .rk-val { text-align: right; font-weight: 600; white-space: nowrap; }
+  .rank .rk-val small { color: var(--muted); font-weight: 400; margin-left: 6px; font-size: 11.5px; }
+  dialog.builder { width: min(560px, calc(100vw - 32px)); }
+  .bfield { display: flex; flex-direction: column; gap: 6px; }
+  .bfield label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .bfield select { width: 100%; padding: 8px 10px; font-size: 14px; }
+  .seg.big button { padding: 7px 14px; font-size: 13px; }
+  .bpreview { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 8px; background: var(--accent-soft); border: 1px solid rgba(91,157,255,.3); }
+  .bpreview span { font-size: 12px; color: var(--muted); }
+  .bpreview small { color: var(--text-2); font-size: 12px; }
+
   /* ---------- Importação ---------- */
   dialog.imp {
     width: min(960px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0;
@@ -455,7 +483,7 @@
       <div class="ac" id="ac" role="listbox" hidden></div>
       <form id="cmdForm" autocomplete="off">
         <span class="prompt" aria-hidden="true">›</span>
-        <input id="cmdInput" placeholder="Ex.: criar gráfico de receita por mês" aria-label="Comando para o assistente">
+        <input id="cmdInput" placeholder="Ex.: quantidade por setor, top 10 equipamentos" aria-label="Comando para o assistente">
         <button class="btn primary" type="submit">Enviar</button>
       </form>
       <div class="hint"><kbd>↑</kbd> repete o último comando · <kbd>Tab</kbd> completa</div>
@@ -482,6 +510,13 @@
     <button class="icon-btn" type="button" data-wipe="cancel" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
   <div class="imp-body" id="wipeBody"></div>
+</dialog>
+<dialog class="imp builder" id="chartDlg" aria-labelledby="chartDlgTitle">
+  <div class="imp-head"><h2 id="chartDlgTitle">Novo gráfico</h2>
+    <button class="icon-btn" type="button" data-bact="cancel" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="imp-body" id="chartDlgBody"></div>
+  <div class="imp-foot"><span class="grow"></span><button class="btn" type="button" data-bact="cancel">Cancelar</button><button class="btn primary" type="button" data-bact="save" id="chartDlgSave">Adicionar ao painel</button></div>
 </dialog>
 <div class="drag-veil" id="dragVeil" hidden>Solte o arquivo para importar</div>
 <div class="toast" id="toast" hidden></div>
@@ -530,7 +565,9 @@
   const isDur = (sh, c) => sh.types?.[c] === "duracao";
   // Colunas em que somar não faz sentido (preço unitário, taxa, tempo...): usa-se a média.
   const isAvgCol = (sh, c) => c >= 0 && (isPct(sh, c) || isDur(sh, c) || /(^|[\s(])(preco|unitario|media|taxa|nota|idade|margem|ticket|tempo|mttr|mtbf|indice|disponibilidade)/.test(norm(sh.columns[c])));
-  const colName = (sh, c) => c < 0 ? "Registros" : sh.columns[c];
+  // Nome do que é contado: "O.S." quando a planilha é de ordens de serviço, senão "Registros".
+  const countLabel = sh => sh.columns.some(c => /(^|\s)(o\.?s\.?|ordens? de servico|ordem de servico)(\s|$)/.test(norm(c))) ? "O.S." : "Registros";
+  const colName = (sh, c) => c < 0 ? countLabel(sh) : sh.columns[c];
 
   /* =====================================================================
      Estado (dados de exemplo) + persistência local
@@ -630,6 +667,55 @@
     if (k === "sheet") { snapshot(sh.name); removeSheets([sh.id]); render(); openAssist(); return say(`Planilha <b>${esc(sh.name)}</b> apagada, junto com os gráficos dela.${undoBtn}`); }
     if (k === "rows") { snapshot(sh.name); sh.rows = [sh.columns.map(() => "")]; state.filter.val = ""; render(); openAssist(); return say(`Esvaziei <b>${esc(sh.name)}</b>. As colunas continuam; cole ou importe os dados novos.${undoBtn}`); }
     if (k === "all") { snapshot("tudo"); removeSheets(state.sheets.map(s => s.id)); state.tasks = []; render(); openAssist(); return say(`Apaguei todas as planilhas, gráficos e tarefas.${undoBtn}`); }
+  }
+  // ---------- Montador de gráfico ----------
+  let draft = null;
+  function openBuilder(existing) {
+    const sh = sheet(); if (!sh) return;
+    const firstCat = sh.columns.map((_, i) => i).find(i => !numericCols(sh).includes(i) && !isIdCol(sh, i) && !isDateCol(sh, i)) ?? 0;
+    draft = existing ? { ...existing, values: [...existing.values], editing: existing.id } : { type: "bar", label: firstCat, values: [-1], agg: "auto", top: 0, dateGroup: "mes" };
+    $("#chartDlgTitle").textContent = existing ? "Editar gráfico" : "Novo gráfico";
+    $("#chartDlgSave").textContent = existing ? "Salvar" : "Adicionar ao painel";
+    renderBuilder();
+    const d = $("#chartDlg"); try { d.showModal(); } catch { d.setAttribute("open", ""); }
+  }
+  function renderBuilder() {
+    const sh = sheet(), d = draft, nc = numericCols(sh);
+    const measureOpts = [[-1, "auto", measureLabel(sh, -1)], ...nc.flatMap(c => isAvgCol(sh, c) ? [[c, "avg", `Média de ${sh.columns[c]}`], [c, "sum", `Soma de ${sh.columns[c]}`]] : [[c, "sum", `Soma de ${sh.columns[c]}${isMoney(sh, c) ? " (R$)" : ""}`], [c, "avg", `Média de ${sh.columns[c]}`]])];
+    const cur = `${d.values[0]}|${d.values[0] < 0 ? "auto" : useAvg(sh, d.values[0], d.agg) ? "avg" : "sum"}`;
+    const groupOpts = sh.columns.map((c, i) => i).filter(i => !nc.includes(i) && !isIdCol(sh, i));
+    const seg = (key, opts, val) => `<div class="seg big" role="group">${opts.map(([v, l]) => `<button type="button" data-bset="${key}" data-v="${v}" aria-pressed="${String(val) === String(v)}">${l}</button>`).join("")}</div>`;
+    const preview = { ...d }; preview.title = chartTitle(sh, preview);
+    $("#chartDlgBody").innerHTML = `
+      <div class="bfield"><label for="bMeasure">O que medir</label>
+        <select class="ctl" id="bMeasure">${measureOpts.map(([c, a, l]) => `<option value="${c}|${a}" ${`${c}|${a}` === cur ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></div>
+      <div class="bfield"><label for="bGroup">Agrupar por</label>
+        <select class="ctl" id="bGroup">${groupOpts.map(i => `<option value="${i}" ${i === d.label ? "selected" : ""}>${esc(sh.columns[i])}${isDateCol(sh, i) ? " (por período)" : ""}</option>`).join("")}</select></div>
+      ${isDateCol(sh, d.label) ? `<div class="bfield"><label>Período</label>${seg("dateGroup", [["dia", "Dia"], ["mes", "Mês"], ["ano", "Ano"]], d.dateGroup || "mes")}</div>` : ""}
+      <div class="bfield"><label>Tipo</label>${seg("type", [["bar", "Barras"], ["rank", "Ranking"], ["line", "Linhas"], ["doughnut", "Rosca"]], d.type)}</div>
+      <div class="bfield"><label>Mostrar</label>${seg("top", [[0, "Todos"], [5, "Top 5"], [10, "Top 10"], [20, "Top 20"]], d.top || 0)}</div>
+      <div class="bpreview"><span>Vai aparecer como</span><b>${esc(preview.title)}</b><small>${esc(unitText(sh, preview))}</small></div>`;
+  }
+  $("#chartDlg").addEventListener("close", () => { draft = null; });
+  function builderSet(key, v) { draft[key] = key === "top" ? +v : v; renderBuilder(); }
+  document.addEventListener("change", e => {
+    if (!draft) return;
+    if (e.target.id === "bMeasure") { const [c, a] = e.target.value.split("|"); draft.values = [+c]; draft.agg = a; renderBuilder(); }
+    if (e.target.id === "bGroup") { draft.label = +e.target.value; renderBuilder(); }
+  });
+  function builderAct(a) {
+    const d = $("#chartDlg");
+    if (a === "save" && draft) {
+      const sh = sheet();
+      const c = { id: draft.editing || uid(), sheetId: sh.id, type: draft.type, label: draft.label, values: draft.values, agg: draft.agg, top: draft.top, dateGroup: draft.dateGroup };
+      c.title = chartTitle(sh, c);
+      const i = state.charts.findIndex(x => x.id === c.id);
+      if (i >= 0) state.charts[i] = c; else state.charts.push(c);
+      goto("painel");
+      if (i < 0) $("#main").scrollTop = $("#main").scrollHeight;
+      toast(i >= 0 ? "Gráfico atualizado" : "Gráfico adicionado");
+    }
+    draft = null; if (d.open) d.close();
   }
   function clearSamples() {
     const sheets = state.sheets.filter(isSampleSheet);
@@ -743,6 +829,81 @@
     if (i < 0) i = sh.columns.findIndex(c => norm(c).includes(n));
     return i;
   }
+  // Colunas citadas num trecho de texto (aceita plural: "equipamentos" -> Equipamento).
+  function chartColsIn(sh, text) {
+    const words = norm(text).replace(/[^\w\s.º°/-]/g, " ").split(/\s+/).filter(Boolean);
+    const found = [];
+    for (let size = 3; size >= 1; size--) for (let i = 0; i + size <= words.length; i++) {
+      const piece = words.slice(i, i + size).join(" ");
+      if (piece.length < 2 || /^(de|do|da|dos|das|por|e|o|a|os|as|em|com|um|uma|mais|top|grafico|mostrar|quero|ver|total|media|medio|soma|quantidade|numero|qtd|quantos|quantas|cada|pizza|rosca|barras|linhas|ranking)$/.test(piece)) continue;
+      const cands = [piece, piece.replace(/(oes)$/, "ao").replace(/(aes)$/, "ao").replace(/(is)$/, "l").replace(/(es|s)$/, "")];
+      for (const cand of cands) {
+        const c = sh.columns.findIndex(col => norm(col) === cand) >= 0 ? sh.columns.findIndex(col => norm(col) === cand)
+          : sh.columns.findIndex(col => cand.length >= 3 && (norm(col).startsWith(cand) || norm(col).split(/\s+/).includes(cand)));
+        if (c >= 0 && !found.includes(c)) { found.push(c); break; }
+      }
+    }
+    return found;
+  }
+  function parseChartRequest(sh, n) {
+    const out = { type: "bar", agg: "auto", top: 0, dateGroup: "mes" };
+    let m;
+    if ((m = n.match(/top\s*(\d+)|(\d+)\s*(?:maiores|mais|primeiros|principais)/))) out.top = Math.min(50, +(m[1] || m[2]));
+    const parts = n.split(/\s+(?:por|de cada|em cada|para cada|agrupado por|separado por)\s+/);
+    let measureText = parts.length > 1 ? parts.slice(0, -1).join(" ") : n;
+    let groupText = parts.length > 1 ? parts[parts.length - 1] : "";
+    groupText = groupText.replace(/\s+(em|no|na|como|tipo|usando)\s+(pizza|rosca|barras?|linhas?|ranking|lista).*$/, "").replace(/\b(top\s*\d+)\b/, "").trim();
+    // Agrupamento
+    const dateCols = sh.columns.map((_, i) => i).filter(i => isDateCol(sh, i));
+    if (/^(mes|meses|mensal|ano|anos|anual|dia|dias|diario|periodo|data)\b/.test(groupText)) {
+      out.dateGroup = /^ano|anual/.test(groupText) ? "ano" : /^dia|diario/.test(groupText) ? "dia" : "mes";
+      const named = chartColsIn(sh, groupText.replace(/^(mes|meses|mensal|ano|anos|anual|dia|dias|diario|periodo|data)\s*(de\s+)?/, "")).find(c => isDateCol(sh, c));
+      const pc = periodCol(sh);
+      out.label = named ?? (out.dateGroup === "mes" && pc != null ? pc : dateCols[0]);
+      if (out.label == null) return { error: "Esta planilha não tem coluna de data para agrupar por período." };
+    } else if (groupText) {
+      const g = chartColsIn(sh, groupText)[0];
+      if (g == null) return { error: `Não achei a coluna “${esc(groupText)}” para agrupar. Colunas: ${sh.columns.map(x => code(x)).join(", ")}.` };
+      out.label = g;
+    }
+    // Medida
+    const avg = /\bmedi[ao]s?\b/.test(measureText), sum = /\b(soma|somar|total de|valor total)\b/.test(measureText);
+    const nums = chartColsIn(sh, measureText).filter(c => numericCols(sh).includes(c) && c !== out.label);
+    // Citou uma coluna numérica (custo, tempo, peças...) -> mede essa coluna; senão, conta registros.
+    out.values = nums.length ? nums.slice(0, 3) : [-1];
+    out.agg = avg ? "avg" : sum ? "sum" : "auto";
+    // Sem "por": agrupa pela coluna de texto/categoria citada ("top 10 equipamentos")
+    if (out.label == null) {
+      const g = chartColsIn(sh, measureText).find(c => !numericCols(sh).includes(c));
+      if (g == null) return { error: `Diga como agrupar, por exemplo: ${chartExamples(sh).slice(0, 3).map(e => code(e)).join(", ")}.` };
+      out.label = g;
+    }
+    // Tipo
+    if (/pizza|rosca|donut|torta/.test(n)) out.type = "doughnut";
+    else if (/ranking|lista|tabela/.test(n) || (out.top && !/barra|coluna/.test(n))) out.type = "rank";
+    else if (/linha|evolucao|tendencia|ao longo/.test(n) || (isDateCol(sh, out.label) || out.label === periodCol(sh)) && !/barra|coluna/.test(n)) out.type = "line";
+    else out.type = "bar";
+    if (out.type === "doughnut" && out.values.length > 1) out.values = [out.values[0]];
+    return out;
+  }
+  // Exemplos de pedidos usando as colunas reais da planilha.
+  function chartExamples(sh) {
+    if (!sh) return [];
+    const cl = countLabel(sh) === "O.S." ? "O.S." : "registros";
+    const pc = periodCol(sh);
+    const nc = numericCols(sh), tc = sh.columns.map((_, i) => i).filter(i => !nc.includes(i) && !isIdCol(sh, i) && !isDateCol(sh, i) && i !== pc);
+    const uniq = c => new Set(sh.rows.map(r => r[c]).filter(Boolean)).size;
+    const cats = tc.filter(c => uniq(c) >= 2 && uniq(c) < sh.rows.length).sort((a, b) => uniq(a) - uniq(b));
+    const hasDate = sh.columns.some((_, i) => isDateCol(sh, i)) || periodCol(sh) != null;
+    const ex = [];
+    if (cats[1] != null || cats[0] != null) ex.push(`quantidade de ${cl} por ${sh.columns[cats[cats.length > 1 ? 1 : 0]].toLowerCase()}`);
+    if (hasDate) ex.push(`${cl} por mês`);
+    if (cats[0] != null) ex.push(`pizza de ${cl} por ${sh.columns[cats[0]].toLowerCase()}`);
+    const big = cats[cats.length - 1];
+    if (big != null) ex.push(`top 10 ${sh.columns[big].toLowerCase()}`);
+    if (nc[0] != null && cats[0] != null) ex.push(`${isAvgCol(sh, nc[0]) ? "média de " : ""}${sh.columns[nc[0]].toLowerCase()} por ${sh.columns[cats[0]].toLowerCase()}`);
+    return ex.length ? ex : [`quantidade de ${cl} por ${sh.columns[0].toLowerCase()}`];
+  }
   function periodCol(sh) {
     if (sh.periodCol != null && sh.periodCol < sh.columns.length) return sh.periodCol;
     const tc = textCols(sh);
@@ -761,6 +922,7 @@
     x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>',
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
     up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V5M7 10l5-5 5 5M5 20h14"/></svg>',
+    edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/></svg>',
     trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
     dl: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
   };
@@ -829,7 +991,7 @@
     return `${sampleBanner()}
       <div class="topbar">
         <div><h1>Painel · ${esc(sh.name)}</h1><p>${sh.rows.length} linhas · atualizado ao editar a planilha ${isSample ? '· <span class="tag">dados de exemplo</span>' : ""}</p></div>
-        <div class="row">${sheetSelect()}<button class="btn" data-act="import">${ICONS.up}Importar dados</button><button class="btn" data-run="criar gráfico">${ICONS.plus}Novo gráfico</button><button class="btn danger" data-act="wipe">${ICONS.trash}Apagar dados</button></div>
+        <div class="row">${sheetSelect()}<button class="btn" data-act="import">${ICONS.up}Importar dados</button><button class="btn danger" data-act="wipe">${ICONS.trash}Apagar dados</button></div>
       </div>
       <div class="kpis" id="kpis"></div>
       <div class="filters">
@@ -838,6 +1000,14 @@
         <button class="chip" data-fval="" aria-pressed="${!f.val}">Todos</button>
         ${values.slice(0, 12).map(v => `<button class="chip" data-fval="${esc(v)}" aria-pressed="${f.val === v}">${esc(v)}</button>`).join("")}
       </div>
+      <div class="charts-head">
+        <h2>Gráficos</h2>
+        <div class="row">
+          <button class="btn primary" data-act="newchart">${ICONS.plus}Novo gráfico</button>
+          ${myCharts.length ? `<button class="btn ghost" data-run="limpar gráficos">Remover todos</button>` : ""}
+        </div>
+      </div>
+      <p class="hint-line">Peça com suas palavras no assistente, por exemplo ${chartExamples(sh).slice(0, 3).map(e => `<button class="ex-chip" data-suggest="${esc(e)}">${esc(e)}</button>`).join(" ")}</p>
       <div class="charts">
         ${myCharts.length ? myCharts.map(c => `
           <section class="panel chart-card">
@@ -845,36 +1015,90 @@
               <div><h2>${esc(c.title)}</h2><div class="sub">${esc(unitText(sh, c))}</div></div>
               <div class="row nowrap">
                 <div class="seg" role="group" aria-label="Tipo de gráfico">
-                  ${[["bar", "Barras"], ["line", "Linhas"], ["doughnut", "Rosca"]].map(([t, l]) =>
+                  ${[["bar", "Barras"], ["rank", "Ranking"], ["line", "Linhas"], ["doughnut", "Rosca"]].map(([t, l]) =>
                     `<button data-ctype="${t}" data-chart="${c.id}" aria-pressed="${c.type === t}">${l}</button>`).join("")}
                 </div>
+                <button class="icon-btn" data-editchart="${c.id}" title="Editar gráfico" aria-label="Editar gráfico">${ICONS.edit}</button>
                 <button class="icon-btn" data-delchart="${c.id}" title="Remover gráfico" aria-label="Remover gráfico">${ICONS.x}</button>
               </div>
             </div>
-            <div class="body"><canvas id="c_${c.id}" role="img" aria-label="${esc(c.title)}"></canvas></div>
-          </section>`).join("") : `<div class="panel empty">Nenhum gráfico para esta planilha. Peça ao assistente: <code>criar gráfico de ${esc(sh.columns[numericCols(sh)[0]] || "valor")} por ${esc(sh.columns[0])}</code></div>`}
+            <div class="body ${c.type === "rank" ? "rank-body" : ""}">${c.type === "rank" ? `<ol class="rank" id="r_${c.id}"></ol>` : `<canvas id="c_${c.id}" role="img" aria-label="${esc(c.title)}"></canvas>`}</div>
+          </section>`).join("") : `<div class="panel empty">Nenhum gráfico ainda. Clique em <b>Novo gráfico</b> ou peça no assistente, por exemplo <code>${esc(chartExamples(sh)[0])}</code>.</div>`}
       </div>`;
   }
 
-  function unitText(sh, c) {
-    return c.values.map(v => v < 0 ? "quantidade de registros" : isMoney(sh, v) ? (isAvgCol(sh, v) ? "média em R$" : "soma em R$") : isDur(sh, v) ? "média em horas" : isPct(sh, v) ? "média em %" : isAvgCol(sh, v) ? "média" : "soma (número, não é dinheiro)").filter((x, i, a) => a.indexOf(x) === i).join(" · ");
+  const isDateCol = (sh, c) => c != null && c >= 0 && effType(sh, c) === "data";
+  const useAvg = (sh, c, agg) => c >= 0 && (agg === "avg" || (agg !== "sum" && isAvgCol(sh, c)));
+  function measureLabel(sh, v, agg) {
+    if (v < 0) return countLabel(sh) === "O.S." ? "Quantidade de O.S." : "Quantidade de registros";
+    return `${useAvg(sh, v, agg) ? "Média de" : "Total de"} ${sh.columns[v].toLowerCase()}`;
   }
-  function aggregate(sh, labelCol, valueCol, rows) {
-    const map = new Map(), n = new Map();
+  function groupLabel(sh, c, dateGroup) {
+    return isDateCol(sh, c) ? `${{ ano: "ano", dia: "dia" }[dateGroup] || "mês"} (${sh.columns[c].toLowerCase()})` : sh.columns[c].toLowerCase();
+  }
+  function chartTitle(sh, c) {
+    const m = c.values.map(v => v < 0 ? countLabel(sh) : `${useAvg(sh, v, c.agg) ? "Média de " : ""}${useAvg(sh, v, c.agg) ? sh.columns[v].toLowerCase() : sh.columns[v]}`).join(" e ");
+    const g = isDateCol(sh, c.label) ? ({ ano: "ano", dia: "dia" }[c.dateGroup] || "mês") : sh.columns[c.label].toLowerCase();
+    const t = `${c.top ? `Top ${c.top}: ` : ""}${m} por ${g}`;
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
+  function unitText(sh, c) {
+    const what = c.values.map(v => v < 0 ? `contagem de ${countLabel(sh) === "O.S." ? "O.S." : "registros"}` : `${useAvg(sh, v, c.agg) ? "média" : "soma"} de ${sh.columns[v]}${isMoney(sh, v) ? " em R$" : isDur(sh, v) ? " em horas" : ""}`).join(" · ");
+    return `${what} · agrupado por ${groupLabel(sh, c.label, c.dateGroup)}${c.top ? ` · só os ${c.top} maiores` : ""}`;
+  }
+  function aggregate(sh, labelCol, valueCol, rows, agg = "auto", dateGroup = "mes") {
+    const map = new Map(), n = new Map(), order = new Map();
+    const dated = isDateCol(sh, labelCol);
     rows.forEach(r => {
-      const k = sh.rows[r][labelCol] || "(vazio)";
+      let k = sh.rows[r][labelCol] || "(vazio)";
+      if (dated) {
+        const d = parseDate(String(sh.rows[r][labelCol] || ""));
+        if (!d) k = "(sem data)";
+        else if (dateGroup === "ano") { k = String(d.getFullYear()); order.set(k, d.getFullYear() * 400); }
+        else if (dateGroup === "dia") { k = fmtDMY(d); order.set(k, d.getFullYear() * 400 + d.getMonth() * 32 + d.getDate()); }
+        else { k = monthLabel(d); order.set(k, d.getFullYear() * 400 + d.getMonth() * 32); }
+      }
       const v = valueCol < 0 ? 1 : cellValue(sh, r, valueCol).v;
       map.set(k, (map.get(k) || 0) + (typeof v === "number" ? v : 0));
       n.set(k, (n.get(k) || 0) + (typeof v === "number" ? 1 : 0));
     });
-    if (isAvgCol(sh, valueCol)) map.forEach((v, k) => map.set(k, n.get(k) ? v / n.get(k) : 0));
+    if (useAvg(sh, valueCol, agg)) map.forEach((v, k) => map.set(k, n.get(k) ? v / n.get(k) : 0));
+    if (dated) return new Map([...map].sort((a, b) => (order.get(a[0]) ?? Infinity) - (order.get(b[0]) ?? Infinity)));
     return map;
   }
+
+  // Escreve o valor na ponta de cada barra.
+  const valueLabels = { id: "vl", afterDatasetsDraw(chart, _, o) {
+    if (!o || !o.on) return;
+    const { ctx } = chart; ctx.save();
+    ctx.font = "600 11.5px 'IBM Plex Sans', system-ui, sans-serif"; ctx.fillStyle = o.color;
+    chart.data.datasets.forEach((ds, i) => {
+      const meta = chart.getDatasetMeta(i); if (meta.hidden) return;
+      meta.data.forEach((el, j) => {
+        const v = ds.data[j]; if (!v) return;
+        const t = o.fmt(v);
+        if (o.horizontal) { ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(t, el.x + 6, el.y); }
+        else { ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.fillText(t, el.x, el.y - 4); }
+      });
+    });
+    ctx.restore();
+  } };
+  // Total no centro da rosca.
+  const centerTotal = { id: "ct", afterDatasetsDraw(chart, _, o) {
+    if (!o || !o.on) return;
+    const el = chart.getDatasetMeta(0).data[0]; if (!el) return;
+    const { ctx } = chart; ctx.save(); ctx.textAlign = "center";
+    ctx.fillStyle = o.color; ctx.font = "600 20px 'IBM Plex Sans', system-ui, sans-serif"; ctx.textBaseline = "bottom"; ctx.fillText(o.text, el.x, el.y + 4);
+    ctx.fillStyle = o.sub; ctx.font = "12px 'IBM Plex Sans', system-ui, sans-serif"; ctx.textBaseline = "top"; ctx.fillText(o.label, el.x, el.y + 8);
+    ctx.restore();
+  } };
 
   function drawPainel() {
     const sh = sheet();
     const rows = filteredRows(sh);
-    const ncols = numericCols(sh).slice(0, 4);
+    // Colunas de dinheiro quase sempre zeradas não viram cartão; o usuário também pode esconder cartões.
+    const nonZero = c => { const v = sh.rows.map((_, r) => cellValue(sh, r, c).v).filter(x => typeof x === "number"); return v.length && v.filter(x => x !== 0).length / sh.rows.length >= .3; };
+    const ncols = numericCols(sh).filter(c => !(sh.hiddenKpis || []).includes(c) && (!isMoney(sh, c) || isSampleSheet(sh) || nonZero(c))).slice(0, 3);
     const css = getComputedStyle(document.documentElement);
     const tok = n => css.getPropertyValue(n).trim();
     const series = ["--s1", "--s2", "--s3", "--s4", "--s5"].map(tok);
@@ -884,7 +1108,8 @@
     // KPIs: total por coluna numérica + variação entre os dois últimos períodos (mês, data...)
     const tc = periodCol(sh);
     const groups = tc != null ? [...new Set(rows.map(r => sh.rows[r][tc]))] : [];
-    $("#kpis").innerHTML = ncols.map((c, i) => {
+    const countTile = isSampleSheet(sh) ? "" : `<div class="panel kpi"><span class="lbl">${countLabel(sh) === "O.S." ? "Total de O.S." : "Registros"}</span><span class="val">${nfNum.format(rows.length)}</span><div class="delta">${state.filter.val ? `filtro: ${esc(state.filter.val)}` : `${sh.columns.length} colunas`}</div></div>`;
+    $("#kpis").innerHTML = countTile + ncols.map((c, i) => {
       const total = colSummary(sh, c, rows);
       let delta = "";
       if (groups.length >= 2 && !isPct(sh, c)) {
@@ -898,8 +1123,8 @@
           delta = `<div class="delta"><span class="${good ? "up" : "down"}">${pct >= 0 ? "▲" : "▼"} ${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: Math.abs(pct) >= 10 ? 0 : 1 }).format(Math.abs(pct))}%</span> ${esc(groups[groups.length - 1])} vs ${esc(groups[groups.length - 2])}</div>`;
         }
       }
-      return `<div class="panel kpi"><span class="lbl">${esc(sh.columns[c])}${isAvgCol(sh, c) ? " (média)" : ""}</span><span class="val" title="${esc(fmtCol(sh, c, total))}">${isMoney(sh, c) ? (Math.abs(total) >= 1e6 ? nfBRLCompact.format(total) : nfBRL.format(total)) : Math.abs(total) >= 1e6 ? nfCompact.format(total) : fmtCol(sh, c, total)}</span>${Math.abs(total) >= 1e8 && !isMoney(sh, c) ? `<div class="delta" style="margin-top:2px"><span class="down">⚠ Valor muito alto. É um código?</span></div><button class="btn" style="margin-top:6px;align-self:flex-start" data-suggest="${esc(sh.columns[c].toLowerCase())} é código">Marcar como código</button>` : ""}${delta}<div class="spark"><canvas id="spark_${i}" aria-hidden="true"></canvas></div></div>`;
-    }).join("") + (ncols.length < 3 && !isSampleSheet(sh) ? `<div class="panel kpi"><span class="lbl">Registros</span><span class="val">${nfNum.format(rows.length)}</span><div class="delta">${sh.columns.length} colunas</div></div>` : "") + `<div class="panel kpi"><span class="lbl">Tarefas pendentes</span><span class="val">${state.tasks.filter(t => !t.done).length}</span><div class="delta">${state.tasks.filter(t => !t.done && dueClass(t.due) === "late").length} atrasada(s)</div></div>`;
+      return `<div class="panel kpi"><button class="icon-btn kpi-x" data-hidekpi="${c}" title="Esconder este cartão" aria-label="Esconder cartão ${esc(sh.columns[c])}">${ICONS.x}</button><span class="lbl">${esc(sh.columns[c])}${isAvgCol(sh, c) ? " (média)" : ""}</span><span class="val" title="${esc(fmtCol(sh, c, total))}">${isMoney(sh, c) ? (Math.abs(total) >= 1e6 ? nfBRLCompact.format(total) : nfBRL.format(total)) : Math.abs(total) >= 1e6 ? nfCompact.format(total) : fmtCol(sh, c, total)}</span>${Math.abs(total) >= 1e8 && !isMoney(sh, c) ? `<div class="delta" style="margin-top:2px"><span class="down">⚠ Valor muito alto. É um código?</span></div><button class="btn" style="margin-top:6px;align-self:flex-start" data-suggest="${esc(sh.columns[c].toLowerCase())} é código">Marcar como código</button>` : ""}${delta}<div class="spark"><canvas id="spark_${i}" aria-hidden="true"></canvas></div></div>`;
+    }).join("") + `<div class="panel kpi"><span class="lbl">Tarefas pendentes</span><span class="val">${state.tasks.filter(t => !t.done).length}</span><div class="delta">${state.tasks.filter(t => !t.done && dueClass(t.due) === "late").length} atrasada(s)</div></div>`;
 
     // Sparklines
     if (tc != null) ncols.forEach((c, i) => {
@@ -914,73 +1139,103 @@
       }));
     });
 
-    state.charts.filter(c => c.sheetId === sh.id).forEach(c => {
-      const el = $("#c_" + c.id); if (!el) return;
-      const round = c.type === "doughnut";
-      let aggs = c.values.map(v => aggregate(sh, c.label, v, rows));
-      if (round && aggs[0].size > 5) {
-        // Rosca com muitas fatias vira ilegível: mantém as 4 maiores e agrupa o resto em "Outros".
-        const sorted = [...aggs[0]].sort((a, b) => b[1] - a[1]);
-        aggs = [new Map([...sorted.slice(0, 4), ["Outros", sorted.slice(4).reduce((s, [, v]) => s + v, 0)]])];
-      }
-      const isPeriod = c.label === periodCol(sh) || sh.types?.[c.label] === "data";
-      let labels = [...aggs[0].keys()];
-      if (!isPeriod) {
-        // Categorias: do maior para o menor; acima de 12 grupos, o resto vira "Outros".
-        labels.sort((a, b) => (aggs[0].get(b) || 0) - (aggs[0].get(a) || 0));
-        if (!round && labels.length > 12) {
-          const rest = labels.slice(11);
-          aggs = aggs.map(a => { const m = new Map(labels.slice(0, 11).map(l => [l, a.get(l) || 0])); m.set("Outros", isAvgCol(sh, c.values[aggs.indexOf(a)]) ? rest.reduce((s, l) => s + (a.get(l) || 0), 0) / rest.length : rest.reduce((s, l) => s + (a.get(l) || 0), 0)); return m; });
-          labels = [...labels.slice(0, 11), "Outros"];
+    state.charts.filter(c => c.sheetId === sh.id).forEach(c => drawChart(sh, c, rows, tok, series));
+  }
+
+  function chartData(sh, c, rows) {
+    const round = c.type === "doughnut";
+    let aggs = c.values.map(v => aggregate(sh, c.label, v, rows, c.agg, c.dateGroup));
+    const isPeriod = isDateCol(sh, c.label) || c.label === periodCol(sh);
+    let labels = [...aggs[0].keys()];
+    if (!isPeriod) {
+      // Categorias: do maior para o menor.
+      labels.sort((a, b) => (aggs[0].get(b) || 0) - (aggs[0].get(a) || 0));
+      const limit = c.top || (round ? 5 : c.type === "rank" ? 10 : 12);
+      if (labels.length > limit) {
+        if (c.top) labels = labels.slice(0, c.top);
+        else {
+          const keep = labels.slice(0, limit - 1), rest = labels.slice(limit - 1);
+          aggs = aggs.map((a, i) => { const m = new Map(keep.map(l => [l, a.get(l) || 0])); const tot = rest.reduce((s, l) => s + (a.get(l) || 0), 0); m.set(`Outros (${rest.length})`, useAvg(sh, c.values[i], c.agg) ? tot / rest.length : tot); return m; });
+          labels = [...keep, `Outros (${rest.length})`];
         }
       }
-      const horizontal = c.type === "bar" && !isPeriod && (labels.length > 6 || Math.max(...labels.map(l => String(l).length)) > 10);
-      const money = c.values.every(v => v >= 0 && isMoney(sh, v));
-      const dur = c.values.every(v => v >= 0 && isDur(sh, v));
-      const fmt = v => money ? nfBRL.format(v) : dur ? fmtDur(v) : nfNum.format(v);
-      const tick = v => money ? "R$ " + nfCompact.format(v) : dur ? v + "h" : nfCompact.format(v);
-      const vals = round ? [aggs[0]] : aggs;
-      const datasets = vals.map((a, i) => ({
-        label: colName(sh, c.values[i]),
-        data: labels.map(l => a.get(l) || 0),
-        backgroundColor: round ? labels.map((l, j) => l === "Outros" ? tok("--border-strong") : series[j]) : (c.type === "line" ? series[i] + "1f" : series[i]),
-        borderColor: round ? tok("--surface") : series[i],
-        borderWidth: 2,
-        borderRadius: c.type === "bar" ? 4 : 0,
-        pointRadius: c.type === "line" ? 3 : 0,
-        pointHoverRadius: 6,
-        pointBackgroundColor: series[i],
-        fill: c.type === "line" && vals.length === 1,
-        tension: 0,
-        maxBarThickness: 36,
-      }));
-      charts.push(new Chart(el, {
-        type: c.type,
-        data: { labels, datasets },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          indexAxis: horizontal ? "y" : "x",
-          interaction: { mode: round ? "nearest" : "index", intersect: round, axis: horizontal ? "y" : "x" },
-          cutout: round ? "62%" : undefined,
-          plugins: {
-            legend: { display: round || datasets.length > 1, position: round ? "right" : "top", align: "end", labels: { color: tok("--text-2"), boxWidth: 10, boxHeight: 10, usePointStyle: true, pointStyle: "rectRounded", generateLabels: round ? chart => { const ds = chart.data.datasets[0], tot = ds.data.reduce((a, b) => a + b, 0) || 1; return chart.data.labels.map((l, i) => ({ text: `${l}  ${nfNum.format(Math.round(ds.data[i] / tot * 1000) / 10)}%`, fillStyle: ds.backgroundColor[i], strokeStyle: ds.backgroundColor[i], fontColor: tok("--text-2"), index: i, hidden: !chart.getDataVisibility(i), pointStyle: "rectRounded" })); } : undefined } },
-            tooltip: {
-              backgroundColor: tok("--raised"), borderColor: tok("--border-strong"), borderWidth: 1,
-              titleColor: tok("--text"), bodyColor: tok("--text-2"), padding: 10, boxPadding: 4,
-              callbacks: { label: ctx => {
-                if (round) { const tot = ctx.dataset.data.reduce((a, b) => a + b, 0) || 1; return ` ${ctx.label}: ${fmt(ctx.parsed)} (${nfNum.format(ctx.parsed / tot * 100)}%)`; }
-                return ` ${ctx.dataset.label}: ${fmt(horizontal ? ctx.parsed.x : ctx.parsed.y)}`;
-              } },
-            },
+    }
+    return { aggs, labels, isPeriod };
+  }
+
+  function drawChart(sh, c, rows, tok, series) {
+    const { aggs, labels, isPeriod } = chartData(sh, c, rows);
+    const round = c.type === "doughnut";
+    const money = c.values.every(v => v >= 0 && isMoney(sh, v));
+    const dur = c.values.every(v => v >= 0 && isDur(sh, v));
+    const fmt = v => money ? nfBRL.format(v) : dur ? fmtDur(v) : nfNum.format(Math.round(v * 100) / 100);
+    const tick = v => money ? "R$ " + nfCompact.format(v) : dur ? v + "h" : nfCompact.format(v);
+
+    if (c.type === "rank") {
+      const el = $("#r_" + c.id); if (!el) return;
+      const a = aggs[0], max = Math.max(...labels.map(l => a.get(l) || 0), 1), tot = labels.reduce((s, l) => s + (a.get(l) || 0), 0) || 1;
+      const count = c.values[0] < 0;
+      el.innerHTML = labels.length ? labels.map((l, i) => { const v = a.get(l) || 0; return `
+        <li><span class="rk-pos">${i + 1}</span><span class="rk-name" title="${esc(l)}">${esc(l)}</span>
+        <span class="rk-bar"><i style="width:${Math.max(2, v / max * 100)}%"></i></span>
+        <span class="rk-val">${esc(fmt(v))}${count ? `<small>${nfNum.format(Math.round(v / tot * 1000) / 10)}%</small>` : ""}</span></li>`; }).join("") : `<li class="empty">Sem dados para mostrar.</li>`;
+      return;
+    }
+    const el = $("#c_" + c.id); if (!el) return;
+    const horizontal = c.type === "bar" && !isPeriod && (labels.length > 5 || Math.max(...labels.map(l => String(l).length)) > 10);
+    const vals = round ? [aggs[0]] : aggs;
+    const single = vals.length === 1;
+    const datasets = vals.map((a, i) => ({
+      label: measureLabel(sh, c.values[i], c.agg),
+      data: labels.map(l => a.get(l) || 0),
+      backgroundColor: round ? labels.map((l, j) => /^Outros/.test(l) ? tok("--border-strong") : series[j]) : (c.type === "line" ? series[i] + "22" : series[i]),
+      borderColor: round ? tok("--surface") : series[i],
+      borderWidth: round ? 3 : 2,
+      borderRadius: c.type === "bar" ? 5 : 0,
+      borderSkipped: false,
+      pointRadius: c.type === "line" ? (labels.length > 24 ? 0 : 4) : 0,
+      pointHoverRadius: 6,
+      pointBackgroundColor: series[i],
+      pointBorderColor: tok("--surface"),
+      pointBorderWidth: 2,
+      fill: c.type === "line" && single,
+      tension: 0,
+      barPercentage: .72, categoryPercentage: .8,
+      maxBarThickness: horizontal ? 22 : 44,
+    }));
+    const showLabels = c.type === "bar" && single && labels.length <= 15;
+    const total = round ? datasets[0].data.reduce((a, b) => a + b, 0) : 0;
+    charts.push(new Chart(el, {
+      type: c.type,
+      data: { labels, datasets },
+      plugins: [valueLabels, centerTotal],
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        indexAxis: horizontal ? "y" : "x",
+        layout: { padding: { right: horizontal && showLabels ? 56 : 8, top: !horizontal && showLabels ? 20 : 4 } },
+        interaction: { mode: round ? "nearest" : "index", intersect: round, axis: horizontal ? "y" : "x" },
+        cutout: round ? "64%" : undefined,
+        plugins: {
+          vl: { on: showLabels, horizontal, fmt, color: tok("--text-2") },
+          ct: { on: round, text: money ? nfBRLCompact.format(total) : nfNum.format(Math.round(total)), label: c.values[0] < 0 ? "total" : "soma", color: tok("--text"), sub: tok("--muted") },
+          legend: { display: round || !single, position: round ? "right" : "top", align: round ? "center" : "end", labels: { color: tok("--text-2"), boxWidth: 10, boxHeight: 10, padding: 12, usePointStyle: true, pointStyle: "rectRounded", generateLabels: round ? chart => { const ds = chart.data.datasets[0], tot = ds.data.reduce((a, b) => a + b, 0) || 1; return chart.data.labels.map((l, i) => ({ text: `${String(l).length > 22 ? String(l).slice(0, 21) + "…" : l}  ${nfNum.format(Math.round(ds.data[i] / tot * 1000) / 10)}%`, fillStyle: ds.backgroundColor[i], strokeStyle: ds.backgroundColor[i], fontColor: tok("--text-2"), index: i, hidden: !chart.getDataVisibility(i), pointStyle: "rectRounded" })); } : undefined } },
+          tooltip: {
+            backgroundColor: tok("--raised"), borderColor: tok("--border-strong"), borderWidth: 1,
+            titleColor: tok("--text"), bodyColor: tok("--text-2"), padding: 10, boxPadding: 4,
+            callbacks: { label: ctx => {
+              if (round) { const tot = ctx.dataset.data.reduce((a, b) => a + b, 0) || 1; return ` ${ctx.label}: ${fmt(ctx.parsed)} (${nfNum.format(Math.round(ctx.parsed / tot * 1000) / 10)}%)`; }
+              return ` ${ctx.dataset.label}: ${fmt(horizontal ? ctx.parsed.x : ctx.parsed.y)}`;
+            } },
           },
-          scales: round ? {} : (() => {
-            const cat = { grid: { display: false }, border: { color: tok("--border-strong") }, ticks: { color: tok("--muted"), autoSkip: !horizontal, maxRotation: 0, callback(v) { const l = String(this.getLabelForValue(v)); return l.length > 22 ? l.slice(0, 21) + "…" : l; } } };
-            const val = { beginAtZero: true, grid: { color: tok("--grid") }, border: { display: false }, ticks: { color: tok("--muted"), callback: tick } };
-            return horizontal ? { x: val, y: cat } : { x: cat, y: val };
-          })(),
         },
-      }));
-    });
+        scales: round ? {} : (() => {
+          const cat = { grid: { display: false }, border: { display: false }, ticks: { color: tok("--text-2"), autoSkip: !horizontal, maxRotation: 0, padding: 6, callback(v) { const l = String(this.getLabelForValue(v)); return l.length > 24 ? l.slice(0, 23) + "…" : l; } } };
+          const val = { beginAtZero: true, grid: { color: tok("--grid"), drawTicks: false }, border: { display: false }, ticks: { color: tok("--muted"), callback: tick, maxTicksLimit: 5, padding: 6, precision: c.values[0] < 0 ? 0 : undefined } };
+          if (horizontal && showLabels) { val.display = false; }
+          return horizontal ? { x: val, y: cat } : { x: cat, y: val };
+        })(),
+      },
+    }));
   }
 
   /* ---------- Planilhas ---------- */
@@ -1077,6 +1332,12 @@
     ["ordenar por receita desc", "Ordena as linhas"],
     ["filtrar categoria = Serviços", "Filtra o painel"],
     ["limpar filtro", "Remove o filtro"],
+    ["quantidade de O.S. por setor", "Gráfico com suas palavras"],
+    ["O.S. por mês", "Evolução no tempo"],
+    ["top 10 equipamentos", "Ranking dos maiores"],
+    ["tempo médio por técnico", "Média por grupo"],
+    ["limpar gráficos", "Remove os gráficos da planilha"],
+    ["esconder custo", "Tira uma coluna do painel"],
     ["criar gráfico de receita por mês", "Adiciona gráfico ao painel"],
     ["gráfico de pizza de lucro por categoria", "Gráfico de rosca"],
     ["gráfico de registros por cidade", "Conta registros por grupo"],
@@ -1236,7 +1497,7 @@
     }
 
     // Estatísticas
-    if ((m = n.match(/^(somar|soma|total|media|maior|max|maximo|menor|min|minimo)\s+(?:d[aeo]s?\s+)?(?:coluna\s+)?(.+)$/))) {
+    if (!/ por /.test(` ${n} `) && (m = n.match(/^(somar|soma|total|media|maior|max|maximo|menor|min|minimo)\s+(?:d[aeo]s?\s+)?(?:coluna\s+)?(.+)$/))) {
       const c = findCol(sh, m[2]);
       if (c < 0) return say(`Não achei a coluna “${esc(m[2])}”. Colunas: ${sh.columns.map(x => code(x)).join(", ")}.`, "bot", "err");
       const rows = filteredRows(sh);
@@ -1282,24 +1543,33 @@
     }
 
     // Gráficos
-    if (/^(criar|cria|novo|adicionar|fazer|faz|gerar|gera)?\s*(um\s+)?grafico/.test(n)) {
-      let type = /pizza|rosca|donut|torta/.test(n) ? "doughnut" : /linha|evolucao|tendencia/.test(n) ? "line" : "bar";
-      const gm = n.match(/de\s+(?:(?:barras?|linhas?|pizza|rosca|colunas)\s+(?:de\s+)?)?(.+?)\s+por\s+(.+)$/);
-      if (!gm) {
-        const nc = numericCols(sh), tc = textCols(sh);
-        return say(`Diga o que medir e como agrupar. Exemplos para ${esc(sh.name)}:<ul>${nc.slice(0, 2).map(v => `<li>${code(`criar gráfico de ${sh.columns[v].toLowerCase()} por ${sh.columns[tc[0]]?.toLowerCase()}`)}</li>`).join("")}${nc[0] != null && tc[1] != null ? `<li>${code(`gráfico de pizza de ${sh.columns[nc[0]].toLowerCase()} por ${sh.columns[tc[1]].toLowerCase()}`)}</li>` : ""}</ul>`);
-      }
-      const valueNames = gm[1].split(/\s*(?:,|\se\s)\s*/);
-      const values = valueNames.map(v => findCol(sh, v) >= 0 ? findCol(sh, v) : /^(contagem|quantidade|qtd|registros|linhas|numero de registros|quantidade de registros)$/.test(v.trim()) ? -1 : -2);
-      const label = findCol(sh, gm[2]);
-      if (values.some(v => v < -1) || label < 0) return say(`Não reconheci as colunas. Disponíveis: ${sh.columns.map(x => code(x)).join(", ")}.`, "bot", "err");
-      if (!values.every(v => v === -1 || numericCols(sh).includes(v))) return say(`${values.filter(v => !numericCols(sh).includes(v)).map(v => code(sh.columns[v])).join(", ")} não é numérica; escolha uma coluna com valores.`, "bot", "err");
-      if (type === "doughnut" && values.length > 1) type = "bar";
-      const title = `${values.map(v => colName(sh, v)).join(" e ")} por ${sh.columns[label].toLowerCase()}`;
-      state.charts.push({ id: uid(), sheetId: sh.id, type, label, values, title: title.charAt(0).toUpperCase() + title.slice(1) });
+    if (/^(limpar|remover|apagar|tirar|excluir)\s+(todos\s+)?(os\s+)?graficos/.test(n)) {
+      const mine = state.charts.filter(c => c.sheetId === sh.id);
+      if (!mine.length) return say("Esta planilha não tem gráficos.");
+      snapshot("gráficos"); state.charts = state.charts.filter(c => c.sheetId !== sh.id); goto("painel");
+      return say(`Removi ${mine.length} gráfico(s) de <b>${esc(sh.name)}</b>. Peça os que quiser, por exemplo ${code(chartExamples(sh)[0])}.${undoBtn}`);
+    }
+    if ((m = n.match(/^(esconder|ocultar|nao mostrar|tirar)\s+(?:o\s+|a\s+)?(?:cartao\s+(?:de\s+)?)?(.+)$/))) {
+      const c = findCol(sh, m[2]);
+      if (c >= 0) { sh.hiddenKpis = [...new Set([...(sh.hiddenKpis || []), c])]; const rm = state.charts.filter(x => x.sheetId === sh.id && x.values.includes(c)); state.charts = state.charts.filter(x => !rm.includes(x)); goto("painel"); return say(`Pronto: ${code(sh.columns[c])} não aparece mais no painel${rm.length ? ` (removi ${rm.length} gráfico(s) que usavam essa coluna)` : ""}. Para voltar: ${code(`mostrar ${sh.columns[c].toLowerCase()}`)}.`); }
+    }
+    if ((m = n.match(/^(mostrar|exibir|voltar a mostrar)\s+(?:o\s+|a\s+)?(.+)$/)) && !/ por /.test(n)) {
+      const c = findCol(sh, m[2]);
+      if (c >= 0 && (sh.hiddenKpis || []).includes(c)) { sh.hiddenKpis = sh.hiddenKpis.filter(x => x !== c); goto("painel"); return say(`${code(sh.columns[c])} voltou ao painel.`); }
+    }
+    if (/^(criar|cria|novo|nova|adicionar|fazer|faz|gerar|gera|montar|quero)?\s*(um\s+)?(novo\s+)?grafico$/.test(n)) { openBuilder(); return say("Abri o montador de gráfico. Escolha o que medir e como agrupar."); }
+    const chartIntent = !/^(nova|criar|cria|adicionar)\s+tarefa|^concluir|^(abrir|apagar|excluir|remover)\s+planilha/.test(n) && (/grafico|pizza|rosca|ranking|\btop\s*\d/.test(n)
+      || (/ por /.test(` ${n} `) && /^(mostrar|mostre|mostra|quero|ver|exibir|quantos|quantas|quantidade|numero|total|qtd|media|contar|conte|distribuicao|evolucao|comparar|o\.?s\b|os\b)/.test(n))
+      || / por /.test(` ${n} `) && chartColsIn(sh, n.split(" por ")[0]).length > 0);
+    if (chartIntent) {
+      const req = parseChartRequest(sh, n);
+      if (req.error) return say(req.error, "bot", "err");
+      const c = { id: uid(), sheetId: sh.id, ...req };
+      c.title = chartTitle(sh, c);
+      state.charts.push(c);
       goto("painel");
       $("#main").scrollTop = $("#main").scrollHeight;
-      return say(`Gráfico <b>${esc(title)}</b> adicionado ao painel. Troque o tipo pelos botões Barras, Linhas e Rosca no cartão.`);
+      return say(`Adicionei <b>${esc(c.title)}</b> (${esc(unitText(sh, c))}). Mude o tipo nos botões do cartão ou clique no lápis para editar.`);
     }
 
     // Tarefas
@@ -1820,28 +2090,18 @@
   }
 
   function autoCharts(sh) {
-    const t = sh.types, idx = type => t.map((x, i) => x === type ? i : -1).filter(i => i >= 0);
-    const metric = idx("moeda")[0] ?? idx("numero").find(i => !isAvgCol(sh, i)) ?? -1;
-    const period = sh.periodCol;
     const uniq = c => new Set(sh.rows.map(r => r[c]).filter(Boolean)).size;
-    const cats = idx("categoria").filter(i => i !== period && uniq(i) >= 2);
-    const name = v => v < 0 ? "Registros" : sh.columns[v];
+    const types = sh.columns.map((_, i) => effType(sh, i));
+    const period = sh.periodCol ?? types.findIndex(t => t === "data");
+    const cats = types.map((t, i) => t === "categoria" && i !== sh.periodCol && uniq(i) >= 2 ? i : -1).filter(i => i >= 0);
     const list = [];
-    const add = (type, label, values) => list.push({ id: uid(), sheetId: sh.id, type, label, values, title: (t => t.charAt(0).toUpperCase() + t.slice(1))(`${values.map(name).join(" e ")} por ${sh.columns[label].toLowerCase()}`) });
-    if (period != null && uniq(period) > 1) {
-      const money = idx("moeda").slice(0, 2);
-      add("line", period, money.length ? money : [metric]);
-    }
-    // Rosca: de preferência status/tipo (conta registros); barras: a categoria com mais grupos úteis.
+    const add = (type, label, top = 0) => { const c = { id: uid(), sheetId: sh.id, type, label, values: [-1], agg: "auto", top, dateGroup: "mes" }; c.title = chartTitle(sh, c); list.push(c); };
+    if (period >= 0 && period != null && uniq(period) > 1) add("line", period);
     const statusLike = c => /status|situacao|tipo|prioridade|criticidade|etapa|fase/.test(norm(sh.columns[c]));
     const small = cats.find(c => statusLike(c) && uniq(c) <= 6) ?? cats.find(c => uniq(c) <= 5);
-    const barCat = cats.filter(c => c !== small).sort((a, b) => (uniq(a) > 12) - (uniq(b) > 12) || (uniq(b) >= 3) - (uniq(a) >= 3))[0];
-    if (barCat != null) add("bar", barCat, [metric]);
-    if (small != null) add("doughnut", small, statusLike(small) || metric < 0 ? [-1] : [metric]);
-    if (!list.length) {
-      const anyText = textCols(sh)[0];
-      if (anyText != null && uniq(anyText) <= 25) add("bar", anyText, [metric]);
-    }
+    const main = cats.filter(c => c !== small).sort((a, b) => (uniq(b) >= 3) - (uniq(a) >= 3) || uniq(a) - uniq(b))[0];
+    if (main != null) add(uniq(main) > 8 ? "rank" : "bar", main);
+    if (small != null) add("doughnut", small);
     return list.slice(0, 3);
   }
 
@@ -1974,7 +2234,12 @@
     if (t.dataset.view) { goto(t.dataset.view); return; }
     if (t.dataset.sheet) { state.activeSheet = t.dataset.sheet; state.filter = { col: null, val: "" }; selCell = null; state.view = "planilhas"; render(); return; }
     if (t.dataset.run) { const inp = $("#cmdInput"); if (/ $|nova planilha$|gráfico$/.test(t.dataset.run)) { openAssist(); inp.value = t.dataset.run + " "; inp.focus(); } else run(t.dataset.run); return; }
-    if (t.dataset.ctype) { const c = state.charts.find(c => c.id === t.dataset.chart); if (c.values.length > 1 && t.dataset.ctype === "doughnut") { toast("Rosca mostra só uma medida; usei a primeira."); c.values = [c.values[0]]; } c.type = t.dataset.ctype; render(); return; }
+    if (t.dataset.ctype) { const c = state.charts.find(c => c.id === t.dataset.chart); if (c.values.length > 1 && (t.dataset.ctype === "doughnut" || t.dataset.ctype === "rank")) { toast("Esse tipo mostra só uma medida; usei a primeira."); c.values = [c.values[0]]; c.title = chartTitle(sheet(), c); } c.type = t.dataset.ctype; render(); return; }
+    if (t.dataset.editchart) { openBuilder(state.charts.find(c => c.id === t.dataset.editchart)); return; }
+    if (t.dataset.act === "newchart") { openBuilder(); return; }
+    if (t.dataset.hidekpi) { const sh = sheet(); sh.hiddenKpis = [...new Set([...(sh.hiddenKpis || []), +t.dataset.hidekpi])]; render(); toast(`Cartão escondido. Para voltar: “mostrar ${sh.columns[+t.dataset.hidekpi].toLowerCase()}”`); return; }
+    if (t.dataset.bset) { builderSet(t.dataset.bset, t.dataset.v); return; }
+    if (t.dataset.bact) { builderAct(t.dataset.bact); return; }
     if (t.dataset.delchart) { state.charts = state.charts.filter(c => c.id !== t.dataset.delchart); render(); toast("Gráfico removido"); return; }
     if (t.dataset.fval !== undefined) { state.filter.val = t.dataset.fval; render(); return; }
     if (t.dataset.deltask) { state.tasks = state.tasks.filter(x => x.id !== t.dataset.deltask); render(); return; }
@@ -2123,7 +2388,7 @@
     else if (sh && !isSampleSheet(sh)) {
       const cat = (sh.types || []).findIndex((t, i) => t === "categoria" && i !== sh.periodCol);
       const num = numericCols(sh)[0];
-      list = ["verificar", "resumo", num != null ? `maior ${sh.columns[num].toLowerCase()}` : null, cat >= 0 ? `criar gráfico de registros por ${sh.columns[cat].toLowerCase()}` : null, "importar dados", hasSamples() ? "apagar exemplos" : null, "ajuda"].filter(Boolean);
+      list = [...chartExamples(sh).slice(0, 3), "verificar", "resumo", hasSamples() ? "apagar exemplos" : null, "ajuda"].filter(Boolean);
     } else list = ["apagar exemplos", "importar dados", "resumo", "criar gráfico de receita por categoria", "ajuda"];
     $("#suggest").innerHTML = list.map(s => `<button type="button" data-suggest="${esc(s)}">${esc(s)}</button>`).join("");
   }
