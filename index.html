@@ -76,6 +76,14 @@
   .nav button[aria-current="true"] { background: var(--accent-soft); color: var(--text); }
   .nav button[aria-current="true"] svg { color: var(--accent); }
   .nav svg { width: 16px; height: 16px; flex: none; }
+  .nav-item { display: flex; align-items: center; gap: 2px; }
+  .nav-item > button:first-child { flex: 1; min-width: 0; }
+  .nav .nav-del { opacity: .45; flex: none; width: auto; padding: 6px; }
+  .nav .nav-item > button:first-child span:not(.count) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .imp-head .icon-btn { margin-left: auto; }
+  .imp-head .steps + .icon-btn { margin-left: 0; }
+  .nav-item:hover .nav-del, .nav-del:focus-visible { opacity: 1; }
+  .nav-del:hover { color: var(--bad); }
   .nav .count { margin-left: auto; color: var(--muted); font: 12px var(--mono); }
   .side-foot { margin-top: auto; color: var(--muted); font-size: 12px; padding: 0 8px; }
   kbd {
@@ -183,6 +191,9 @@
     font-weight: 500; text-align: left; padding: 0; font-size: 12px;
   }
   .grid thead .col-letter { display: block; color: var(--muted); font: 11px var(--mono); padding: 4px 10px 0; }
+  .type-pick { background: none; border: 0; color: var(--accent); font: 11px var(--mono); padding: 0; cursor: pointer; }
+  .type-pick:hover { text-decoration: underline; }
+  .type-pick option { background: var(--raised); color: var(--text); }
   .grid thead input {
     display: block; width: 100%; background: none; border: 0; padding: 0 10px 6px;
     font-weight: 600; color: var(--text); font-size: 13px;
@@ -290,6 +301,13 @@
   .btn.danger { color: #f0a09b; border-color: rgba(229,83,75,.35); }
   .btn.danger:hover { background: rgba(229,83,75,.12); }
   .btn.danger[data-armed] { background: var(--bad); border-color: var(--bad); color: #fff; }
+  dialog.wipe { width: min(520px, calc(100vw - 32px)); }
+  .wipe-opt { display: flex; flex-direction: column; gap: 8px; }
+  .wipe-opt button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 12px 14px; border-radius: 8px; cursor: pointer;
+    background: var(--raised); border: 1px solid var(--border-strong); color: var(--text); font: inherit; }
+  .wipe-opt button span { color: var(--muted); font-size: 12.5px; }
+  .wipe-opt button:hover { border-color: var(--bad); background: rgba(229,83,75,.08); }
+  .wipe-opt button.cancel:hover { border-color: var(--border-strong); background: var(--hover); }
   .banner {
     display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;
     padding: 10px 14px; border-radius: var(--radius); font-size: 13px;
@@ -459,6 +477,12 @@
   </div>
   <div id="impContent"></div>
 </dialog>
+<dialog class="imp wipe" id="wipeDlg" aria-labelledby="wipeTitle">
+  <div class="imp-head"><h2 id="wipeTitle">Apagar dados</h2>
+    <button class="icon-btn" type="button" data-wipe="cancel" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="imp-body" id="wipeBody"></div>
+</dialog>
 <div class="drag-veil" id="dragVeil" hidden>Solte o arquivo para importar</div>
 <div class="toast" id="toast" hidden></div>
 
@@ -492,7 +516,14 @@
     else if (/^\-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
     return Number(s);
   }
-  const isMoneyCol = name => /receita|custo|valor|preco|total|lucro|despesa|faturamento|salario|r\$/.test(norm(name));
+  // Dinheiro só com sinal claro no nome; quantidades, tempos e contagens nunca são dinheiro.
+  const NOT_MONEY = /quant|qtd|qtde|numero|n[º°]|registros|itens|unidades|contagem|percent|%|chamados|ordens/;
+  const isMoneyCol = name => {
+    const n = norm(name);
+    if (/r\$|\breais\b/.test(n)) return true;
+    if (NOT_MONEY.test(n)) return false;
+    return /(^|\s)(custo|custos|preco|valor|valores|receita|receitas|despesa|despesas|faturamento|salario|lucro|orcamento|pagamento|pagamentos|gasto|gastos|montante|investimento|mao de obra|ticket medio)(\s|$)/.test(n);
+  };
   // Tipo identificado na importação tem prioridade; sem ele, o nome da coluna decide.
   const isMoney = (sh, c) => sh.types?.[c] ? sh.types[c] === "moeda" : isMoneyCol(sh.columns[c]);
   const isPct = (sh, c) => sh.types?.[c] === "percentual";
@@ -528,7 +559,7 @@
       filter: { col: 1, val: "" },
       sheets: [
         { id: vendasId, sample: true, name: "Vendas 2026", columns: ["Mês", "Categoria", "Receita", "Custo", "Lucro"], rows: sampleSales() },
-        { id: estoqueId, sample: true, name: "Estoque", columns: ["Item", "Fornecedor", "Quantidade", "Preço unitário", "Total"], rows: [
+        { id: estoqueId, sample: true, name: "Estoque", columns: ["Item", "Fornecedor", "Quantidade", "Preço unitário", "Valor total"], rows: [
           ["Papel A4 (cx)", "Distrib. Sul", "38", "189.90", "=C2*D2"],
           ["Toner HP 85A", "InfoParts", "12", "329.00", "=C3*D3"],
           ["Cadeira ergonômica", "Móveis Lima", "6", "1240.00", "=C4*D4"],
@@ -555,12 +586,13 @@
   const KEY = "assistente-gestao-v1";
   let state;
   try { state = JSON.parse(localStorage.getItem(KEY)) || defaultState(); } catch { state = defaultState(); }
+  const migrated = [];
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
 
   const sheet = () => state.sheets.find(s => s.id === state.activeSheet) || state.sheets[0];
   // Versões anteriores não marcavam os exemplos; reconhece pelo conteúdo original.
   const SAMPLE_TASKS = ["Fechar relatório de setembro", "Renegociar contrato com InfoParts", "Revisar metas do 4º trimestre", "Enviar planilha de estoque ao financeiro"];
-  const isSampleSheet = s => s.sample || (!s.types && ((s.name === "Vendas 2026" && s.columns.join() === "Mês,Categoria,Receita,Custo,Lucro") || (s.name === "Estoque" && s.columns.join() === "Item,Fornecedor,Quantidade,Preço unitário,Total")));
+  const isSampleSheet = s => s.sample || (!s.types && ((s.name === "Vendas 2026" && s.columns.join() === "Mês,Categoria,Receita,Custo,Lucro") || (s.name === "Estoque" && /^Item,Fornecedor,Quantidade,Preço unitário,(Valor total|Total)$/.test(s.columns.join()))));
   const isSampleTask = t => t.sample || SAMPLE_TASKS.includes(t.text);
   const hasSamples = () => state.sheets.some(isSampleSheet) || state.tasks.some(isSampleTask);
 
@@ -578,6 +610,27 @@
     state.filter = { col: null, val: "" }; selCell = null;
   }
   const undoBtn = `<div class="actions"><button class="btn" data-suggest="desfazer">Desfazer</button></div>`;
+  function openWipe() {
+    const sh = sheet(), d = $("#wipeDlg");
+    const opts = [];
+    if (sh) opts.push(["sheet", `Apagar a planilha “${sh.name}”`, `${sh.rows.length} linhas e os gráficos dela.`]);
+    if (sh && sh.rows.length) opts.push(["rows", `Esvaziar “${sh.name}”`, "Apaga as linhas mas mantém as colunas, para colar dados novos."]);
+    if (hasSamples()) opts.push(["samples", "Apagar só os dados de exemplo", "Vendas 2026, Estoque e as tarefas de exemplo."]);
+    if (state.sheets.length > 1 || state.tasks.length) opts.push(["all", "Apagar tudo", `${state.sheets.length} planilha(s), todos os gráficos e ${state.tasks.length} tarefa(s).`]);
+    $("#wipeBody").innerHTML = `<p class="lead" style="margin:0;color:var(--text-2)">Escolha o que apagar. Dá para recuperar logo depois com <b>Desfazer</b>.</p>
+      <div class="wipe-opt">${opts.map(([k, a, b]) => `<button type="button" data-wipe="${k}"><b>${esc(a)}</b><span>${esc(b)}</span></button>`).join("")}
+      <button type="button" class="cancel" data-wipe="cancel"><b>Cancelar</b><span>Não apagar nada.</span></button></div>`;
+    try { d.showModal(); } catch { d.setAttribute("open", ""); }
+  }
+  function doWipe(k) {
+    const d = $("#wipeDlg"); if (d.open) d.close();
+    const sh = sheet();
+    if (k === "cancel") return;
+    if (k === "samples") return clearSamples();
+    if (k === "sheet") { snapshot(sh.name); removeSheets([sh.id]); render(); openAssist(); return say(`Planilha <b>${esc(sh.name)}</b> apagada, junto com os gráficos dela.${undoBtn}`); }
+    if (k === "rows") { snapshot(sh.name); sh.rows = [sh.columns.map(() => "")]; state.filter.val = ""; render(); openAssist(); return say(`Esvaziei <b>${esc(sh.name)}</b>. As colunas continuam; cole ou importe os dados novos.${undoBtn}`); }
+    if (k === "all") { snapshot("tudo"); removeSheets(state.sheets.map(s => s.id)); state.tasks = []; render(); openAssist(); return say(`Apaguei todas as planilhas, gráficos e tarefas.${undoBtn}`); }
+  }
   function clearSamples() {
     const sheets = state.sheets.filter(isSampleSheet);
     const tasks = state.tasks.filter(isSampleTask);
@@ -643,9 +696,28 @@
   // Códigos (O.S., TAG, patrimônio...) nunca entram em somas, mesmo em planilhas importadas antes desta regra.
   function isIdCol(sh, c) {
     const t = sh.types?.[c];
+    if (sh.userSet?.[c]) return false; // o usuário escolheu o tipo: respeita
     if (t && t !== "numero" && t !== "texto") return false;
     if (ID_HINT.test(norm(sh.columns[c]))) return true;
     return looksIdValues(sh.rows.map(r => r[c]).filter(v => v !== "" && v != null), sh.columns[c]);
+  }
+  // Tipo que o painel está usando para a coluna (definido na importação, pelo usuário ou deduzido).
+  function effType(sh, c) {
+    if (sh.types?.[c]) return sh.types[c];
+    if (isIdCol(sh, c)) return "texto";
+    const vals = sh.rows.map((_, r) => cellValue(sh, r, c).v).filter(v => v !== "");
+    if (vals.length && vals.filter(v => typeof v === "number").length / vals.length >= .8) return isMoneyCol(sh.columns[c]) ? "moeda" : "numero";
+    return new Set(vals).size < vals.length ? "categoria" : "texto";
+  }
+  function setType(sh, c, t) {
+    if (!sh.types) sh.types = sh.columns.map((_, i) => effType(sh, i));
+    while (sh.types.length < sh.columns.length) sh.types.push(effType(sh, sh.types.length));
+    const was = sh.types[c];
+    sh.types[c] = t; sh.typesV = 2;
+    sh.userSet = { ...(sh.userSet || {}), [c]: true };
+    // Converte textos com "R$" / vírgula em número ao virar tipo numérico.
+    if (NUM_TYPES.includes(t)) sh.rows.forEach(r => { const v = r[c]; if (v && !String(v).startsWith("=")) { const n = t === "duracao" ? parseDuration(String(v)) : parseNum(v); if (!isNaN(n)) r[c] = String(n); } });
+    return was;
   }
   const numericCols = sh => sh.columns.map((_, c) => c).filter(c => {
     if (isIdCol(sh, c)) return false;
@@ -699,7 +771,7 @@
     $("#nav").innerHTML = '<div class="nav-label">Áreas</div>' + VIEWS.map(([k, l]) =>
       `<button data-view="${k}" aria-current="${state.view === k}">${ICONS[k]}${l}${k === "tarefas" ? `<span class="count">${pending}</span>` : ""}</button>`).join("");
     $("#sheetNav").innerHTML = '<div class="nav-label">Planilhas</div>' + state.sheets.map(s =>
-      `<button data-sheet="${s.id}" aria-current="${state.view === "planilhas" && s.id === state.activeSheet}">${ICONS.sheet}${esc(s.name)}<span class="count">${s.rows.length}</span></button>`).join("")
+      `<div class="nav-item"><button data-sheet="${s.id}" aria-current="${state.view === "planilhas" && s.id === state.activeSheet}">${ICONS.sheet}<span>${esc(s.name)}</span><span class="count">${s.rows.length}</span></button><button class="icon-btn nav-del" data-delsheet="${s.id}" title="Apagar ${esc(s.name)}" aria-label="Apagar planilha ${esc(s.name)}">${ICONS.trash}</button></div>`).join("")
       + `<button data-act="import">${ICONS.up}Importar dados</button>`;
     $("#mobileNav").innerHTML = VIEWS.map(([k, l]) => `<button data-view="${k}" aria-current="${state.view === k}">${l}</button>`).join("");
   }
@@ -757,7 +829,7 @@
     return `${sampleBanner()}
       <div class="topbar">
         <div><h1>Painel · ${esc(sh.name)}</h1><p>${sh.rows.length} linhas · atualizado ao editar a planilha ${isSample ? '· <span class="tag">dados de exemplo</span>' : ""}</p></div>
-        <div class="row">${sheetSelect()}<button class="btn" data-act="import">${ICONS.up}Importar dados</button><button class="btn" data-run="criar gráfico">${ICONS.plus}Novo gráfico</button></div>
+        <div class="row">${sheetSelect()}<button class="btn" data-act="import">${ICONS.up}Importar dados</button><button class="btn" data-run="criar gráfico">${ICONS.plus}Novo gráfico</button><button class="btn danger" data-act="wipe">${ICONS.trash}Apagar dados</button></div>
       </div>
       <div class="kpis" id="kpis"></div>
       <div class="filters">
@@ -770,7 +842,7 @@
         ${myCharts.length ? myCharts.map(c => `
           <section class="panel chart-card">
             <div class="panel-head">
-              <h2>${esc(c.title)}</h2>
+              <div><h2>${esc(c.title)}</h2><div class="sub">${esc(unitText(sh, c))}</div></div>
               <div class="row nowrap">
                 <div class="seg" role="group" aria-label="Tipo de gráfico">
                   ${[["bar", "Barras"], ["line", "Linhas"], ["doughnut", "Rosca"]].map(([t, l]) =>
@@ -784,6 +856,9 @@
       </div>`;
   }
 
+  function unitText(sh, c) {
+    return c.values.map(v => v < 0 ? "quantidade de registros" : isMoney(sh, v) ? (isAvgCol(sh, v) ? "média em R$" : "soma em R$") : isDur(sh, v) ? "média em horas" : isPct(sh, v) ? "média em %" : isAvgCol(sh, v) ? "média" : "soma (número, não é dinheiro)").filter((x, i, a) => a.indexOf(x) === i).join(" · ");
+  }
   function aggregate(sh, labelCol, valueCol, rows) {
     const map = new Map(), n = new Map();
     rows.forEach(r => {
@@ -925,7 +1000,7 @@
           <button class="btn" data-run="organizar">Organizar</button>
           <button class="btn" data-run="exportar csv">${ICONS.dl}CSV</button>
           <button class="btn" data-run="exportar excel">${ICONS.dl}Excel</button>
-          <button class="btn danger" data-act="delSheet" id="delSheetBtn">${ICONS.trash}Excluir planilha</button>
+          <button class="btn danger" data-act="wipe">${ICONS.trash}Apagar dados</button>
           <button class="btn primary" data-run="mostrar painel">Ver painel</button>
         </div>
       </div>
@@ -934,7 +1009,7 @@
         <div class="formula-bar"><span class="ref" id="cellRef">${selCell ? colLetter(selCell.c) + (selCell.r + 2) : "—"}</span><input id="fx" aria-label="Conteúdo da célula" placeholder="Selecione uma célula" value="${selCell ? esc(sh.rows[selCell.r]?.[selCell.c] ?? "") : ""}"></div>
         <div class="grid-wrap">
           <table class="grid">
-            <thead><tr><th class="rownum"><span class="col-letter">&nbsp;</span>1</th>${sh.columns.map((c, i) => `<th><span class="col-letter">${colLetter(i)}${sh.types?.[i] ? ` · ${TYPE_LABEL[sh.types[i]] || ""}` : ""}</span><input data-hcol="${i}" value="${esc(c)}" aria-label="Nome da coluna ${colLetter(i)}"></th>`).join("")}</tr></thead>
+            <thead><tr><th class="rownum"><span class="col-letter">&nbsp;</span>1</th>${sh.columns.map((c, i) => `<th><span class="col-letter">${colLetter(i)} · <select class="type-pick" data-settype="${i}" aria-label="Tipo da coluna ${esc(c)}" title="Mudar o tipo da coluna">${TYPES.map(t => `<option value="${t}" ${t === effType(sh, i) ? "selected" : ""}>${TYPE_LABEL[t]}</option>`).join("")}</select></span><input data-hcol="${i}" value="${esc(c)}" aria-label="Nome da coluna ${colLetter(i)}"></th>`).join("")}</tr></thead>
             <tbody>${sh.rows.map((row, r) => `<tr class="${matches.has(r) ? "hl" : ""}"><td class="rownum">${r + 2}</td>${sh.columns.map((_, c) => {
               const raw = row[c] ?? "";
               const isF = String(raw).startsWith("=");
@@ -989,6 +1064,8 @@
     ["apagar exemplos", "Remove os dados de exemplo"],
     ["apagar planilha Vendas", "Exclui uma planilha"],
     ["desfazer", "Desfaz a última exclusão"],
+    ["tempo não é custo", "Corrige uma coluna tratada como dinheiro"],
+    ["custo é custo", "Marca uma coluna como dinheiro (R$)"],
     ["nova planilha Clientes com colunas Nome, Cidade, Valor", "Cria uma planilha"],
     ["abrir planilha Estoque", "Abre uma planilha"],
     ["adicionar linha Out; Serviços; 52000; 29000", "Insere uma linha (separe com ;)"],
@@ -1053,8 +1130,18 @@
       openImport({ matrix, name: sh.name, replaceId: sh.id, forceHeader: true, types: sh.types });
       return say(`Analisei <b>${esc(sh.name)}</b>. Confira os tipos identificados e confirme para aplicar.`);
     }
+    if ((m = n.match(/^(?:a\s+)?(?:coluna\s+)?(.+?)\s+(nao\s+)?(?:e|eh|sao|vira|como)\s+(?:um\s+|uma\s+)?(custo|custos|dinheiro|moeda|reais|valor em reais|numero|numeros|quantidade|contagem|texto|codigo|categoria|data|percentual|porcentagem|duracao|tempo|horas)$/))) {
+      const c = findCol(sh, m[1]);
+      if (c < 0) return say(`Não achei a coluna “${esc(m[1])}”. Colunas: ${sh.columns.map(x => code(x)).join(", ")}.`, "bot", "err");
+      const map = { custo: "moeda", custos: "moeda", dinheiro: "moeda", moeda: "moeda", reais: "moeda", "valor em reais": "moeda", numero: "numero", numeros: "numero", quantidade: "numero", contagem: "numero", texto: "texto", codigo: "texto", categoria: "categoria", data: "data", percentual: "percentual", porcentagem: "percentual", duracao: "duracao", tempo: "duracao", horas: "duracao" };
+      let t = map[m[3]];
+      if (m[2]) { if (t !== "moeda") return say(`Diga o que a coluna é, por exemplo ${code(`${sh.columns[c].toLowerCase()} é número`)}.`); t = "numero"; }
+      setType(sh, c, t); render();
+      return say(`Certo: ${code(sh.columns[c])} agora é <b>${esc(TYPE_LABEL[t])}</b>. Painel e gráficos atualizados.`);
+    }
     if (/^(desfazer|voltar atras|undo)$/.test(n)) return say(undoLast() ? "Pronto, desfiz a última exclusão." : "Não há nada para desfazer.");
     if (/^(apagar|excluir|remover|limpar|tirar)\s+(os\s+)?(dados\s+de\s+)?exemplos?|^(comecar|começar) do zero$/.test(n)) return clearSamples();
+    if (/^(apagar|excluir|limpar|remover)\s+(os\s+)?(meus\s+)?dados$/.test(n)) { openWipe(); return say("Abri as opções para apagar dados."); }
     if (/^(apagar|excluir|remover)\s+tudo$/.test(n)) {
       snapshot("tudo"); removeSheets(state.sheets.map(s => s.id)); state.tasks = []; render();
       return say(`Apaguei todas as planilhas, gráficos e tarefas.${undoBtn}`);
@@ -1394,7 +1481,8 @@
     if (ID_HINT.test(nn) || share(v => /^0\d+$/.test(v)) > .3 || share(v => /^\d{7,}$/.test(v)) >= .8 || looksIdValues(vals, name)) return { type: "texto", id: true };
     if (share(v => /%\s*$/.test(v) && !isNaN(parseNum(v))) >= .6) return { type: "percentual" };
     if (share(v => !isNaN(parseNum(v))) >= .8) {
-      return { type: share(v => /R\$/.test(v)) >= .3 || isMoneyCol(name) ? "moeda" : "numero" };
+      const hasSymbol = share(v => /R\$/.test(v)) >= .3;
+      return { type: hasSymbol || (isMoneyCol(name) && !NOT_MONEY.test(norm(name))) ? "moeda" : "numero" };
     }
     const uniq = new Set(vals.map(norm)).size;
     const avgLen = vals.reduce((s, v) => s + v.length, 0) / n;
@@ -1743,11 +1831,15 @@
     closeImport();
     goto("painel");
     openAssist();
+    sh.typesV = 2;
     const ident = sh.columns.map((c, i) => `${code(c)} ${TYPE_LABEL[sh.types[i]]}`).join(", ");
+    const moneyCols = sh.columns.filter((_, i) => sh.types[i] === "moeda");
+    const numCols = sh.columns.filter((_, i) => sh.types[i] === "numero");
     const fixes = fixesTotal(res.st);
     say(`${wasReplace ? "Organizei" : "Criei"} a planilha <b>${esc(sh.name)}</b> com ${sh.rows.length} linhas.<ul>
       <li>Colunas: ${ident}.</li>
       <li>${fixes} valor(es) corrigido(s)${res.dups ? `, ${res.dups} linha(s) duplicada(s) removida(s)` : ""}.</li>
+      <li>${moneyCols.length ? `Tratei como dinheiro (R$): ${moneyCols.map(c => code(c)).join(", ")}.` : "Nenhuma coluna foi tratada como dinheiro."}${numCols.length ? ` Números comuns (sem R$): ${numCols.map(c => code(c)).join(", ")}.` : ""} Se algo estiver errado, diga por exemplo ${code(`${(moneyCols[0] || numCols[0] || "coluna").toLowerCase()} ${moneyCols.length ? "não é custo" : "é custo"}`)} ou troque o tipo no cabeçalho da planilha.</li>
       <li>${newCharts.length ? `Montei ${newCharts.length} gráfico(s) no painel: ${newCharts.map(c => esc(c.title.toLowerCase())).join("; ")}.` : "Não havia colunas numéricas ou categorias para gráficos automáticos."}</li>
     </ul>Próximos passos: ${code("resumo")}${firstCat >= 0 ? `, ${code(`filtrar ${sh.columns[firstCat].toLowerCase()} = ${sh.rows.find(r => r[firstCat])?.[firstCat] || ""}`)}` : ""}${newCharts.length ? "" : `, ${code(`criar gráfico de registros por ${sh.columns[0].toLowerCase()}`)}`}.`);
     renderSuggest();
@@ -1850,6 +1942,9 @@
     if (t.dataset.fval !== undefined) { state.filter.val = t.dataset.fval; render(); return; }
     if (t.dataset.deltask) { state.tasks = state.tasks.filter(x => x.id !== t.dataset.deltask); render(); return; }
     if (t.dataset.act === "import") { openImport(); return; }
+    if (t.dataset.act === "wipe") { openWipe(); return; }
+    if (t.dataset.delsheet) { state.activeSheet = t.dataset.delsheet; openWipe(); return; }
+    if (t.dataset.wipe) { doWipe(t.dataset.wipe); return; }
     if (t.dataset.act === "delSheet") {
       if (!t.dataset.armed) { t.dataset.armed = "1"; t.innerHTML = `${ICONS.trash}Confirmar exclusão`; setTimeout(() => { if (t.isConnected) { delete t.dataset.armed; t.innerHTML = `${ICONS.trash}Excluir planilha`; } }, 4000); return; }
       const sh = sheet(); snapshot(sh.name); removeSheets([sh.id]); render();
@@ -1865,6 +1960,11 @@
     if (t.id === "sheetPick") { state.activeSheet = t.value; state.filter = { col: null, val: "" }; render(); }
     else if (t.id === "filterCol") { state.filter = { col: +t.value, val: "" }; render(); }
     else if (t.dataset.task) { const x = state.tasks.find(x => x.id === t.dataset.task); x.done = t.checked; render(); }
+    else if (t.dataset.settype) {
+      const sh = sheet(), c = +t.dataset.settype;
+      setType(sh, c, t.value); render();
+      say(`Coluna ${code(sh.columns[c])} agora é <b>${esc(TYPE_LABEL[t.value])}</b>. Painel e gráficos atualizados.`);
+    }
     else if (t.dataset.hcol) { sheet().columns[+t.dataset.hcol] = t.value || "Coluna"; render(); }
   });
 
@@ -1993,8 +2093,19 @@
   $("#suggest").innerHTML = ["importar dados", "resumo", "criar gráfico de receita por categoria", "maior lucro", "filtrar categoria = Serviços", "listar tarefas", "ajuda"]
     .map(s => `<button type="button" data-suggest="${esc(s)}">${esc(s)}</button>`).join("");
 
+  // Planilhas importadas por versões anteriores: a regra de dinheiro era frouxa ("total" já bastava).
+  function migrateTypes() { state.sheets.forEach(sh => {
+    if (!sh.types || sh.typesV >= 2) return;
+    sh.types.forEach((t, c) => {
+      if (t === "moeda" && !isMoneyCol(sh.columns[c])) { sh.types[c] = "numero"; migrated.push(`${sh.name} › ${sh.columns[c]}`); }
+      if (sh.types[c] === "numero" && ID_HINT.test(norm(sh.columns[c]))) sh.types[c] = "texto"; // O.S., TAG... são códigos
+    });
+    sh.typesV = 2;
+  }); }
   // Início
+  migrateTypes();
   render();
+  if (migrated.length) say(`Revisei suas planilhas: ${migrated.map(x => code(x)).join(", ")} ${migrated.length > 1 ? "estavam sendo tratadas" : "estava sendo tratada"} como dinheiro sem motivo claro e ${migrated.length > 1 ? "voltaram" : "voltou"} a ser número. Se for mesmo custo, diga ${code(`${migrated[0].split(" › ")[1].toLowerCase()} é custo`)}.`);
   if (hasSamples()) say(`Olá! Sou seu assistente de gestão. O painel mostra <b>dados de exemplo</b>. Para usar os seus, digite ${code("apagar exemplos")} e depois ${code("importar dados")} (ou arraste o arquivo exportado do seu sistema para esta página).`);
   else say(`Olá! ${state.sheets.length ? `Suas planilhas estão carregadas. Digite ${code("resumo")} ou ${code("importar dados")}.` : `Para começar, digite ${code("importar dados")} ou arraste um arquivo .xlsx/.csv para a página.`}`);
   if (hasSamples()) say(`Com o exemplo, experimente:<ul><li>${code("resumo")}</li><li>${code("criar gráfico de receita por categoria")}</li><li>${code("nova planilha Clientes com colunas Nome, Cidade, Valor")}</li><li>${code("nova tarefa Revisar orçamento até 30/10")}</li></ul>Digite ${code("ajuda")} para ver tudo.`);

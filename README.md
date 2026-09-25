@@ -25,11 +25,18 @@ Abra o arquivo `index.html` no navegador. Não precisa instalar nada; os gráfic
 - **Painel**: indicadores com variação e minigráficos, filtros por categoria e gráficos de barras, linhas ou rosca que se atualizam quando a planilha muda.
 - **Tarefas**: prazos, atrasadas em destaque e contagem de pendentes.
 
-## Apagar os dados de exemplo
+## Apagar dados
 
-- No painel, clique em **Apagar exemplos** (no aviso amarelo), ou digite `apagar exemplos`.
-- Para excluir uma planilha: botão **Excluir planilha** na tela da planilha, ou `apagar planilha Nome`.
+- Botão **Apagar dados** no painel e na planilha: apagar a planilha atual, esvaziar as linhas (mantendo as colunas), apagar só os exemplos ou apagar tudo.
+- Ícone de lixeira ao lado de cada planilha na barra lateral.
+- Comandos: `apagar dados`, `apagar exemplos`, `apagar planilha Nome`, `apagar tudo`.
 - `desfazer` recupera a última exclusão. `ver dados de exemplo` traz os exemplos de volta sem apagar suas planilhas.
+
+## Custo ou número?
+
+Uma coluna só é tratada como dinheiro (R$) quando os valores têm "R$" ou o nome indica claramente dinheiro (custo, preço, valor, receita, despesa...). Quantidades, horas, contagens e códigos (O.S., TAG, patrimônio) nunca viram dinheiro nem entram em somas. Cada gráfico diz a unidade ("soma em R$", "soma (número, não é dinheiro)", "quantidade de registros").
+
+Para corrigir: troque o tipo no cabeçalho da coluna, na tela da planilha, ou diga `total não é custo` / `valor é custo`.
 
 ## Exemplos de comandos
 
