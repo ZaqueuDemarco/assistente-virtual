@@ -9,7 +9,11 @@ Abra o arquivo `index.html` no navegador. Não precisa instalar nada; os gráfic
 ## O que já funciona
 
 - **Importar e organizar dados**: cole dados (do Excel, Google Sheets, CSV, e-mail) ou arraste um arquivo `.xlsx`, `.xls`, `.csv` ou `.txt`. O assistente:
-  - reconhece se a primeira linha é cabeçalho e, se não houver, dá nomes às colunas pelo conteúdo;
+  - encontra o cabeçalho mesmo quando o relatório tem título, filtros e data de emissão antes da tabela (como as exportações do Neovero e de ERPs);
+  - ignora linhas de total, rodapé ("Página 1 de 3"), cabeçalhos repetidos a cada página e títulos de grupo;
+  - reconhece se há cabeçalho e, se não houver, dá nomes às colunas pelo conteúdo;
+  - trata códigos (Nº OS, TAG, patrimônio, série) como texto, mesmo quando só têm números;
+  - lê datas com hora (`01/07/2026 08:15`) e durações (`03:25`, `2h30`), que viram horas com média no painel;
   - identifica o tipo de cada coluna: data, moeda, número, percentual, categoria, e-mail, telefone ou texto;
   - padroniza datas (dd/mm/aaaa), converte valores como `R$ 1.200,50` em número, formata telefones, unifica categorias escritas de jeitos diferentes (`sao paulo`, `SÃO PAULO` → `São Paulo`) e corrige maiúsculas em nomes;
   - remove linhas duplicadas e linhas/colunas vazias, ordena por data e cria a coluna `Mês`;
@@ -20,6 +24,12 @@ Abra o arquivo `index.html` no navegador. Não precisa instalar nada; os gráfic
 - **Planilhas**: células editáveis, renomear colunas, adicionar linhas e colunas, fórmulas (`=C2-D2`, `=SOMA(C2:C10)`, `=MEDIA()`, `=MAX()`, `=MIN()`, `=CONT()`), totais automáticos e exportação para `.csv` e `.xlsx`.
 - **Painel**: indicadores com variação e minigráficos, filtros por categoria e gráficos de barras, linhas ou rosca que se atualizam quando a planilha muda.
 - **Tarefas**: prazos, atrasadas em destaque e contagem de pendentes.
+
+## Apagar os dados de exemplo
+
+- No painel, clique em **Apagar exemplos** (no aviso amarelo), ou digite `apagar exemplos`.
+- Para excluir uma planilha: botão **Excluir planilha** na tela da planilha, ou `apagar planilha Nome`.
+- `desfazer` recupera a última exclusão. `ver dados de exemplo` traz os exemplos de volta sem apagar suas planilhas.
 
 ## Exemplos de comandos
 
@@ -41,7 +51,10 @@ Abra o arquivo `index.html` no navegador. Não precisa instalar nada; os gráfic
 | `nova tarefa Ligar para fornecedor até 30/09` | Cria tarefa com prazo |
 | `concluir tarefa 2` | Conclui uma tarefa |
 | `exportar excel` · `exportar csv` | Baixa a planilha |
-| `restaurar exemplo` | Volta aos dados de exemplo |
+| `apagar exemplos` | Remove planilhas e tarefas de exemplo |
+| `apagar planilha Nome` · `apagar tudo` | Exclui uma planilha ou tudo |
+| `desfazer` | Recupera a última exclusão |
+| `ver dados de exemplo` | Adiciona os exemplos de volta |
 
 Os dados iniciais (Vendas 2026 e Estoque) são fictícios, só para demonstração.
 
