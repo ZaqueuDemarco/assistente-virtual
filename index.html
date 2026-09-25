@@ -28,6 +28,7 @@
     --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { height: 100%; }
   body {
     margin: 0;
@@ -286,6 +287,73 @@
   .assist-toggle { display: none; }
   .mobile-nav { display: none; }
 
+  /* ---------- Importação ---------- */
+  dialog.imp {
+    width: min(960px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0;
+    background: var(--surface); color: var(--text); border: 1px solid var(--border-strong);
+    border-radius: 12px; box-shadow: 0 30px 80px rgba(0,0,0,.6);
+  }
+  dialog.imp::backdrop { background: rgba(5, 8, 12, .72); }
+  .imp-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 2; }
+  .imp-head h2 { margin: 0; font-size: 16px; font-weight: 600; }
+  .imp-head .steps { color: var(--muted); font-size: 12px; margin-left: auto; }
+  .imp-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; }
+  .imp-body p.lead { margin: 0; color: var(--text-2); max-width: 70ch; }
+  .drop {
+    display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; text-align: center;
+    border: 1.5px dashed var(--border-strong); border-radius: 10px; padding: 22px 16px; cursor: pointer;
+    color: var(--text-2); background: var(--bg);
+  }
+  .drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+  .drop svg { width: 22px; height: 22px; color: var(--accent); }
+  .drop u { color: var(--accent); text-decoration: none; font-weight: 600; }
+  .drop small { color: var(--muted); display: block; width: 100%; }
+  .or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
+  .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+  #impText {
+    width: 100%; min-height: 180px; resize: vertical; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border-strong); border-radius: 8px; padding: 10px 12px;
+    font: 12.5px/1.5 var(--mono);
+  }
+  #impText:focus { outline: none; border-color: var(--accent); }
+  .imp-foot {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 14px 20px;
+    border-top: 1px solid var(--border); position: sticky; bottom: 0; background: var(--surface);
+  }
+  .imp-foot .grow { flex: 1; }
+  .imp-err { color: var(--bad); font-size: 13px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+  .stat { background: var(--raised); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .stat b { display: block; font-size: 18px; font-weight: 600; }
+  .stat span { color: var(--muted); font-size: 12px; }
+  .stat.fix b { color: var(--good); }
+  .imp-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; align-items: start; }
+  .sec-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 0 0 8px; }
+  .cols { display: flex; flex-direction: column; gap: 6px; }
+  .colrow { display: grid; grid-template-columns: minmax(0, 1fr) 128px; gap: 6px; align-items: center; background: var(--raised); border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
+  .colrow input, .colrow select { width: 100%; }
+  .colrow .ex { grid-column: 1 / -1; color: var(--muted); font: 11.5px var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .type-badge { font: 10.5px var(--mono); color: var(--accent); }
+  .preview-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 8px; max-height: 360px; }
+  .preview { border-collapse: collapse; font-size: 12.5px; width: max-content; min-width: 100%; font-variant-numeric: tabular-nums; }
+  .preview th { position: sticky; top: 0; background: var(--raised); text-align: left; font-weight: 600; padding: 6px 10px; border-bottom: 1px solid var(--border-strong); white-space: nowrap; }
+  .preview th small { display: block; font: 10.5px var(--mono); color: var(--accent); font-weight: 400; }
+  .preview td { padding: 5px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+  .preview td.num { text-align: right; }
+  .preview td.new { background: rgba(63,185,122,.08); }
+  .notes { margin: 0; padding-left: 18px; color: var(--text-2); font-size: 13px; display: flex; flex-direction: column; gap: 3px; }
+  .notes code { font-family: var(--mono); font-size: 12px; color: #9cc3ff; }
+  .opts { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--text-2); }
+  .opts label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+  .opts input { accent-color: var(--accent); }
+  .name-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .name-row input { flex: 1; min-width: 180px; }
+  .drag-veil {
+    position: fixed; inset: 0; z-index: 60; display: grid; place-items: center;
+    background: rgba(13,17,23,.85); border: 2px dashed var(--accent); color: var(--text); font-size: 18px; pointer-events: none;
+  }
+  @media (max-width: 760px) { .imp-grid { grid-template-columns: minmax(0, 1fr); } }
+
   /* ---------- Responsive ---------- */
   @media (max-width: 1180px) {
     .app { grid-template-columns: 200px minmax(0, 1fr); }
@@ -365,6 +433,17 @@
     Assistente
   </button>
 </div>
+<dialog class="imp" id="impDlg" aria-labelledby="impTitle">
+  <div class="imp-head">
+    <h2 id="impTitle">Importar dados</h2>
+    <span class="steps" id="impStep">Passo 1 de 2 · Enviar</span>
+    <button class="icon-btn" type="button" data-imp="close" aria-label="Fechar importação">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div id="impContent"></div>
+</dialog>
+<div class="drag-veil" id="dragVeil" hidden>Solte o arquivo para importar</div>
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -391,12 +470,16 @@
     if (typeof v === "number") return v;
     let s = String(v ?? "").replace(/R\$|\s|%/g, "");
     if (!s || !/^-?[\d.,]+$/.test(s)) return NaN;
-    if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "").replace(",", ".");
+    if (s.includes(",") && s.includes(".")) s = s.lastIndexOf(",") > s.lastIndexOf(".") ? s.replace(/\./g, "").replace(",", ".") : s.replace(/,/g, "");
     else if (s.includes(",")) s = s.replace(",", ".");
     else if (/^\-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
     return Number(s);
   }
   const isMoneyCol = name => /receita|custo|valor|preco|total|lucro|despesa|faturamento|salario|r\$/.test(norm(name));
+  // Tipo identificado na importação tem prioridade; sem ele, o nome da coluna decide.
+  const isMoney = (sh, c) => sh.types?.[c] ? sh.types[c] === "moeda" : isMoneyCol(sh.columns[c]);
+  const isPct = (sh, c) => sh.types?.[c] === "percentual";
+  const colName = (sh, c) => c < 0 ? "Registros" : sh.columns[c];
 
   /* =====================================================================
      Estado (dados de exemplo) + persistência local
@@ -502,7 +585,7 @@
   function display(sh, r, c) {
     const x = cellValue(sh, r, c);
     if (x.err) return x.err;
-    if (typeof x.v === "number") return isMoneyCol(sh.columns[c]) ? nfBRL2.format(x.v) : nfNum.format(x.v);
+    if (typeof x.v === "number") return isMoney(sh, c) ? nfBRL2.format(x.v) : isPct(sh, c) ? nfNum.format(x.v) + "%" : nfNum.format(x.v);
     return x.v;
   }
   const numericCols = sh => sh.columns.map((_, c) => c).filter(c => {
@@ -527,6 +610,11 @@
     if (i < 0) i = sh.columns.findIndex(c => norm(c).includes(n));
     return i;
   }
+  function periodCol(sh) {
+    if (sh.periodCol != null && sh.periodCol < sh.columns.length) return sh.periodCol;
+    const tc = textCols(sh);
+    return tc.find(c => /^(mes|periodo|semana|trimestre|ano|mes\/ano)$/.test(norm(sh.columns[c])));
+  }
   const findSheet = name => { const n = norm(name); return state.sheets.find(s => norm(s.name) === n) || state.sheets.find(s => norm(s.name).includes(n)); };
 
   /* =====================================================================
@@ -539,6 +627,7 @@
     sheet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/></svg>',
     x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>',
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+    up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V5M7 10l5-5 5 5M5 20h14"/></svg>',
     dl: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
   };
   const VIEWS = [["painel", "Painel"], ["planilhas", "Planilhas"], ["tarefas", "Tarefas"]];
@@ -548,7 +637,8 @@
     $("#nav").innerHTML = '<div class="nav-label">Áreas</div>' + VIEWS.map(([k, l]) =>
       `<button data-view="${k}" aria-current="${state.view === k}">${ICONS[k]}${l}${k === "tarefas" ? `<span class="count">${pending}</span>` : ""}</button>`).join("");
     $("#sheetNav").innerHTML = '<div class="nav-label">Planilhas</div>' + state.sheets.map(s =>
-      `<button data-sheet="${s.id}" aria-current="${state.view === "planilhas" && s.id === state.activeSheet}">${ICONS.sheet}${esc(s.name)}<span class="count">${s.rows.length}</span></button>`).join("");
+      `<button data-sheet="${s.id}" aria-current="${state.view === "planilhas" && s.id === state.activeSheet}">${ICONS.sheet}${esc(s.name)}<span class="count">${s.rows.length}</span></button>`).join("")
+      + `<button data-act="import">${ICONS.up}Importar dados</button>`;
     $("#mobileNav").innerHTML = VIEWS.map(([k, l]) => `<button data-view="${k}" aria-current="${state.view === k}">${l}</button>`).join("");
   }
 
@@ -583,7 +673,7 @@
     return `
       <div class="topbar">
         <div><h1>Painel · ${esc(sh.name)}</h1><p>${sh.rows.length} linhas · atualizado ao editar a planilha ${isSample ? '· <span class="tag">dados de exemplo</span>' : ""}</p></div>
-        <div class="row">${sheetSelect()}<button class="btn" data-run="criar gráfico">${ICONS.plus}Novo gráfico</button></div>
+        <div class="row">${sheetSelect()}<button class="btn" data-act="import">${ICONS.up}Importar dados</button><button class="btn" data-run="criar gráfico">${ICONS.plus}Novo gráfico</button></div>
       </div>
       <div class="kpis" id="kpis"></div>
       <div class="filters">
@@ -614,7 +704,7 @@
     const map = new Map();
     rows.forEach(r => {
       const k = sh.rows[r][labelCol] || "(vazio)";
-      const v = cellValue(sh, r, valueCol).v;
+      const v = valueCol < 0 ? 1 : cellValue(sh, r, valueCol).v;
       map.set(k, (map.get(k) || 0) + (typeof v === "number" ? v : 0));
     });
     return map;
@@ -630,13 +720,13 @@
     Chart.defaults.font.family = "IBM Plex Sans, system-ui, sans-serif";
     Chart.defaults.color = tok("--muted");
 
-    // KPIs: total por coluna numérica + variação entre o último e o penúltimo grupo da 1ª coluna de texto
-    const tc = textCols(sh)[0];
+    // KPIs: total por coluna numérica + variação entre os dois últimos períodos (mês, data...)
+    const tc = periodCol(sh);
     const groups = tc != null ? [...new Set(rows.map(r => sh.rows[r][tc]))] : [];
     $("#kpis").innerHTML = ncols.map((c, i) => {
-      const total = colTotal(sh, c, rows);
+      const total = isPct(sh, c) ? colTotal(sh, c, rows) / (rows.length || 1) : colTotal(sh, c, rows);
       let delta = "";
-      if (groups.length >= 2) {
+      if (groups.length >= 2 && !isPct(sh, c)) {
         const agg = aggregate(sh, tc, c, rows);
         const a = agg.get(groups[groups.length - 2]), b = agg.get(groups[groups.length - 1]);
         if (a) {
@@ -645,11 +735,12 @@
           delta = `<div class="delta"><span class="${good ? "up" : "down"}">${pct >= 0 ? "▲" : "▼"} ${nfNum.format(Math.abs(pct))}%</span> ${esc(groups[groups.length - 1])} vs ${esc(groups[groups.length - 2])}</div>`;
         }
       }
-      return `<div class="panel kpi"><span class="lbl">${esc(sh.columns[c])}</span><span class="val">${isMoneyCol(sh.columns[c]) ? nfBRL.format(total) : nfNum.format(total)}</span>${delta}<div class="spark"><canvas id="spark_${i}" aria-hidden="true"></canvas></div></div>`;
-    }).join("") + `<div class="panel kpi"><span class="lbl">Tarefas pendentes</span><span class="val">${state.tasks.filter(t => !t.done).length}</span><div class="delta">${state.tasks.filter(t => !t.done && dueClass(t.due) === "late").length} atrasada(s)</div></div>`;
+      return `<div class="panel kpi"><span class="lbl">${esc(sh.columns[c])}${isPct(sh, c) ? " (média)" : ""}</span><span class="val">${isMoney(sh, c) ? nfBRL.format(total) : fmtCol(sh, c, total)}</span>${delta}<div class="spark"><canvas id="spark_${i}" aria-hidden="true"></canvas></div></div>`;
+    }).join("") + (ncols.length < 2 ? `<div class="panel kpi"><span class="lbl">Registros</span><span class="val">${nfNum.format(rows.length)}</span><div class="delta">${sh.columns.length} colunas</div></div>` : "") + `<div class="panel kpi"><span class="lbl">Tarefas pendentes</span><span class="val">${state.tasks.filter(t => !t.done).length}</span><div class="delta">${state.tasks.filter(t => !t.done && dueClass(t.due) === "late").length} atrasada(s)</div></div>`;
 
     // Sparklines
     if (tc != null) ncols.forEach((c, i) => {
+      if (isPct(sh, c)) { $("#spark_" + i)?.parentElement.remove(); return; }
       const agg = aggregate(sh, tc, c, rows);
       const el = $("#spark_" + i);
       if (!el || agg.size < 2) { el && el.parentElement.remove(); return; }
@@ -670,11 +761,11 @@
         aggs = [new Map([...sorted.slice(0, 4), ["Outros", sorted.slice(4).reduce((s, [, v]) => s + v, 0)]])];
       }
       const labels = [...aggs[0].keys()];
-      const money = c.values.every(v => isMoneyCol(sh.columns[v]));
+      const money = c.values.every(v => v >= 0 && isMoney(sh, v));
       const fmt = v => money ? nfBRL.format(v) : nfNum.format(v);
       const vals = round ? [aggs[0]] : aggs;
       const datasets = vals.map((a, i) => ({
-        label: sh.columns[c.values[i]],
+        label: colName(sh, c.values[i]),
         data: labels.map(l => a.get(l) || 0),
         backgroundColor: round ? labels.map((l, j) => l === "Outros" ? tok("--border-strong") : series[j]) : (c.type === "line" ? series[i] + "1f" : series[i]),
         borderColor: round ? tok("--surface") : series[i],
@@ -724,6 +815,8 @@
         <div class="row">
           <button class="btn" data-act="addRow">${ICONS.plus}Linha</button>
           <button class="btn" data-act="addCol">${ICONS.plus}Coluna</button>
+          <button class="btn" data-act="import">${ICONS.up}Importar</button>
+          <button class="btn" data-run="organizar">Organizar</button>
           <button class="btn" data-run="exportar csv">${ICONS.dl}CSV</button>
           <button class="btn" data-run="exportar excel">${ICONS.dl}Excel</button>
           <button class="btn primary" data-run="mostrar painel">Ver painel</button>
@@ -734,7 +827,7 @@
         <div class="formula-bar"><span class="ref" id="cellRef">${selCell ? colLetter(selCell.c) + (selCell.r + 2) : "—"}</span><input id="fx" aria-label="Conteúdo da célula" placeholder="Selecione uma célula" value="${selCell ? esc(sh.rows[selCell.r]?.[selCell.c] ?? "") : ""}"></div>
         <div class="grid-wrap">
           <table class="grid">
-            <thead><tr><th class="rownum"><span class="col-letter">&nbsp;</span>1</th>${sh.columns.map((c, i) => `<th><span class="col-letter">${colLetter(i)}</span><input data-hcol="${i}" value="${esc(c)}" aria-label="Nome da coluna ${colLetter(i)}"></th>`).join("")}</tr></thead>
+            <thead><tr><th class="rownum"><span class="col-letter">&nbsp;</span>1</th>${sh.columns.map((c, i) => `<th><span class="col-letter">${colLetter(i)}${sh.types?.[i] ? ` · ${TYPE_LABEL[sh.types[i]] || ""}` : ""}</span><input data-hcol="${i}" value="${esc(c)}" aria-label="Nome da coluna ${colLetter(i)}"></th>`).join("")}</tr></thead>
             <tbody>${sh.rows.map((row, r) => `<tr class="${matches.has(r) ? "hl" : ""}"><td class="rownum">${r + 2}</td>${sh.columns.map((_, c) => {
               const raw = row[c] ?? "";
               const isF = String(raw).startsWith("=");
@@ -742,7 +835,7 @@
               const cls = [ncols.includes(c) ? "num" : "", isF ? "formula" : "", String(d).startsWith("#") && isF ? "err" : ""].join(" ");
               return `<td class="${cls}"><input data-r="${r}" data-c="${c}" value="${esc(d)}" aria-label="${colLetter(c)}${r + 2}"></td>`;
             }).join("")}</tr>`).join("")}</tbody>
-            <tfoot><tr><td class="rownum">Σ</td>${sh.columns.map((c, i) => `<td>${ncols.includes(i) ? (isMoneyCol(c) ? nfBRL2.format(colTotal(sh, i, sh.rows.map((_, r) => r))) : nfNum.format(colTotal(sh, i, sh.rows.map((_, r) => r)))) : ""}</td>`).join("")}</tr></tfoot>
+            <tfoot><tr><td class="rownum">Σ</td>${sh.columns.map((c, i) => `<td>${ncols.includes(i) ? fmtCol(sh, i, isPct(sh, i) ? colTotal(sh, i, sh.rows.map((_, r) => r)) / (sh.rows.length || 1) : colTotal(sh, i, sh.rows.map((_, r) => r))) : ""}</td>`).join("")}</tr></tfoot>
           </table>
         </div>
       </section>`;
@@ -783,6 +876,8 @@
      ===================================================================== */
   const COMMANDS = [
     ["ajuda", "Lista todos os comandos"],
+    ["importar dados", "Cole ou envie dados para organizar"],
+    ["organizar", "Identifica e arruma a planilha atual"],
     ["resumo", "Resumo da planilha atual"],
     ["nova planilha Clientes com colunas Nome, Cidade, Valor", "Cria uma planilha"],
     ["abrir planilha Estoque", "Abre uma planilha"],
@@ -796,6 +891,7 @@
     ["limpar filtro", "Remove o filtro"],
     ["criar gráfico de receita por mês", "Adiciona gráfico ao painel"],
     ["gráfico de pizza de lucro por categoria", "Gráfico de rosca"],
+    ["gráfico de registros por cidade", "Conta registros por grupo"],
     ["mostrar painel", "Abre o painel"],
     ["mostrar planilha", "Abre a planilha"],
     ["nova tarefa Ligar para fornecedor até 30/09", "Cria uma tarefa"],
@@ -816,7 +912,7 @@
     log.scrollTop = log.scrollHeight;
   }
   const code = s => `<code>${esc(s)}</code>`;
-  const fmtCol = (sh, c, v) => isMoneyCol(sh.columns[c]) ? nfBRL2.format(v) : nfNum.format(v);
+  const fmtCol = (sh, c, v) => isMoney(sh, c) ? nfBRL2.format(v) : isPct(sh, c) ? nfNum.format(v) + "%" : nfNum.format(v);
   function goto(view) { state.view = view; render(); }
 
   function helpText() {
@@ -840,6 +936,12 @@
 
     if (/^(ajuda|help|\?|comandos|o que (voce )?(faz|sabe))/.test(n)) return say(helpText());
     if (/^limpar (conversa|chat|historico)/.test(n)) { log.innerHTML = ""; return say("Conversa limpa."); }
+    if (/^(importar|colar|carregar|enviar|jogar)(\s+(os\s+)?(dados|arquivo|planilha))?$/.test(n)) { openImport(); return say("Abri a importação. Cole os dados, arraste um arquivo .xlsx/.csv ou teste com o exemplo."); }
+    if (/^(organizar|organiza|arrumar|limpar)(\s+(a\s+)?(planilha|dados))?$/.test(n)) {
+      const matrix = [sh.columns, ...sh.rows.map((_, r) => sh.columns.map((_, c) => { const v = cellValue(sh, r, c).v; return typeof v === "number" ? String(v) : v; }))];
+      openImport({ matrix, name: sh.name, replaceId: sh.id, forceHeader: true, types: sh.types });
+      return say(`Analisei <b>${esc(sh.name)}</b>. Confira os tipos identificados e confirme para aplicar.`);
+    }
     if (/^restaurar exemplo/.test(n)) { state = defaultState(); render(); return say("Dados de exemplo restaurados."); }
 
     // Navegação
@@ -946,12 +1048,12 @@
         return say(`Diga o que medir e como agrupar. Exemplos para ${esc(sh.name)}:<ul>${nc.slice(0, 2).map(v => `<li>${code(`criar gráfico de ${sh.columns[v].toLowerCase()} por ${sh.columns[tc[0]]?.toLowerCase()}`)}</li>`).join("")}${nc[0] != null && tc[1] != null ? `<li>${code(`gráfico de pizza de ${sh.columns[nc[0]].toLowerCase()} por ${sh.columns[tc[1]].toLowerCase()}`)}</li>` : ""}</ul>`);
       }
       const valueNames = gm[1].split(/\s*(?:,|\se\s)\s*/);
-      const values = valueNames.map(v => findCol(sh, v));
+      const values = valueNames.map(v => findCol(sh, v) >= 0 ? findCol(sh, v) : /^(contagem|quantidade|qtd|registros|linhas|numero de registros|quantidade de registros)$/.test(v.trim()) ? -1 : -2);
       const label = findCol(sh, gm[2]);
-      if (values.some(v => v < 0) || label < 0) return say(`Não reconheci as colunas. Disponíveis: ${sh.columns.map(x => code(x)).join(", ")}.`, "bot", "err");
-      if (!values.every(v => numericCols(sh).includes(v))) return say(`${values.filter(v => !numericCols(sh).includes(v)).map(v => code(sh.columns[v])).join(", ")} não é numérica; escolha uma coluna com valores.`, "bot", "err");
+      if (values.some(v => v < -1) || label < 0) return say(`Não reconheci as colunas. Disponíveis: ${sh.columns.map(x => code(x)).join(", ")}.`, "bot", "err");
+      if (!values.every(v => v === -1 || numericCols(sh).includes(v))) return say(`${values.filter(v => !numericCols(sh).includes(v)).map(v => code(sh.columns[v])).join(", ")} não é numérica; escolha uma coluna com valores.`, "bot", "err");
       if (type === "doughnut" && values.length > 1) type = "bar";
-      const title = `${values.map(v => sh.columns[v]).join(" e ")} por ${sh.columns[label].toLowerCase()}`;
+      const title = `${values.map(v => colName(sh, v)).join(" e ")} por ${sh.columns[label].toLowerCase()}`;
       state.charts.push({ id: uid(), sheetId: sh.id, type, label, values, title: title.charAt(0).toUpperCase() + title.slice(1) });
       goto("painel");
       $("#main").scrollTop = $("#main").scrollHeight;
@@ -1040,6 +1142,487 @@
   }
 
   /* =====================================================================
+     Importação: lê dados colados ou arquivos, identifica cada coluna,
+     corrige formatos e monta planilha + painel.
+     ===================================================================== */
+  const TYPES = ["texto", "categoria", "numero", "moeda", "percentual", "data", "email", "telefone"];
+  const TYPE_LABEL = { texto: "Texto", categoria: "Categoria", numero: "Número", moeda: "Moeda (R$)", percentual: "Percentual", data: "Data", email: "E-mail", telefone: "Telefone" };
+  const MES_NOMES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  const SMALL = new Set(["de", "da", "do", "das", "dos", "e"]);
+  const titleCase = s => s.toLowerCase().split(" ").map((w, i) => i > 0 && SMALL.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  const pad2 = n => String(n).padStart(2, "0");
+
+  /* ---------- Leitura ---------- */
+  function splitLine(line, d) {
+    const out = []; let cur = "", q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (q) { if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; }
+      else if (ch === '"' && !cur.trim()) q = true;
+      else if (line.startsWith(d, i)) { out.push(cur); cur = ""; i += d.length - 1; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out;
+  }
+  function textToMatrix(text) {
+    const lines = text.replace(/\r\n?/g, "\n").split("\n");
+    const filled = lines.filter(l => l.trim());
+    if (!filled.length) return [];
+    // Escolhe o separador que aparece de forma mais consistente entre as linhas.
+    let best = null, bestScore = 0;
+    for (const d of ["\t", ";", "|", ",", " - "]) {
+      const counts = filled.map(l => splitLine(l, d).length - 1);
+      const freq = {}; counts.forEach(c => freq[c] = (freq[c] || 0) + 1);
+      const [mode, hits] = Object.entries(freq).sort((a, b) => b[1] - a[1])[0];
+      if (+mode === 0) continue;
+      const score = hits / filled.length * (d === "," ? .9 : 1) + Math.min(+mode, 10) * .01;
+      if (hits / filled.length >= .6 && score > bestScore) { best = d; bestScore = score; }
+    }
+    if (!best && filled.some(l => /\S\s{2,}\S/.test(l))) return lines.map(l => l.trim().split(/\s{2,}/));
+    return lines.map(l => best ? splitLine(l, best) : [l]);
+  }
+  async function fileToMatrix(file) {
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    if (["xlsx", "xls", "xlsm", "ods"].includes(ext)) {
+      if (!window.XLSX) throw new Error("A biblioteca de Excel não carregou. Salve o arquivo como CSV e tente de novo.");
+      const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+      const name = wb.SheetNames.find(n => (XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1 }) || []).length) || wb.SheetNames[0];
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: "" });
+      const matrix = rows.map(r => r.map(v => v instanceof Date ? `${pad2(v.getDate())}/${pad2(v.getMonth() + 1)}/${v.getFullYear()}` : String(v)));
+      return { matrix, note: wb.SheetNames.length > 1 ? `O arquivo tem ${wb.SheetNames.length} abas; importei “${name}”.` : "" };
+    }
+    const buf = await file.arrayBuffer();
+    let text = new TextDecoder("utf-8").decode(buf);
+    if (text.includes("�")) text = new TextDecoder("windows-1252").decode(buf);
+    return { matrix: textToMatrix(text.replace(/^﻿/, "")), note: "" };
+  }
+
+  /* ---------- Reconhecimento de valores ---------- */
+  const reEmail = /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i;
+  const phoneDigits = v => { let d = v.replace(/\D/g, ""); if (d.length >= 12 && d.startsWith("55")) d = d.slice(2); return d; };
+  const looksPhone = v => /^\+?[\d\s().-]{8,}$/.test(v) && /[\s().-]/.test(v) && [10, 11].includes(phoneDigits(v).length);
+  const looksName = v => /^[A-Za-zÀ-ÿ']+(\s+[A-Za-zÀ-ÿ']+)+$/.test(v) && v.length < 50;
+  function parseDate(v, order = "dmy") {
+    let m, d, mo, y;
+    if ((m = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T].*)?$/))) [y, mo, d] = [+m[1], +m[2], +m[3]];
+    else if ((m = v.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/))) {
+      [d, mo] = order === "mdy" ? [+m[2], +m[1]] : [+m[1], +m[2]];
+      y = +m[3]; if (y < 100) y += 2000;
+    } else if ((m = norm(v).match(/^(\d{1,2})\s*(?:de\s+)?([a-z]{3})[a-z]*\.?\s*(?:de\s+)?(\d{4})$/))) {
+      d = +m[1]; mo = MES_NOMES.indexOf(m[2]) + 1; y = +m[3];
+    } else return null;
+    const dt = new Date(y, mo - 1, d);
+    return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d ? dt : null;
+  }
+  const fmtDMY = dt => `${pad2(dt.getDate())}/${pad2(dt.getMonth() + 1)}/${dt.getFullYear()}`;
+  const monthLabel = dt => `${MES_NOMES[dt.getMonth()].charAt(0).toUpperCase() + MES_NOMES[dt.getMonth()].slice(1)}/${String(dt.getFullYear()).slice(2)}`;
+
+  function detectType(vals, name) {
+    const n = vals.length, nn = norm(name);
+    if (!n) return { type: "texto" };
+    const share = f => vals.filter(f).length / n;
+    if (share(v => reEmail.test(v)) >= .8) return { type: "email" };
+    if (share(looksPhone) >= .7 || (/tel|fone|cel|whats|contato/.test(nn) && share(v => [10, 11].includes(phoneDigits(v).length)) >= .7)) return { type: "telefone" };
+    const mdy = vals.some(v => { const m = v.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-]\d{2,4}$/); return m && +m[1] <= 12 && +m[2] > 12; })
+      && !vals.some(v => { const m = v.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-]\d{2,4}$/); return m && +m[1] > 12; });
+    const order = mdy ? "mdy" : "dmy";
+    if (share(v => parseDate(v, order)) >= .8) return { type: "data", order };
+    if (/data|dia|vencimento|prazo/.test(nn) && share(v => /^\d{5}$/.test(v) && +v > 20000 && +v < 60000) >= .8) return { type: "data", order: "serial" };
+    if (/(^|\s)(id|cod|codigo|cep|cpf|cnpj|matricula|pedido|nf|nota)(\s|$)/.test(nn) || share(v => /^0\d+$/.test(v)) > .3) return { type: "texto" };
+    if (share(v => /%\s*$/.test(v) && !isNaN(parseNum(v))) >= .6) return { type: "percentual" };
+    if (share(v => !isNaN(parseNum(v))) >= .8) {
+      return { type: share(v => /R\$/.test(v)) >= .3 || isMoneyCol(name) ? "moeda" : "numero" };
+    }
+    const uniq = new Set(vals.map(norm)).size;
+    const avgLen = vals.reduce((s, v) => s + v.length, 0) / n;
+    if (n >= 4 && uniq < n && uniq <= Math.max(3, Math.min(15, n * .6)) && avgLen < 30) return { type: "categoria" };
+    return { type: "texto" };
+  }
+  function guessName(type, vals) {
+    if (type === "numero") return vals.every(v => Number.isInteger(parseNum(v)) && Math.abs(parseNum(v)) < 10000) ? "Quantidade" : "Número";
+    if (type === "texto") return vals.filter(looksName).length / (vals.length || 1) >= .7 ? "Nome" : "Descrição";
+    return { categoria: "Categoria", moeda: "Valor", percentual: "Percentual", data: "Data", email: "E-mail", telefone: "Telefone" }[type];
+  }
+  function cleanHeader(h) {
+    h = h.replace(/[:_]+$/g, "").replace(/_/g, " ").trim();
+    if (h === h.toUpperCase() || h === h.toLowerCase()) h = h.toLowerCase();
+    return h.charAt(0).toUpperCase() + h.slice(1).replace(/\(r\$\)/i, "(R$)");
+  }
+  const HEADER_WORDS = /^(nome|data|valor|cliente|e-?mail|cidade|estado|uf|status|situacao|categoria|produto|servico|quantidade|qtd|preco|telefone|celular|total|descricao|id|codigo|mes|ano|vendedor|responsavel|setor|departamento|tipo|origem|fornecedor|item|custo|receita|obs|observacao)/;
+
+  /* ---------- Análise ---------- */
+  function analyze(raw, forceHeader = false) {
+    let m = raw.map(r => r.map(v => String(v ?? "").replace(/\s+/g, " ").trim()));
+    const width = Math.max(0, ...m.map(r => r.length));
+    m = m.map(r => Array.from({ length: width }, (_, i) => r[i] ?? ""));
+    const filled = m.filter(r => r.some(Boolean));
+    const keep = [...Array(width).keys()].filter(c => filled.some(r => r[c]));
+    const rows = filled.map(r => keep.map(c => r[c]));
+    if (!rows.length || !keep.length) return null;
+
+    const typedOf = (v) => !isNaN(parseNum(v)) || parseDate(v) || reEmail.test(v) || looksPhone(v);
+    let hasHeader = forceHeader;
+    if (!forceHeader && rows.length > 1) {
+      const h = rows[0], body = rows.slice(1);
+      const allText = h.every(v => !v || !typedOf(v));
+      const mismatch = keep.some((_, c) => h[c] && body.filter(r => r[c]).filter(r => typedOf(r[c])).length / (body.filter(r => r[c]).length || 1) >= .8);
+      const words = h.filter(v => HEADER_WORDS.test(norm(v))).length;
+      const unseen = h.every((v, c) => !v || !body.some(r => norm(r[c]) === norm(v)));
+      hasHeader = allText && (mismatch || words >= 1 || (unseen && h.filter(Boolean).length === h.length && keep.length > 1 && body.length > 2 && keep.some((_, c) => new Set(body.map(r => norm(r[c]))).size < body.length)));
+    }
+    const header = hasHeader ? rows[0] : null;
+    const body = hasHeader ? rows.slice(1) : rows;
+    const used = new Map();
+    const columns = keep.map((_, c) => {
+      const vals = body.map(r => r[c]).filter(Boolean);
+      const hname = header ? cleanHeader(header[c] || "") : "";
+      const det = detectType(vals, hname);
+      let name = hname || guessName(det.type, vals);
+      const k = norm(name); used.set(k, (used.get(k) || 0) + 1);
+      if (used.get(k) > 1) name += " " + used.get(k);
+      return { name, type: det.type, detected: det.type, order: det.order || "dmy", samples: [...new Set(vals)].slice(0, 3) };
+    });
+    return { columns, body, hasHeader, emptyRows: m.length - filled.length, emptyCols: width - keep.length };
+  }
+
+  /* ---------- Organização ---------- */
+  function organize(an, opts) {
+    const cols = an.columns;
+    const st = { data: 0, numero: 0, moeda: 0, percentual: 0, categoria: 0, texto: 0, email: 0, telefone: 0 };
+    const invalid = [], unify = [];
+    // Categoria: agrupa grafias parecidas (maiúsculas, acentos, espaços) e usa a mais frequente.
+    const canon = cols.map((col, c) => {
+      if (col.type !== "categoria") return null;
+      const groups = new Map();
+      an.body.forEach(r => { const v = r[c]; if (!v) return; const k = norm(v); if (!groups.has(k)) groups.set(k, new Map()); const g = groups.get(k); g.set(v, (g.get(v) || 0) + 1); });
+      const map = new Map();
+      groups.forEach((g, k) => {
+        let best = [...g].sort((a, b) => b[1] - a[1] || (/[À-ÿ]/.test(b[0]) - /[À-ÿ]/.test(a[0])))[0][0];
+        const withAccent = [...g.keys()].find(v => /[À-ÿ]/.test(v));
+        if (withAccent && !/[À-ÿ]/.test(best)) best = withAccent;
+        if (best === best.toLowerCase() || (best === best.toUpperCase() && best.length > 3)) best = titleCase(best);
+        map.set(k, best);
+        if (g.size > 1 && unify.length < 4) unify.push([[...g.keys()].filter(v => v !== best).slice(0, 3), best]);
+      });
+      return map;
+    });
+    const nameCols = cols.map((col, c) => col.type === "texto" && an.body.filter(r => r[c]).filter(r => looksName(r[c])).length / (an.body.filter(r => r[c]).length || 1) >= .7);
+
+    const cell = (v, col, c) => {
+      if (!v) return "";
+      let out = v;
+      switch (col.type) {
+        case "data": {
+          const dt = col.order === "serial" && /^\d+$/.test(v) ? new Date(Date.UTC(1899, 11, 30) + +v * 864e5 + new Date().getTimezoneOffset() * 6e4) : parseDate(v, col.order);
+          if (dt) out = fmtDMY(dt); else invalid.push([col.name, v]);
+          break;
+        }
+        case "numero": case "moeda": case "percentual": {
+          const n = parseNum(v);
+          if (isNaN(n)) invalid.push([col.name, v]); else out = String(Math.round(n * 100) / 100);
+          break;
+        }
+        case "email": out = v.toLowerCase().replace(/\s/g, ""); if (!reEmail.test(out)) invalid.push([col.name, v]); break;
+        case "telefone": {
+          const d = phoneDigits(v);
+          out = d.length === 11 ? `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}` : d.length === 10 ? `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}` : v;
+          break;
+        }
+        case "categoria": out = canon[c].get(norm(v)) || v; break;
+        default: if (nameCols[c] && (v === v.toLowerCase() || v === v.toUpperCase())) out = titleCase(v);
+      }
+      if (out !== v) st[col.type]++;
+      return out;
+    };
+    let rows = an.body.map(r => cols.map((col, c) => cell(r[c], col, c)));
+
+    const seen = new Set(); let dups = 0;
+    rows = rows.filter(r => { const k = r.map(norm).join("\u0001"); if (seen.has(k)) { dups++; return false; } seen.add(k); return true; });
+
+    let columns = cols.map(c => c.name), types = cols.map(c => c.type), periodCol = null, addedMonth = false;
+    const dc = types.indexOf("data");
+    if (dc >= 0) {
+      const key = r => { const d = parseDate(r[dc]); return d ? d.getTime() : Infinity; };
+      if (opts.sortDate) rows.sort((a, b) => key(a) - key(b));
+      if (opts.addMonth && !columns.some(n => norm(n) === "mes")) {
+        rows = rows.map(r => { const d = parseDate(r[dc]); const x = [...r]; x.splice(dc + 1, 0, d ? monthLabel(d) : ""); return x; });
+        columns.splice(dc + 1, 0, "Mês"); types.splice(dc + 1, 0, "categoria");
+        periodCol = dc + 1; addedMonth = true;
+      }
+    }
+    return { columns, types, rows, periodCol, addedMonth, st, invalid, unify, dups };
+  }
+
+  /* ---------- Janela de importação ---------- */
+  const dlg = $("#impDlg"), impContent = $("#impContent");
+  let imp = null; // { an, name, replaceId, note, opts }
+
+  function openImport(pre) {
+    imp = { replaceId: null, note: "", opts: { sortDate: true, addMonth: true } };
+    if (!dlg.open) { try { dlg.showModal(); } catch { dlg.setAttribute("open", ""); } }
+    if (pre?.matrix) return loadMatrix(pre.matrix, pre.name, pre);
+    if (pre?.text) return loadMatrix(textToMatrix(pre.text), "", pre);
+    renderStep1();
+  }
+  function closeImport() { dlg.open && dlg.close(); imp = null; }
+
+  function renderStep1(err = "", text = "") {
+    $("#impStep").textContent = "Passo 1 de 2 · Enviar dados";
+    impContent.innerHTML = `
+      <div class="imp-body">
+        <p class="lead">Envie um arquivo ou cole dados copiados do Excel, Google Sheets, sistema ou e-mail. O assistente identifica cada coluna (datas, valores, categorias, e-mails, telefones), corrige formatos, remove repetidos e monta a planilha com o painel.</p>
+        <label class="drop" id="dropZone" for="impFile">
+          ${ICONS.up}<span>Arraste um arquivo aqui ou <u>escolha no computador</u></span>
+          <small>.xlsx, .xls, .csv ou .txt</small>
+        </label>
+        <input type="file" id="impFile" accept=".xlsx,.xls,.xlsm,.ods,.csv,.tsv,.txt" hidden>
+        <div class="or">ou cole aqui</div>
+        <textarea id="impText" spellcheck="false" placeholder="Data;Cliente;Cidade;Valor&#10;03/01/2026;Ana Souza;São Paulo;R$ 1.200,00&#10;07/01/2026;Bruno Lima;Campinas;850">${esc(text)}</textarea>
+        ${err ? `<div class="imp-err" role="alert">${esc(err)}</div>` : ""}
+      </div>
+      <div class="imp-foot">
+        <button class="btn ghost" type="button" data-imp="sample">Testar com dados bagunçados de exemplo</button>
+        <span class="grow"></span>
+        <button class="btn" type="button" data-imp="close">Cancelar</button>
+        <button class="btn primary" type="button" data-imp="analyze">Analisar dados</button>
+      </div>`;
+    setTimeout(() => $("#impText")?.focus(), 30);
+  }
+
+  function loadMatrix(matrix, name, pre = {}) {
+    const an = analyze(matrix, pre.forceHeader);
+    if (!an) return renderStep1("Não encontrei dados. Cole pelo menos uma linha com conteúdo.");
+    // Ao reorganizar uma planilha já tipada, mantém os tipos que ela já tinha.
+    if (pre.types) an.columns.forEach((c, i) => { if (pre.types[i]) c.type = pre.types[i]; });
+    imp.an = an;
+    imp.replaceId = pre.replaceId || null;
+    imp.note = pre.note || "";
+    imp.name = name || suggestName(an);
+    renderStep2();
+  }
+  function suggestName(an) {
+    const n = an.columns.map(c => norm(c.name)).join(" ");
+    const base = /cliente|e-?mail|telefone/.test(n) && !/valor|preco|receita/.test(n) ? "Contatos"
+      : /estoque|quantidade|item|fornecedor/.test(n) ? "Estoque"
+      : /valor|receita|preco|venda/.test(n) ? "Vendas" : "Dados importados";
+    let name = base, i = 2;
+    while (state.sheets.some(s => norm(s.name) === norm(name))) name = `${base} ${i++}`;
+    return name;
+  }
+
+  function fmtPreview(v, type) {
+    if (!v) return "";
+    if (type === "moeda") { const n = parseNum(v); return isNaN(n) ? v : nfBRL2.format(n); }
+    if (type === "numero") { const n = parseNum(v); return isNaN(n) ? v : nfNum.format(n); }
+    if (type === "percentual") { const n = parseNum(v); return isNaN(n) ? v : nfNum.format(n) + "%"; }
+    return v;
+  }
+  function fixesTotal(st) { return Object.values(st).reduce((a, b) => a + b, 0); }
+
+  function renderStep2() {
+    const an = imp.an, res = organize(an, imp.opts);
+    imp.res = res;
+    $("#impStep").textContent = "Passo 2 de 2 · Conferir";
+    const hasDate = an.columns.some(c => c.type === "data");
+    const notes = [];
+    if (imp.note) notes.push(esc(imp.note));
+    notes.push(an.hasHeader ? "A primeira linha foi reconhecida como cabeçalho." : "Não havia cabeçalho; dei nomes às colunas pelo conteúdo.");
+    if (res.st.data) notes.push(`${res.st.data} data(s) padronizada(s) para dd/mm/aaaa.`);
+    if (res.st.moeda + res.st.numero + res.st.percentual) notes.push(`${res.st.moeda + res.st.numero + res.st.percentual} valor(es) convertido(s) em número (ex.: “R$ 1.200,50” → 1200,5).`);
+    res.unify.forEach(([from, to]) => notes.push(`Categorias unificadas: ${from.map(v => `<code>${esc(v)}</code>`).join(", ")} → <code>${esc(to)}</code>`));
+    if (res.st.telefone) notes.push(`${res.st.telefone} telefone(s) formatado(s).`);
+    if (res.st.email) notes.push(`${res.st.email} e-mail(s) em minúsculas.`);
+    if (res.st.texto) notes.push(`${res.st.texto} nome(s) com maiúsculas corrigidas.`);
+    if (res.addedMonth) notes.push("Adicionei a coluna <code>Mês</code> para agrupar por período no painel.");
+    if (res.invalid.length) notes.push(`<span style="color:var(--warn)">${res.invalid.length} valor(es) não reconhecido(s) mantido(s) como estão, ex.: ${res.invalid.slice(0, 3).map(([c, v]) => `<code>${esc(v)}</code> em ${esc(c)}`).join(", ")}.</span>`);
+    const prevRows = res.rows.slice(0, 10);
+    impContent.innerHTML = `
+      <div class="imp-body">
+        <div class="stats">
+          <div class="stat"><b>${nfNum.format(res.rows.length)}</b><span>linhas organizadas</span></div>
+          <div class="stat"><b>${res.columns.length}</b><span>colunas</span></div>
+          <div class="stat fix"><b>${fixesTotal(res.st)}</b><span>valores corrigidos</span></div>
+          <div class="stat fix"><b>${res.dups}</b><span>duplicadas removidas</span></div>
+          <div class="stat fix"><b>${an.emptyRows + an.emptyCols}</b><span>linhas/colunas vazias</span></div>
+        </div>
+        <div class="name-row">
+          <label for="impName" class="sec-title" style="margin:0">Nome da planilha</label>
+          <input class="ctl" id="impName" value="${esc(imp.name)}">
+        </div>
+        <div class="imp-grid">
+          <div>
+            <h3 class="sec-title">Colunas identificadas</h3>
+            <div class="cols">${an.columns.map((c, i) => `
+              <div class="colrow">
+                <input class="ctl" data-colname="${i}" value="${esc(c.name)}" aria-label="Nome da coluna ${i + 1}">
+                <select class="ctl" data-coltype="${i}" aria-label="Tipo da coluna ${esc(c.name)}">${TYPES.map(t => `<option value="${t}" ${t === c.type ? "selected" : ""}>${TYPE_LABEL[t]}</option>`).join("")}</select>
+                <div class="ex" title="${esc(c.samples.join(" · "))}">${esc(c.samples.join(" · ")) || "(vazia)"}</div>
+              </div>`).join("")}
+            </div>
+          </div>
+          <div>
+            <h3 class="sec-title">Como vai ficar${res.rows.length > 10 ? ` (primeiras 10 de ${res.rows.length})` : ""}</h3>
+            <div class="preview-wrap"><table class="preview">
+              <thead><tr>${res.columns.map((c, i) => `<th>${esc(c)}<small>${TYPE_LABEL[res.types[i]]}${res.addedMonth && i === res.periodCol ? " · nova" : ""}</small></th>`).join("")}</tr></thead>
+              <tbody>${prevRows.map(r => `<tr>${r.map((v, i) => `<td class="${["numero", "moeda", "percentual"].includes(res.types[i]) ? "num" : ""} ${res.addedMonth && i === res.periodCol ? "new" : ""}">${esc(fmtPreview(v, res.types[i]))}</td>`).join("")}</tr>`).join("")}</tbody>
+            </table></div>
+          </div>
+        </div>
+        ${hasDate ? `<div class="opts">
+          <label><input type="checkbox" id="optSort" ${imp.opts.sortDate ? "checked" : ""}> Ordenar por data</label>
+          <label><input type="checkbox" id="optMonth" ${imp.opts.addMonth ? "checked" : ""}> Criar coluna Mês</label>
+        </div>` : ""}
+        <div><h3 class="sec-title">O que o assistente fez</h3><ul class="notes">${notes.map(n => `<li>${n}</li>`).join("")}</ul></div>
+      </div>
+      <div class="imp-foot">
+        ${imp.replaceId ? "" : `<button class="btn ghost" type="button" data-imp="back">Voltar</button>`}
+        <span class="grow"></span>
+        <button class="btn" type="button" data-imp="close">Cancelar</button>
+        <button class="btn primary" type="button" data-imp="create">${imp.replaceId ? "Aplicar na planilha" : "Criar planilha e painel"}</button>
+      </div>`;
+  }
+
+  function autoCharts(sh) {
+    const t = sh.types, idx = type => t.map((x, i) => x === type ? i : -1).filter(i => i >= 0);
+    const metric = idx("moeda")[0] ?? idx("numero")[0] ?? -1;
+    const period = sh.periodCol;
+    const cats = idx("categoria").filter(i => i !== period);
+    const uniq = c => new Set(sh.rows.map(r => r[c])).size;
+    const name = v => v < 0 ? "Registros" : sh.columns[v];
+    const list = [];
+    const add = (type, label, values) => list.push({ id: uid(), sheetId: sh.id, type, label, values, title: (t => t.charAt(0).toUpperCase() + t.slice(1))(`${values.map(name).join(" e ")} por ${sh.columns[label].toLowerCase()}`) });
+    if (period != null && uniq(period) > 1) {
+      const money = idx("moeda").slice(0, 2);
+      add("line", period, money.length ? money : [metric]);
+    }
+    if (cats[0] != null) add("bar", cats[0], [metric]);
+    const small = cats.find(c => uniq(c) <= 5 && c !== cats[0]) ?? (cats[0] != null && uniq(cats[0]) <= 5 ? cats[0] : null);
+    if (small != null) add("doughnut", small, metric >= 0 && small === cats[0] ? [-1] : [metric]);
+    if (!list.length) {
+      const anyText = textCols(sh)[0];
+      if (anyText != null && uniq(anyText) <= 25) add("bar", anyText, [metric]);
+    }
+    return list.slice(0, 3);
+  }
+
+  function createFromImport() {
+    const res = imp.res;
+    const name = ($("#impName").value || imp.name).trim();
+    let sh;
+    if (imp.replaceId) {
+      sh = state.sheets.find(s => s.id === imp.replaceId);
+      Object.assign(sh, { name, columns: res.columns, rows: res.rows, types: res.types, periodCol: res.periodCol });
+      state.charts = state.charts.filter(c => c.sheetId !== sh.id);
+    } else {
+      sh = { id: uid(), name, columns: res.columns, rows: res.rows, types: res.types, periodCol: res.periodCol };
+      state.sheets.push(sh);
+    }
+    if (sh.periodCol == null) sh.periodCol = periodCol(sh) ?? null;
+    const newCharts = autoCharts(sh);
+    state.charts.push(...newCharts);
+    state.activeSheet = sh.id;
+    const firstCat = sh.types.findIndex((t, i) => t === "categoria" && i !== sh.periodCol);
+    state.filter = { col: firstCat >= 0 ? firstCat : null, val: "" };
+    selCell = null;
+    const wasReplace = !!imp.replaceId;
+    closeImport();
+    goto("painel");
+    openAssist();
+    const ident = sh.columns.map((c, i) => `${code(c)} ${TYPE_LABEL[sh.types[i]].toLowerCase()}`).join(", ");
+    const fixes = fixesTotal(res.st);
+    say(`${wasReplace ? "Organizei" : "Criei"} a planilha <b>${esc(sh.name)}</b> com ${sh.rows.length} linhas.<ul>
+      <li>Colunas: ${ident}.</li>
+      <li>${fixes} valor(es) corrigido(s)${res.dups ? `, ${res.dups} linha(s) duplicada(s) removida(s)` : ""}.</li>
+      <li>${newCharts.length ? `Montei ${newCharts.length} gráfico(s) no painel: ${newCharts.map(c => esc(c.title.toLowerCase())).join("; ")}.` : "Não havia colunas numéricas ou categorias para gráficos automáticos."}</li>
+    </ul>Próximos passos: ${code("resumo")}${firstCat >= 0 ? `, ${code(`filtrar ${sh.columns[firstCat].toLowerCase()} = ${sh.rows.find(r => r[firstCat])?.[firstCat] || ""}`)}` : ""}${newCharts.length ? "" : `, ${code(`criar gráfico de registros por ${sh.columns[0].toLowerCase()}`)}`}.`);
+    const sug = ["resumo", "mostrar planilha", "exportar excel"];
+    const numC = sh.types.findIndex(t => t === "moeda" || t === "numero");
+    if (numC >= 0) sug.splice(1, 0, `maior ${sh.columns[numC].toLowerCase()}`);
+    $("#suggest").innerHTML = sug.map(s => `<button type="button" data-suggest="${esc(s)}">${esc(s)}</button>`).join("");
+  }
+
+  // Exemplo propositalmente desorganizado para demonstrar a identificação.
+  function messySample() {
+    const clientes = [["ana souza", "ANA.SOUZA@GMAIL.COM", "11987654321"], ["Bruno Lima", "bruno@lima.com.br", "(19) 99876-5432"], ["CARLA MENDES", "carla.m@outlook.com", "+55 21 98888-1234"],
+      ["Diego Rocha", "diego.rocha@empresa.com", "11 91234 5678"], ["elaine prado", "Elaine.Prado@gmail.com", "(31)97777-0000"], ["Fábio Nunes", "fabio@nunes.net", "41 98765-1111"]];
+    const cidades = ["São Paulo", "sao paulo", "SÃO PAULO", "Campinas", "campinas ", "Rio de Janeiro", "Belo Horizonte", "Curitiba"];
+    const prods = ["Consultoria", "consultoria", "Treinamento", "TREINAMENTO", "Suporte mensal", "suporte mensal"];
+    const status = ["Pago", "pago", "PAGO", "Pendente", "pendente", "Atrasado"];
+    const lines = ["Data da venda\tCLIENTE\te-mail\ttelefone\tcidade\tproduto\tvalor (R$)\tstatus"];
+    let seed = 20260925; const rnd = n => { seed = (seed * 1103515245 + 12345) % 2147483648; return Math.floor(seed / 2147483648 * n); };
+    for (let i = 0; i < 26; i++) {
+      const [cli, mail, tel] = clientes[rnd(clientes.length)];
+      const day = 1 + rnd(28), mon = 1 + Math.floor(i / 9);
+      const date = [`${pad2(day)}/${pad2(mon)}/2026`, `2026-${pad2(mon)}-${pad2(day)}`, `${day}/${mon}/26`, `${day} ${MES_NOMES[mon - 1]} 2026`][rnd(4)];
+      const prod = prods[rnd(prods.length)];
+      const base = norm(prod).startsWith("cons") ? 2400 : norm(prod).startsWith("trei") ? 1350 : 690;
+      const val = base + rnd(9) * 50;
+      const vfmt = [`R$ ${nfNum.format(val)},00`.replace(",00,00", ",00"), String(val), `${val},00`, `R$${val}`][rnd(4)];
+      lines.push([date, cli, mail, tel, cidades[rnd(cidades.length)], prod, vfmt, status[rnd(status.length)]].join("\t"));
+      if (i === 5 || i === 17) lines.push(lines[lines.length - 1]);
+      if (i === 9 || i === 20) lines.push("");
+    }
+    return lines.join("\n");
+  }
+
+  dlg.addEventListener("click", async e => {
+    if (e.target === dlg) return closeImport();
+    const b = e.target.closest("[data-imp]"); if (!b) return;
+    const a = b.dataset.imp;
+    if (a === "close") closeImport();
+    else if (a === "back") renderStep1("", "");
+    else if (a === "sample") { $("#impText").value = messySample(); }
+    else if (a === "analyze") {
+      const text = $("#impText").value;
+      if (!text.trim()) return renderStep1("Cole os dados ou escolha um arquivo primeiro.");
+      loadMatrix(textToMatrix(text), "");
+    } else if (a === "create") createFromImport();
+  });
+  dlg.addEventListener("cancel", () => { imp = null; });
+  dlg.addEventListener("change", async e => {
+    const t = e.target;
+    if (t.id === "impFile" && t.files[0]) handleFile(t.files[0]);
+    else if (t.dataset.coltype) { imp.an.columns[+t.dataset.coltype].type = t.value; imp.name = $("#impName").value; renderStep2(); }
+    else if (t.dataset.colname) { imp.an.columns[+t.dataset.colname].name = t.value.trim() || imp.an.columns[+t.dataset.colname].name; imp.name = $("#impName").value; renderStep2(); }
+    else if (t.id === "optSort" || t.id === "optMonth") { imp.opts = { sortDate: $("#optSort").checked, addMonth: $("#optMonth").checked }; imp.name = $("#impName").value; renderStep2(); }
+  });
+  async function handleFile(file) {
+    if (!imp) openImport();
+    try {
+      const { matrix, note } = await fileToMatrix(file);
+      loadMatrix(matrix, file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim(), { note });
+    } catch (err) {
+      renderStep1(err.message || "Não consegui ler esse arquivo.");
+    }
+  }
+
+  // Arrastar arquivo para qualquer lugar da página
+  let dragDepth = 0;
+  const hasFiles = e => [...(e.dataTransfer?.types || [])].includes("Files");
+  addEventListener("dragenter", e => { if (!hasFiles(e)) return; dragDepth++; if (!dlg.open) $("#dragVeil").hidden = false; else $("#dropZone")?.classList.add("over"); });
+  addEventListener("dragleave", e => { if (!hasFiles(e)) return; if (--dragDepth <= 0) { dragDepth = 0; $("#dragVeil").hidden = true; $("#dropZone")?.classList.remove("over"); } });
+  addEventListener("dragover", e => { if (hasFiles(e)) e.preventDefault(); });
+  addEventListener("drop", e => {
+    if (!hasFiles(e)) return;
+    e.preventDefault(); dragDepth = 0; $("#dragVeil").hidden = true;
+    const f = e.dataTransfer.files[0]; if (f) handleFile(f);
+  });
+
+  // Colar dados em qualquer lugar (fora de campos) ou no campo de comando abre a importação
+  document.addEventListener("paste", e => {
+    const text = e.clipboardData?.getData("text") || "";
+    const multi = /\n.*\S/.test(text.trim()) || text.includes("\t");
+    const t = e.target;
+    if (!multi) return;
+    if (t.id === "cmdInput" || !/INPUT|TEXTAREA|SELECT/.test(t.tagName || "")) {
+      e.preventDefault();
+      openImport({ text });
+      say("Recebi dados colados. Confira a análise na janela de importação.");
+    }
+  });
+
+  /* =====================================================================
      Eventos
      ===================================================================== */
   function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 1800); }
@@ -1049,11 +1632,12 @@
     if (!t) return;
     if (t.dataset.view) { goto(t.dataset.view); return; }
     if (t.dataset.sheet) { state.activeSheet = t.dataset.sheet; state.filter = { col: null, val: "" }; selCell = null; state.view = "planilhas"; render(); return; }
-    if (t.dataset.run) { const inp = $("#cmdInput"); if (/ $|planilha$|gráfico$/.test(t.dataset.run)) { openAssist(); inp.value = t.dataset.run + " "; inp.focus(); } else run(t.dataset.run); return; }
+    if (t.dataset.run) { const inp = $("#cmdInput"); if (/ $|nova planilha$|gráfico$/.test(t.dataset.run)) { openAssist(); inp.value = t.dataset.run + " "; inp.focus(); } else run(t.dataset.run); return; }
     if (t.dataset.ctype) { const c = state.charts.find(c => c.id === t.dataset.chart); if (c.values.length > 1 && t.dataset.ctype === "doughnut") { toast("Rosca mostra só uma medida; usei a primeira."); c.values = [c.values[0]]; } c.type = t.dataset.ctype; render(); return; }
     if (t.dataset.delchart) { state.charts = state.charts.filter(c => c.id !== t.dataset.delchart); render(); toast("Gráfico removido"); return; }
     if (t.dataset.fval !== undefined) { state.filter.val = t.dataset.fval; render(); return; }
     if (t.dataset.deltask) { state.tasks = state.tasks.filter(x => x.id !== t.dataset.deltask); render(); return; }
+    if (t.dataset.act === "import") { openImport(); return; }
     if (t.dataset.act === "addRow") { const sh = sheet(); sh.rows.push(sh.columns.map(() => "")); render(); const g = $(".grid-wrap"); g.scrollTop = g.scrollHeight; return; }
     if (t.dataset.act === "addCol") { const sh = sheet(); sh.columns.push("Coluna " + colLetter(sh.columns.length)); sh.rows.forEach(r => r.push("")); render(); return; }
     if (t.dataset.suggest) { run(t.dataset.suggest); return; }
@@ -1091,7 +1675,7 @@
     });
     const ncols = numericCols(sh);
     document.querySelectorAll(".grid tfoot td:not(.rownum)").forEach((td, i) => {
-      td.textContent = ncols.includes(i) ? (isMoneyCol(sh.columns[i]) ? nfBRL2.format(colTotal(sh, i, sh.rows.map((_, r) => r))) : nfNum.format(colTotal(sh, i, sh.rows.map((_, r) => r)))) : "";
+      td.textContent = ncols.includes(i) ? fmtCol(sh, i, isPct(sh, i) ? colTotal(sh, i, sh.rows.map((_, r) => r)) / (sh.rows.length || 1) : colTotal(sh, i, sh.rows.map((_, r) => r))) : "";
     });
   }
   document.addEventListener("focusout", e => {
@@ -1178,7 +1762,7 @@
   $("#openAssist").addEventListener("click", () => { openAssist(); input.focus(); });
   $("#closeAssist").addEventListener("click", closeAssist);
 
-  $("#suggest").innerHTML = ["resumo", "criar gráfico de receita por categoria", "maior lucro", "filtrar categoria = Serviços", "listar tarefas", "ajuda"]
+  $("#suggest").innerHTML = ["importar dados", "resumo", "criar gráfico de receita por categoria", "maior lucro", "filtrar categoria = Serviços", "listar tarefas", "ajuda"]
     .map(s => `<button type="button" data-suggest="${esc(s)}">${esc(s)}</button>`).join("");
 
   // Início

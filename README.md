@@ -8,6 +8,14 @@ Abra o arquivo `index.html` no navegador. Não precisa instalar nada; os gráfic
 
 ## O que já funciona
 
+- **Importar e organizar dados**: cole dados (do Excel, Google Sheets, CSV, e-mail) ou arraste um arquivo `.xlsx`, `.xls`, `.csv` ou `.txt`. O assistente:
+  - reconhece se a primeira linha é cabeçalho e, se não houver, dá nomes às colunas pelo conteúdo;
+  - identifica o tipo de cada coluna: data, moeda, número, percentual, categoria, e-mail, telefone ou texto;
+  - padroniza datas (dd/mm/aaaa), converte valores como `R$ 1.200,50` em número, formata telefones, unifica categorias escritas de jeitos diferentes (`sao paulo`, `SÃO PAULO` → `São Paulo`) e corrige maiúsculas em nomes;
+  - remove linhas duplicadas e linhas/colunas vazias, ordena por data e cria a coluna `Mês`;
+  - mostra uma prévia em que você pode ajustar nomes e tipos antes de confirmar;
+  - cria a planilha e monta os gráficos do painel automaticamente.
+
 - **Assistente por comandos**: campo de comando com autocompletar (`Tab`), histórico (`↑`) e atalhos `/` ou `Ctrl+K`.
 - **Planilhas**: células editáveis, renomear colunas, adicionar linhas e colunas, fórmulas (`=C2-D2`, `=SOMA(C2:C10)`, `=MEDIA()`, `=MAX()`, `=MIN()`, `=CONT()`), totais automáticos e exportação para `.csv` e `.xlsx`.
 - **Painel**: indicadores com variação e minigráficos, filtros por categoria e gráficos de barras, linhas ou rosca que se atualizam quando a planilha muda.
@@ -18,6 +26,8 @@ Abra o arquivo `index.html` no navegador. Não precisa instalar nada; os gráfic
 | Comando | O que faz |
 |---|---|
 | `ajuda` | Lista os comandos |
+| `importar dados` | Abre a importação (ou simplesmente cole os dados na página) |
+| `organizar` | Identifica e arruma a planilha atual |
 | `resumo` | Totais e médias da planilha atual |
 | `nova planilha Clientes com colunas Nome, Cidade, Valor` | Cria uma planilha |
 | `abrir planilha Estoque` | Troca de planilha |
@@ -38,5 +48,4 @@ Os dados iniciais (Vendas 2026 e Estoque) são fictícios, só para demonstraç�
 ## Próximos passos possíveis
 
 - Conectar a um modelo de linguagem para entender pedidos livres, além dos comandos.
-- Importar planilhas `.xlsx`/`.csv` existentes.
 - Salvar os dados em um servidor para acesso em vários dispositivos.
