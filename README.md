@@ -36,6 +36,8 @@ Abra o arquivo `index.html` no navegador. Não precisa instalar nada; os gráfic
 
 Uma coluna só é tratada como dinheiro (R$) quando os valores têm "R$" ou o nome indica claramente dinheiro (custo, preço, valor, receita, despesa...). Quantidades, horas, contagens e códigos (O.S., TAG, patrimônio) nunca viram dinheiro nem entram em somas. Cada gráfico diz a unidade ("soma em R$", "soma (número, não é dinheiro)", "quantidade de registros").
 
+Também ficam fora das somas as colunas que só parecem número: códigos de equipamento (mesmo repetidos), datas que o Excel grava como número (`46290,6`) e datas no formato `20260925`, que são convertidas para dd/mm/aaaa. Se um cartão mostrar um valor absurdo (centenas de milhões ou bilhões), ele exibe o botão **Marcar como código**. O comando `verificar` mostra como cada coluna está sendo calculada.
+
 Para corrigir: troque o tipo no cabeçalho da coluna, na tela da planilha, ou diga `total não é custo` / `valor é custo`.
 
 ## Exemplos de comandos

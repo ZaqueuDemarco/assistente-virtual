@@ -699,7 +699,7 @@
     if (sh.userSet?.[c]) return false; // o usuário escolheu o tipo: respeita
     if (t && t !== "numero" && t !== "texto") return false;
     if (ID_HINT.test(norm(sh.columns[c]))) return true;
-    return looksIdValues(sh.rows.map(r => r[c]).filter(v => v !== "" && v != null), sh.columns[c]);
+    return classifyNumbers(sh.rows.map(r => r[c]).filter(v => v !== "" && v != null), sh.columns[c]) != null;
   }
   // Tipo que o painel está usando para a coluna (definido na importação, pelo usuário ou deduzido).
   function effType(sh, c) {
@@ -713,7 +713,7 @@
     if (!sh.types) sh.types = sh.columns.map((_, i) => effType(sh, i));
     while (sh.types.length < sh.columns.length) sh.types.push(effType(sh, sh.types.length));
     const was = sh.types[c];
-    sh.types[c] = t; sh.typesV = 2;
+    sh.types[c] = t; sh.typesV = Math.max(sh.typesV || 0, 3);
     sh.userSet = { ...(sh.userSet || {}), [c]: true };
     // Converte textos com "R$" / vírgula em número ao virar tipo numérico.
     if (NUM_TYPES.includes(t)) sh.rows.forEach(r => { const v = r[c]; if (v && !String(v).startsWith("=")) { const n = t === "duracao" ? parseDuration(String(v)) : parseNum(v); if (!isNaN(n)) r[c] = String(n); } });
@@ -898,7 +898,7 @@
           delta = `<div class="delta"><span class="${good ? "up" : "down"}">${pct >= 0 ? "▲" : "▼"} ${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: Math.abs(pct) >= 10 ? 0 : 1 }).format(Math.abs(pct))}%</span> ${esc(groups[groups.length - 1])} vs ${esc(groups[groups.length - 2])}</div>`;
         }
       }
-      return `<div class="panel kpi"><span class="lbl">${esc(sh.columns[c])}${isAvgCol(sh, c) ? " (média)" : ""}</span><span class="val" title="${esc(fmtCol(sh, c, total))}">${isMoney(sh, c) ? (Math.abs(total) >= 1e6 ? nfBRLCompact.format(total) : nfBRL.format(total)) : Math.abs(total) >= 1e6 ? nfCompact.format(total) : fmtCol(sh, c, total)}</span>${delta}<div class="spark"><canvas id="spark_${i}" aria-hidden="true"></canvas></div></div>`;
+      return `<div class="panel kpi"><span class="lbl">${esc(sh.columns[c])}${isAvgCol(sh, c) ? " (média)" : ""}</span><span class="val" title="${esc(fmtCol(sh, c, total))}">${isMoney(sh, c) ? (Math.abs(total) >= 1e6 ? nfBRLCompact.format(total) : nfBRL.format(total)) : Math.abs(total) >= 1e6 ? nfCompact.format(total) : fmtCol(sh, c, total)}</span>${Math.abs(total) >= 1e8 && !isMoney(sh, c) ? `<div class="delta" style="margin-top:2px"><span class="down">⚠ Valor muito alto. É um código?</span></div><button class="btn" style="margin-top:6px;align-self:flex-start" data-suggest="${esc(sh.columns[c].toLowerCase())} é código">Marcar como código</button>` : ""}${delta}<div class="spark"><canvas id="spark_${i}" aria-hidden="true"></canvas></div></div>`;
     }).join("") + (ncols.length < 3 && !isSampleSheet(sh) ? `<div class="panel kpi"><span class="lbl">Registros</span><span class="val">${nfNum.format(rows.length)}</span><div class="delta">${sh.columns.length} colunas</div></div>` : "") + `<div class="panel kpi"><span class="lbl">Tarefas pendentes</span><span class="val">${state.tasks.filter(t => !t.done).length}</span><div class="delta">${state.tasks.filter(t => !t.done && dueClass(t.due) === "late").length} atrasada(s)</div></div>`;
 
     // Sparklines
@@ -1064,6 +1064,7 @@
     ["apagar exemplos", "Remove os dados de exemplo"],
     ["apagar planilha Vendas", "Exclui uma planilha"],
     ["desfazer", "Desfaz a última exclusão"],
+    ["verificar", "Mostra como cada coluna é calculada"],
     ["tempo não é custo", "Corrige uma coluna tratada como dinheiro"],
     ["custo é custo", "Marca uma coluna como dinheiro (R$)"],
     ["nova planilha Clientes com colunas Nome, Cidade, Valor", "Cria uma planilha"],
@@ -1138,6 +1139,23 @@
       if (m[2]) { if (t !== "moeda") return say(`Diga o que a coluna é, por exemplo ${code(`${sh.columns[c].toLowerCase()} é número`)}.`); t = "numero"; }
       setType(sh, c, t); render();
       return say(`Certo: ${code(sh.columns[c])} agora é <b>${esc(TYPE_LABEL[t])}</b>. Painel e gráficos atualizados.`);
+    }
+    if (/^(verificar|diagnostico|conferir|checar|por que|porque|como (voce )?calcul)/.test(n)) {
+      const rows = sh.rows.map((_, r) => r), nc = numericCols(sh);
+      const items = sh.columns.map((name, c) => {
+        const t = effType(sh, c);
+        let how;
+        if (isIdCol(sh, c)) how = "código: fica fora das somas";
+        else if (nc.includes(c)) {
+          const val = colSummary(sh, c, rows);
+          how = `${isAvgCol(sh, c) ? "média" : "soma"} = <b>${fmtCol(sh, c, val)}</b>${isMoney(sh, c) ? " (dinheiro)" : ""}`;
+          if (Math.abs(val) >= 1e8 && !isMoney(sh, c)) how += ` <span style="color:var(--warn)">⚠ valor muito alto; se não for quantidade, diga ${code(`${name.toLowerCase()} é código`)}</span>`;
+        } else if (t === "data") how = "data: usada para agrupar por período";
+        else if (t === "categoria") how = "categoria: usada para filtrar e agrupar (conta registros)";
+        else how = "texto: só exibido";
+        return `<li>${code(name)} · ${esc(TYPE_LABEL[t] || t)} → ${how}</li>`;
+      });
+      return say(`Como o painel calcula <b>${esc(sh.name)}</b> (${sh.rows.length} linhas):<ul>${items.join("")}</ul>Para mudar um tipo, clique nele no cabeçalho da planilha ou diga, por exemplo, ${code(`${sh.columns[0].toLowerCase()} é código`)}.`);
     }
     if (/^(desfazer|voltar atras|undo)$/.test(n)) return say(undoLast() ? "Pronto, desfiz a última exclusão." : "Não há nada para desfazer.");
     if (/^(apagar|excluir|remover|limpar|tirar)\s+(os\s+)?(dados\s+de\s+)?exemplos?|^(comecar|começar) do zero$/.test(n)) return clearSamples();
@@ -1474,8 +1492,10 @@
     const mdy = vals.some(v => { const m = v.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-]\d{2,4}$/); return m && +m[1] <= 12 && +m[2] > 12; })
       && !vals.some(v => { const m = v.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-]\d{2,4}$/); return m && +m[1] > 12; });
     const order = mdy ? "mdy" : "dmy";
-    if (share(v => parseDate(v, order)) >= .8) return { type: "data", order, hasTime: vals.some(v => reTime.test(v) && v.length > 10) };
-    if (/data|dia|vencimento|prazo/.test(nn) && share(v => /^\d{5}$/.test(v) && +v > 20000 && +v < 60000) >= .8) return { type: "data", order: "serial" };
+    if (share(v => parseDate(v, order)) >= .8 && !share(v => /^\d+([.,]\d+)?$/.test(v))) return { type: "data", order, hasTime: vals.some(v => reTime.test(v) && v.length > 10) };
+    const numKind = classifyNumbers(vals, name);
+    if (numKind === "data8") return { type: "data", order: "ymd8" };
+    if (numKind === "serial") return { type: "data", order: "serial", hasTime: vals.some(v => /[.,]\d{3,}$/.test(v)) };
     if (share(v => /^\d{1,5}:\d{2}(:\d{2})?$/.test(v)) >= .8 || (/tempo|duracao|horas|hh|mttr|mtbf/.test(nn) && share(v => !isNaN(parseDuration(v))) >= .8 && share(v => isNaN(parseNum(v))) > .3)) return { type: "duracao" };
     // Códigos e identificadores (OS, patrimônio, série, TAG...) são texto mesmo quando só têm dígitos.
     if (ID_HINT.test(nn) || share(v => /^0\d+$/.test(v)) > .3 || share(v => /^\d{7,}$/.test(v)) >= .8 || looksIdValues(vals, name)) return { type: "texto", id: true };
@@ -1492,8 +1512,23 @@
   const CAT_HINT = /(^|\s)(setor|status|situacao|tipo|categoria|prioridade|unidade|local|localizacao|cidade|estado|uf|fabricante|marca|modelo|equipamento|departamento|grupo|familia|criticidade|responsavel|tecnico|vendedor|fornecedor|empresa|origem|canal|regiao|area|centro de custo|contrato|produto|servico)(\s|$)/;
   const ID_HINT = /(^|[\s.])(id|cod|codigo|cep|cpf|cnpj|matricula|pedido|nf|nota fiscal|os|o\.s|ordem|ordem de servico|tag|patrimonio|serie|n[º°o]?\.?\s*(de\s+)?serie|registro|chamado|protocolo|ss|s\.s|solicitacao de servico|n[º°]\.?(?=\s*$)|nr|ticket|lote|anvisa)([\s.]|$)/;
   // Números inteiros longos e todos diferentes, numa coluna que não é valor/quantidade, são códigos.
-  const looksIdValues = (vals, name) => vals.length >= 3 && !isMoneyCol(name) && !/quant|qtd|total|soma|horas|saldo|estoque/.test(norm(name))
-    && vals.every(v => /^\d{5,}$/.test(String(v).trim())) && new Set(vals.map(v => String(v).trim())).size === vals.length;
+  const DATE_HINT = /data|dt\b|abertura|fechamento|inicio|termino|fim\b|vencimento|prazo|conclusao|entrada|saida|emissao|criacao|previsao|solicitad|encerr|baixa/;
+  // Diz se uma coluna só de números é, na verdade, código, data do Excel (46290,6) ou data AAAAMMDD.
+  function classifyNumbers(vals, name) {
+    const v = vals.map(x => String(x).trim()).filter(Boolean);
+    if (v.length < 3) return null;
+    const nn = norm(name), share = f => v.filter(f).length / v.length;
+    if (share(x => /^(19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])$/.test(x)) >= .8) return "data8";
+    const nums = v.map(parseNum);
+    const inSerial = nums.filter(n => n >= 20000 && n <= 80000).length / v.length >= .8;
+    const withTime = share(x => /^\d{5}[.,]\d{3,}$/.test(x)) >= .5;
+    if (inSerial && !isMoneyCol(name) && (DATE_HINT.test(nn) || withTime)) return "serial";
+    if (isMoneyCol(name) || /quant|qtd|total|soma|saldo|estoque|peso|kg|litros|volume|area|custo|valor|preco/.test(nn)) return null;
+    if (share(x => /^\d{5,}$/.test(x)) >= .9) return "codigo";
+    return null;
+  }
+  const looksIdValues = (vals, name) => classifyNumbers(vals, name) === "codigo";
+  const serialToDate = n => { const d = new Date(Math.round((n - 25569) * 1440) * 6e4); return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes()); };
   function guessName(type, vals) {
     if (type === "numero") return vals.every(v => Number.isInteger(parseNum(v)) && Math.abs(parseNum(v)) < 10000) ? "Quantidade" : "Número";
     if (type === "texto" && vals.length && vals.every(v => /^[\d./-]+$/.test(v))) return "Código";
@@ -1603,7 +1638,9 @@
       let out = v;
       switch (col.type) {
         case "data": {
-          const dt = col.order === "serial" && /^\d+$/.test(v) ? new Date(Date.UTC(1899, 11, 30) + +v * 864e5 + new Date().getTimezoneOffset() * 6e4) : parseDate(v, col.order);
+          const dt = col.order === "serial" && !isNaN(parseNum(v)) ? serialToDate(parseNum(v))
+            : col.order === "ymd8" && /^\d{8}$/.test(v) ? new Date(+v.slice(0, 4), +v.slice(4, 6) - 1, +v.slice(6, 8))
+            : parseDate(v, col.order);
           if (dt) out = fmtDMY(dt) + (col.hasTime ? " " + fmtTime(dt) : ""); else invalid.push([col.name, v]);
           break;
         }
@@ -1831,7 +1868,7 @@
     closeImport();
     goto("painel");
     openAssist();
-    sh.typesV = 2;
+    sh.typesV = 3;
     const ident = sh.columns.map((c, i) => `${code(c)} ${TYPE_LABEL[sh.types[i]]}`).join(", ");
     const moneyCols = sh.columns.filter((_, i) => sh.types[i] === "moeda");
     const numCols = sh.columns.filter((_, i) => sh.types[i] === "numero");
@@ -2086,7 +2123,7 @@
     else if (sh && !isSampleSheet(sh)) {
       const cat = (sh.types || []).findIndex((t, i) => t === "categoria" && i !== sh.periodCol);
       const num = numericCols(sh)[0];
-      list = ["resumo", num != null ? `maior ${sh.columns[num].toLowerCase()}` : null, cat >= 0 ? `criar gráfico de registros por ${sh.columns[cat].toLowerCase()}` : null, "importar dados", hasSamples() ? "apagar exemplos" : null, "ajuda"].filter(Boolean);
+      list = ["verificar", "resumo", num != null ? `maior ${sh.columns[num].toLowerCase()}` : null, cat >= 0 ? `criar gráfico de registros por ${sh.columns[cat].toLowerCase()}` : null, "importar dados", hasSamples() ? "apagar exemplos" : null, "ajuda"].filter(Boolean);
     } else list = ["apagar exemplos", "importar dados", "resumo", "criar gráfico de receita por categoria", "ajuda"];
     $("#suggest").innerHTML = list.map(s => `<button type="button" data-suggest="${esc(s)}">${esc(s)}</button>`).join("");
   }
@@ -2094,17 +2131,36 @@
     .map(s => `<button type="button" data-suggest="${esc(s)}">${esc(s)}</button>`).join("");
 
   // Planilhas importadas por versões anteriores: a regra de dinheiro era frouxa ("total" já bastava).
+  const fixedCols = [];
   function migrateTypes() { state.sheets.forEach(sh => {
-    if (!sh.types || sh.typesV >= 2) return;
-    sh.types.forEach((t, c) => {
+    if (!sh.types || sh.typesV >= 3) return;
+    if (!(sh.typesV >= 2)) sh.types.forEach((t, c) => {
       if (t === "moeda" && !isMoneyCol(sh.columns[c])) { sh.types[c] = "numero"; migrated.push(`${sh.name} › ${sh.columns[c]}`); }
-      if (sh.types[c] === "numero" && ID_HINT.test(norm(sh.columns[c]))) sh.types[c] = "texto"; // O.S., TAG... são códigos
     });
-    sh.typesV = 2;
+    sh.types.forEach((t, c) => {
+      if (t !== "numero" || sh.userSet?.[c]) return;
+      const kind = ID_HINT.test(norm(sh.columns[c])) ? "codigo" : classifyNumbers(sh.rows.map(r => r[c]).filter(v => v !== "" && v != null), sh.columns[c]);
+      if (!kind) return;
+      if (kind === "codigo") { sh.types[c] = "texto"; fixedCols.push([sh, c, "código"]); return; }
+      sh.rows.forEach(r => {
+        const v = String(r[c] ?? "").trim(); if (!v) return;
+        const d = kind === "data8" ? new Date(+v.slice(0, 4), +v.slice(4, 6) - 1, +v.slice(6, 8)) : serialToDate(parseNum(v));
+        if (!isNaN(d)) r[c] = fmtDMY(d) + (d.getHours() || d.getMinutes() ? " " + fmtTime(d) : "");
+      });
+      sh.types[c] = "data"; fixedCols.push([sh, c, "data"]);
+    });
+    // Gráficos que somavam essas colunas deixam de fazer sentido: troca pelos automáticos.
+    const bad = new Set(fixedCols.filter(([x]) => x === sh).map(([, c]) => c));
+    if (bad.size) {
+      state.charts = state.charts.filter(ch => ch.sheetId !== sh.id || !ch.values.some(v => bad.has(v)));
+      if (!state.charts.some(ch => ch.sheetId === sh.id)) state.charts.push(...autoCharts(sh));
+    }
+    sh.typesV = 3;
   }); }
   // Início
   migrateTypes();
   render();
+  if (fixedCols.length) say(`Encontrei colunas que estavam sendo <b>somadas por engano</b> (era daí que vinham valores como “500 mi” e “1 bi”):<ul>${fixedCols.map(([sh, c, k]) => `<li>${code(sh.columns[c])} em ${esc(sh.name)}: é ${k === "data" ? "uma <b>data</b> que o Excel gravou como número; converti para dd/mm/aaaa" : "um <b>código</b>; não entra mais em somas"}</li>`).join("")}</ul>Os gráficos que usavam essas colunas foram refeitos. Digite ${code("verificar")} para ver como cada coluna é calculada.`);
   if (migrated.length) say(`Revisei suas planilhas: ${migrated.map(x => code(x)).join(", ")} ${migrated.length > 1 ? "estavam sendo tratadas" : "estava sendo tratada"} como dinheiro sem motivo claro e ${migrated.length > 1 ? "voltaram" : "voltou"} a ser número. Se for mesmo custo, diga ${code(`${migrated[0].split(" › ")[1].toLowerCase()} é custo`)}.`);
   if (hasSamples()) say(`Olá! Sou seu assistente de gestão. O painel mostra <b>dados de exemplo</b>. Para usar os seus, digite ${code("apagar exemplos")} e depois ${code("importar dados")} (ou arraste o arquivo exportado do seu sistema para esta página).`);
   else say(`Olá! ${state.sheets.length ? `Suas planilhas estão carregadas. Digite ${code("resumo")} ou ${code("importar dados")}.` : `Para começar, digite ${code("importar dados")} ou arraste um arquivo .xlsx/.csv para a página.`}`);
