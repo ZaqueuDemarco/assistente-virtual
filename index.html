@@ -635,11 +635,20 @@
   function display(sh, r, c) {
     const x = cellValue(sh, r, c);
     if (x.err) return x.err;
+    if (typeof x.v === "number" && isIdCol(sh, c)) return String(sh.rows[r][c]);
     if (typeof x.v === "number") return fmtCol(sh, c, x.v);
     return x.v;
   }
   const NUM_TYPES = ["numero", "moeda", "percentual", "duracao"];
+  // Códigos (O.S., TAG, patrimônio...) nunca entram em somas, mesmo em planilhas importadas antes desta regra.
+  function isIdCol(sh, c) {
+    const t = sh.types?.[c];
+    if (t && t !== "numero" && t !== "texto") return false;
+    if (ID_HINT.test(norm(sh.columns[c]))) return true;
+    return looksIdValues(sh.rows.map(r => r[c]).filter(v => v !== "" && v != null), sh.columns[c]);
+  }
   const numericCols = sh => sh.columns.map((_, c) => c).filter(c => {
+    if (isIdCol(sh, c)) return false;
     if (sh.types?.[c]) return NUM_TYPES.includes(sh.types[c]);
     const vals = sh.rows.map((_, r) => cellValue(sh, r, c).v).filter(v => v !== "");
     return vals.length && vals.filter(v => typeof v === "number").length / vals.length >= .8;
@@ -1382,7 +1391,7 @@
     if (/data|dia|vencimento|prazo/.test(nn) && share(v => /^\d{5}$/.test(v) && +v > 20000 && +v < 60000) >= .8) return { type: "data", order: "serial" };
     if (share(v => /^\d{1,5}:\d{2}(:\d{2})?$/.test(v)) >= .8 || (/tempo|duracao|horas|hh|mttr|mtbf/.test(nn) && share(v => !isNaN(parseDuration(v))) >= .8 && share(v => isNaN(parseNum(v))) > .3)) return { type: "duracao" };
     // Códigos e identificadores (OS, patrimônio, série, TAG...) são texto mesmo quando só têm dígitos.
-    if (ID_HINT.test(nn) || share(v => /^0\d+$/.test(v)) > .3 || share(v => /^\d{7,}$/.test(v)) >= .8) return { type: "texto" };
+    if (ID_HINT.test(nn) || share(v => /^0\d+$/.test(v)) > .3 || share(v => /^\d{7,}$/.test(v)) >= .8 || looksIdValues(vals, name)) return { type: "texto", id: true };
     if (share(v => /%\s*$/.test(v) && !isNaN(parseNum(v))) >= .6) return { type: "percentual" };
     if (share(v => !isNaN(parseNum(v))) >= .8) {
       return { type: share(v => /R\$/.test(v)) >= .3 || isMoneyCol(name) ? "moeda" : "numero" };
@@ -1393,9 +1402,13 @@
     return { type: "texto" };
   }
   const CAT_HINT = /(^|\s)(setor|status|situacao|tipo|categoria|prioridade|unidade|local|localizacao|cidade|estado|uf|fabricante|marca|modelo|equipamento|departamento|grupo|familia|criticidade|responsavel|tecnico|vendedor|fornecedor|empresa|origem|canal|regiao|area|centro de custo|contrato|produto|servico)(\s|$)/;
-  const ID_HINT = /(^|[\s.])(id|cod|codigo|cep|cpf|cnpj|matricula|pedido|nf|nota fiscal|os|o\.s|ordem|ordem de servico|tag|patrimonio|serie|n[º°o]?\.?\s*(de\s+)?serie|registro|chamado|protocolo|n[º°]|nr|ticket|lote|anvisa)([\s.]|$)/;
+  const ID_HINT = /(^|[\s.])(id|cod|codigo|cep|cpf|cnpj|matricula|pedido|nf|nota fiscal|os|o\.s|ordem|ordem de servico|tag|patrimonio|serie|n[º°o]?\.?\s*(de\s+)?serie|registro|chamado|protocolo|ss|s\.s|solicitacao de servico|n[º°]\.?(?=\s*$)|nr|ticket|lote|anvisa)([\s.]|$)/;
+  // Números inteiros longos e todos diferentes, numa coluna que não é valor/quantidade, são códigos.
+  const looksIdValues = (vals, name) => vals.length >= 3 && !isMoneyCol(name) && !/quant|qtd|total|soma|horas|saldo|estoque/.test(norm(name))
+    && vals.every(v => /^\d{5,}$/.test(String(v).trim())) && new Set(vals.map(v => String(v).trim())).size === vals.length;
   function guessName(type, vals) {
     if (type === "numero") return vals.every(v => Number.isInteger(parseNum(v)) && Math.abs(parseNum(v)) < 10000) ? "Quantidade" : "Número";
+    if (type === "texto" && vals.length && vals.every(v => /^[\d./-]+$/.test(v))) return "Código";
     if (type === "texto") return vals.filter(looksName).length / (vals.length || 1) >= .7 ? "Nome" : "Descrição";
     return { categoria: "Categoria", moeda: "Valor", percentual: "Percentual", duracao: "Duração", data: "Data", email: "E-mail", telefone: "Telefone" }[type];
   }
