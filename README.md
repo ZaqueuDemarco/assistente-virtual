@@ -16,7 +16,8 @@ Os dados ficam **só neste navegador**, no IndexedDB (armazenamento de maior cap
 
 ## O que já funciona
 
-- **Importar e organizar dados**: cole dados (do Excel, Google Sheets, CSV, e-mail) ou arraste um arquivo `.xlsx`, `.xls`, `.csv` ou `.txt`. O assistente:
+- **Importar e organizar dados**: cole dados (do Excel, Google Sheets, CSV, e-mail) ou arraste um arquivo `.xlsx`, `.xls`, `.csv`, `.txt` ou `.pdf`. O assistente:
+  - em **PDF**, remonta a tabela pela posição do texto: agrupa as linhas, acha as colunas pelo cabeçalho, junta células e cabeçalhos quebrados em duas linhas e ignora linhas de traços. Funciona com PDF gerado pelo sistema (com tabela desenhada ou em texto corrido); PDF digitalizado (imagem) não tem texto e é recusado com aviso. Excel/CSV continuam sendo os formatos mais confiáveis;
   - encontra o cabeçalho mesmo quando o relatório tem título, filtros e data de emissão antes da tabela (como as exportações de sistemas de gestão e ERPs);
   - ignora linhas de total, rodapé ("Página 1 de 3"), cabeçalhos repetidos a cada página e títulos de grupo;
   - reconhece se há cabeçalho e, se não houver, dá nomes às colunas pelo conteúdo;

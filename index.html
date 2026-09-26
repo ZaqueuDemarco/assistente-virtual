@@ -1064,11 +1064,11 @@
     return `
       <div class="topbar"><div><h1>Comece pelos seus dados</h1><p>Nenhuma planilha ainda.</p></div></div>
       <section class="panel start">
-        <button class="drop big" data-act="import">${ICONS.up}<span><b>Importar dados</b><br>Arraste um arquivo .xlsx ou .csv exportado do seu sistema, ou cole as linhas copiadas.</span></button>
+        <button class="drop big" data-act="import">${ICONS.up}<span><b>Importar dados</b><br>Arraste um arquivo .xlsx, .csv ou .pdf exportado do seu sistema, ou cole as linhas copiadas.</span></button>
         <div class="start-tips">
           <p>Dicas para exportar do seu sistema de gestão ou ERP:</p>
           <ul>
-            <li>Prefira <b>Excel (.xlsx)</b> ou <b>CSV</b>. PDF não dá para ler como tabela.</li>
+            <li>Prefira <b>Excel (.xlsx)</b> ou <b>CSV</b>. <b>PDF</b> também funciona quando é gerado pelo sistema (não digitalizado); confira as colunas na prévia.</li>
             <li>Pode exportar o relatório como sai do sistema: título, filtros, totais e rodapé são ignorados automaticamente.</li>
             <li>Na prévia, confira o tipo de cada coluna e corrija o que precisar antes de criar a planilha.</li>
           </ul>
@@ -1888,8 +1888,115 @@
     if (!best && filled.some(l => /\S\s{2,}\S/.test(l))) return lines.map(l => l.trim().split(/\s{2,}/));
     return lines.map(l => best ? splitLine(l, best) : [l]);
   }
+  /* ---------- PDF ----------
+     PDF guarda só a posição de cada pedaço de texto. A tabela é remontada assim:
+     1) agrupa os textos em linhas pela altura na página; 2) junta pedaços próximos da mesma célula;
+     3) usa o cabeçalho para achar as colunas; 4) cola células quebradas em duas linhas.
+     Título, cabeçalho repetido, totais e rodapé são tratados depois pela análise normal. */
+  const PDFJS = ["https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/", "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/"];
+  function loadScript(src) {
+    return new Promise((res, rej) => {
+      const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => { s.remove(); rej(new Error("load")); };
+      document.head.appendChild(s);
+    });
+  }
+  async function ensurePdfJs() {
+    for (const base of PDFJS) {
+      try {
+        if (!window.pdfjsLib) await loadScript(base + "pdf.min.js");
+        // Carregar o "worker" como script comum faz o pdf.js rodar na própria página (sem arquivo externo de worker).
+        if (!window.pdfjsWorker) await loadScript(base + "pdf.worker.min.js");
+        if (window.pdfjsLib && window.pdfjsWorker) return window.pdfjsLib;
+      } catch {}
+    }
+    throw new Error("Não consegui carregar o leitor de PDF (sem internet?). Tente de novo ou exporte o relatório em Excel/CSV.");
+  }
+  function toChunks(items) {
+    // Itens que já vêm com vários espaços dentro ("Nome     Setor") são separados, estimando a posição de cada parte.
+    const split = [];
+    items.forEach(it => {
+      if (!/\S\s{2,}\S/.test(it.s)) return split.push(it);
+      const cw = it.w / Math.max(1, it.s.length); let pos = 0;
+      it.s.split(/(\s{2,})/).forEach(part => { if (part.trim()) split.push({ ...it, x: it.x + pos * cw, w: part.length * cw, s: part }); pos += part.length; });
+    });
+    split.sort((a, b) => a.x - b.x);
+    const chunks = [];
+    for (const it of split) {
+      const last = chunks[chunks.length - 1], space = it.h * .28;
+      const gap = last ? it.x - last.x1 : Infinity;
+      if (last && gap < space * 2.2) { last.s += (gap > space * .35 ? " " : "") + it.s; last.x1 = Math.max(last.x1, it.x + it.w); }
+      else chunks.push({ x0: it.x, x1: it.x + it.w, s: it.s });
+    }
+    chunks.forEach(c => { c.s = c.s.replace(/\s+/g, " ").trim(); c.c = (c.x0 + c.x1) / 2; });
+    return chunks.filter(c => c.s);
+  }
+  async function pdfToMatrix(buf) {
+    const lib = await ensurePdfJs();
+    let doc;
+    try { doc = await lib.getDocument({ data: new Uint8Array(buf), isEvalSupported: false }).promise; }
+    catch (e) {
+      if (e?.name === "PasswordException") throw new Error("Este PDF tem senha. Abra-o, salve uma cópia sem senha (ou exporte em Excel/CSV) e tente de novo.");
+      throw new Error("Não consegui abrir este PDF. Ele pode estar corrompido; tente exportar de novo ou em Excel/CSV.");
+    }
+    const lines = []; let textItems = 0;
+    for (let pn = 1; pn <= doc.numPages; pn++) {
+      const page = await doc.getPage(pn);
+      const tc = await page.getTextContent();
+      const items = tc.items.filter(it => it.str && it.str.trim()).map(it => {
+        const t = it.transform; const h = Math.hypot(t[2], t[3]) || 10;
+        return { x: t[4], y: t[5], w: it.width || it.str.length * h * .5, h, s: it.str };
+      });
+      textItems += items.length;
+      items.sort((a, b) => b.y - a.y || a.x - b.x);
+      const pageLines = [];
+      for (const it of items) {
+        const ln = pageLines.find(l => Math.abs(l.y - it.y) <= Math.max(1.5, Math.min(l.h, it.h) * .45));
+        if (ln) ln.items.push(it); else pageLines.push({ y: it.y, h: it.h, page: pn, items: [it] });
+      }
+      pageLines.sort((a, b) => b.y - a.y);
+      pageLines.forEach(l => { l.chunks = toChunks(l.items); });
+      // Linhas só de traços/sublinhados ("-------") são decoração, não dados.
+      lines.push(...pageLines.filter(l => l.chunks.length && !l.chunks.every(c => /^[-_=.·*+|\s]+$/.test(c.s))));
+      page.cleanup?.();
+    }
+    if (textItems < Math.max(3, doc.numPages * 3)) throw new Error("Este PDF é uma imagem (documento digitalizado ou foto) e não tem texto para ler. Exporte o relatório direto do sistema em Excel, CSV ou PDF gerado pelo sistema.");
+
+    // Largura da tabela = quantidade de pedaços mais comum por linha.
+    const freq = {}; lines.forEach(l => { if (l.chunks.length >= 2) freq[l.chunks.length] = (freq[l.chunks.length] || 0) + 1; });
+    const W = +Object.entries(freq).sort((a, b) => b[1] - a[1] || b[0] - a[0])[0]?.[0] || 1;
+    const typed = x => !isNaN(parseNum(x)) || parseDate(x) || /^\d/.test(x);
+    const header = lines.slice(0, 80).find(l => l.chunks.length >= Math.max(2, W - 1) && l.chunks.filter(c => !typed(c.s)).length / l.chunks.length >= .8);
+    let cols;
+    if (header) cols = header.chunks.map(c => ({ x0: c.x0, x1: c.x1, c: c.c }));
+    else {
+      // Sem cabeçalho claro: média das posições nas linhas com a largura típica.
+      const typical = lines.filter(l => l.chunks.length === W);
+      cols = Array.from({ length: W }, (_, i) => { const cs = typical.map(l => l.chunks[i]); return { x0: Math.min(...cs.map(c => c.x0)), x1: Math.max(...cs.map(c => c.x1)), c: cs.reduce((s, c) => s + c.c, 0) / cs.length }; });
+    }
+    cols.sort((a, b) => a.c - b.c);
+    const bounds = cols.slice(0, -1).map((c, i) => (c.x1 + cols[i + 1].x0) / 2);
+    const colOf = ch => { let i = 0; while (i < bounds.length && ch.c > bounds[i]) i++; return i; };
+
+    const rows = [];
+    let prev = null, prevLine = null;
+    const headerIdx = header ? lines.indexOf(header) : -1;
+    lines.forEach((l, li) => {
+      const row = cols.map(() => "");
+      l.chunks.forEach(ch => { const i = colOf(ch); row[i] = row[i] ? row[i] + " " + ch.s : ch.s; });
+      const filled = row.filter(Boolean).length;
+      // Continuação de célula quebrada: poucas células, sem a primeira coluna, logo abaixo da linha anterior.
+      // (sem a 1ª coluna, só pedaços de texto — nada de número/data — e colada à linha de cima)
+      const isCont = li > headerIdx && prev && prevLine && prevLine.page === l.page && !row[0] && filled < cols.length * .6
+        && row.every(v => !v || !typed(v)) && (prevLine.y - l.y) < l.h * 1.9 && !JUNK_ROW.test(norm(row.find(Boolean) || ""));
+      if (isCont) { row.forEach((v, i) => { if (v) prev[i] = prev[i] ? prev[i] + " " + v : v; }); prevLine = l; return; }
+      rows.push(row); prev = li >= headerIdx && headerIdx >= 0 ? row : null; prevLine = l; // o cabeçalho também pode quebrar ("Custo" / "(R$)")
+    });
+    return { matrix: rows, note: `Li o PDF (${doc.numPages} página${doc.numPages > 1 ? "s" : ""}). Em PDF as colunas são deduzidas pela posição do texto; confira na prévia se ficaram certas. Se não ficarem, exporte do sistema em Excel ou CSV.` };
+  }
+
   async function fileToMatrix(file) {
     const ext = (file.name.split(".").pop() || "").toLowerCase();
+    if (ext === "pdf" || file.type === "application/pdf") return pdfToMatrix(await file.arrayBuffer());
     if (["xlsx", "xls", "xlsm", "ods"].includes(ext)) {
       if (!window.XLSX) throw new Error("A biblioteca de Excel não carregou. Salve o arquivo como CSV e tente de novo.");
       const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
@@ -2164,9 +2271,9 @@
         <p class="lead">Envie um arquivo ou cole dados copiados do Excel, Google Sheets, sistema ou e-mail. O assistente identifica cada coluna (datas, valores, categorias, e-mails, telefones), corrige formatos, remove repetidos e monta a planilha com o painel.</p>
         <label class="drop" id="dropZone" for="impFile">
           ${ICONS.up}<span>Arraste um arquivo aqui ou <u>escolha no computador</u></span>
-          <small>.xlsx, .xls, .csv ou .txt</small>
+          <small>.xlsx, .xls, .csv, .txt ou .pdf</small>
         </label>
-        <input type="file" id="impFile" accept=".xlsx,.xls,.xlsm,.ods,.csv,.tsv,.txt,.json" hidden>
+        <input type="file" id="impFile" accept=".xlsx,.xls,.xlsm,.ods,.csv,.tsv,.txt,.pdf,.json" hidden>
         <div class="or">ou cole aqui</div>
         <textarea id="impText" spellcheck="false" placeholder="Data;Cliente;Cidade;Valor&#10;03/01/2026;Ana Souza;São Paulo;R$ 1.200,00&#10;07/01/2026;Bruno Lima;Campinas;850">${esc(text)}</textarea>
         ${err ? `<div class="imp-err" role="alert">${esc(err)}</div>` : ""}
@@ -2379,6 +2486,7 @@
   async function handleFile(file) {
     if (/\.json$/i.test(file.name)) { closeImport(); return readBackup(file); }
     if (!imp) openImport();
+    impContent.innerHTML = `<div class="imp-body"><p class="lead">Lendo <b>${esc(file.name)}</b>${/\.pdf$/i.test(file.name) ? "… PDFs grandes podem levar alguns segundos" : "…"}</p></div>`;
     try {
       const { matrix, note } = await fileToMatrix(file);
       const fname = file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
