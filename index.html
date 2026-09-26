@@ -399,22 +399,27 @@
   .stat b { display: block; font-size: 18px; font-weight: 600; }
   .stat span { color: var(--muted); font-size: 12px; }
   .stat.fix b { color: var(--good); }
-  .imp-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; align-items: start; }
+  .imp-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
   .sec-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 0 0 8px; }
-  .cols { display: flex; flex-direction: column; gap: 6px; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 6px; }
   .colrow { display: grid; grid-template-columns: minmax(0, 1fr) 156px; gap: 6px; align-items: center; background: var(--raised); border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
   .colrow input, .colrow select { width: 100%; }
   .colrow .ex { grid-column: 1 / -1; color: var(--muted); font: 11.5px var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .type-badge { font: 10.5px var(--mono); color: var(--accent); }
-  .preview-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 8px; max-height: 360px; }
+  .preview-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 8px; max-height: 420px; }
   .preview { border-collapse: collapse; font-size: 12.5px; width: max-content; min-width: 100%; font-variant-numeric: tabular-nums; }
   .preview th { position: sticky; top: 0; background: var(--raised); text-align: left; font-weight: 600; padding: 6px 10px; border-bottom: 1px solid var(--border-strong); white-space: nowrap; }
   .preview th small { display: block; font: 10.5px var(--mono); color: var(--accent); font-weight: 400; }
   .preview td { padding: 5px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
   .preview td.num { text-align: right; }
+  .preview td.long { white-space: normal; min-width: 260px; max-width: 380px; overflow: visible; }
+  .grid td.long { min-width: 320px; }
   .preview td.new { background: rgba(63,185,122,.08); }
   .notes { margin: 0; padding-left: 18px; color: var(--text-2); font-size: 13px; display: flex; flex-direction: column; gap: 3px; }
   .notes code { font-family: var(--mono); font-size: 12px; color: #9cc3ff; }
+  .pdf-opt { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--raised); }
+  .pdf-opt > span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .pdf-opt small { color: var(--muted); font-size: 12px; }
   .opts { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--text-2); }
   .opts label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
   .opts input { accent-color: var(--accent); }
@@ -1354,6 +1359,7 @@
     const page = Math.min(gridPage.get(pageKey) || 0, pages - 1);
     const shown = all.slice(page * PAGE, page * PAGE + PAGE);
     const totals = sh.rows.map((_, r) => r);
+    const longGrid = new Set(sh.columns.map((_, c) => c).filter(c => { const v = shown.slice(0, 50).map(r => String(sh.rows[r][c] ?? "")); return v.reduce((a, x) => a + x.length, 0) / (v.length || 1) > 28; }));
     return `
       <div class="topbar">
         <div><h1>${esc(sh.name)}</h1><p>Edite direto nas células. Fórmulas começam com <code style="font-family:var(--mono)">=</code>, como <code style="font-family:var(--mono)">=SOMA(C2:C10)</code> ou <code style="font-family:var(--mono)">=C2-D2</code>.</p></div>
@@ -1378,8 +1384,8 @@
               const raw = row[c] ?? "";
               const isF = String(raw).startsWith("=");
               const d = display(sh, r, c);
-              const cls = [ncols.includes(c) ? "num" : "", isF ? "formula" : "", String(d).startsWith("#") && isF ? "err" : ""].join(" ");
-              return `<td class="${cls}"><input data-r="${r}" data-c="${c}" value="${esc(d)}" aria-label="${colLetter(c)}${r + 2}"></td>`;
+              const cls = [ncols.includes(c) ? "num" : "", isF ? "formula" : "", String(d).startsWith("#") && isF ? "err" : "", longGrid.has(c) ? "long" : ""].join(" ");
+              return `<td class="${cls}"><input data-r="${r}" data-c="${c}" value="${esc(d)}" aria-label="${colLetter(c)}${r + 2}"${String(d).length > 30 ? ` title="${esc(d)}"` : ""}></td>`;
             }).join("")}</tr>`; }).join("")}</tbody>
             <tfoot><tr><td class="rownum">Σ</td>${sh.columns.map((c, i) => `<td>${ncols.includes(i) ? (isAvgCol(sh, i) ? "média " : "") + fmtCol(sh, i, colSummary(sh, i, totals)) : ""}</td>`).join("")}</tr></tfoot>
           </table>
@@ -1930,10 +1936,10 @@
     chunks.forEach(c => { c.s = c.s.replace(/\s+/g, " ").trim(); c.c = (c.x0 + c.x1) / 2; });
     return chunks.filter(c => c.s);
   }
-  async function pdfToMatrix(buf) {
+  async function pdfToMatrix(buf, opts = {}) {
     const lib = await ensurePdfJs();
     let doc;
-    try { doc = await lib.getDocument({ data: new Uint8Array(buf), isEvalSupported: false }).promise; }
+    try { doc = await lib.getDocument({ data: new Uint8Array(buf.slice(0)), isEvalSupported: false }).promise; }
     catch (e) {
       if (e?.name === "PasswordException") throw new Error("Este PDF tem senha. Abra-o, salve uma cópia sem senha (ou exporte em Excel/CSV) e tente de novo.");
       throw new Error("Não consegui abrir este PDF. Ele pode estar corrompido; tente exportar de novo ou em Excel/CSV.");
@@ -1964,39 +1970,135 @@
     // Largura da tabela = quantidade de pedaços mais comum por linha.
     const freq = {}; lines.forEach(l => { if (l.chunks.length >= 2) freq[l.chunks.length] = (freq[l.chunks.length] || 0) + 1; });
     const W = +Object.entries(freq).sort((a, b) => b[1] - a[1] || b[0] - a[0])[0]?.[0] || 1;
-    const typed = x => !isNaN(parseNum(x)) || parseDate(x) || /^\d/.test(x);
+    const typed = x => !isNaN(parseNum(x)) || !!parseDate(x) || /^\d{1,2}:\d{2}/.test(x);
     const header = lines.slice(0, 80).find(l => l.chunks.length >= Math.max(2, W - 1) && l.chunks.filter(c => !typed(c.s)).length / l.chunks.length >= .8);
+    const headerIdx = header ? lines.indexOf(header) : -1;
     let cols;
-    if (header) cols = header.chunks.map(c => ({ x0: c.x0, x1: c.x1, c: c.c }));
+    if (header) cols = header.chunks.map(c => ({ c: c.c }));
     else {
-      // Sem cabeçalho claro: média das posições nas linhas com a largura típica.
       const typical = lines.filter(l => l.chunks.length === W);
-      cols = Array.from({ length: W }, (_, i) => { const cs = typical.map(l => l.chunks[i]); return { x0: Math.min(...cs.map(c => c.x0)), x1: Math.max(...cs.map(c => c.x1)), c: cs.reduce((s, c) => s + c.c, 0) / cs.length }; });
+      cols = Array.from({ length: W }, (_, i) => ({ c: typical.reduce((s, l) => s + l.chunks[i].c, 0) / typical.length }));
     }
     cols.sort((a, b) => a.c - b.c);
-    const bounds = cols.slice(0, -1).map((c, i) => (c.x1 + cols[i + 1].x0) / 2);
+    // Divisão entre colunas = o "vão" vertical por onde nenhum texto dos dados passa
+    // (funciona com cabeçalho centralizado, texto à esquerda e números à direita).
+    const dataLines = lines.filter((l, i) => i > headerIdx);
+    const maxX = Math.ceil(Math.max(1, ...lines.flatMap(l => l.chunks.map(c => c.x1)))) + 2;
+    const cov = new Float32Array(maxX + 1);
+    dataLines.forEach(l => l.chunks.forEach(c => { for (let x = Math.max(0, Math.floor(c.x0)); x <= Math.min(maxX, Math.ceil(c.x1)); x++) cov[x]++; }));
+    const bounds = cols.slice(0, -1).map((c, i) => {
+      const a = Math.ceil(c.c), b = Math.floor(cols[i + 1].c);
+      if (b <= a) return (c.c + cols[i + 1].c) / 2;
+      let min = Infinity; for (let x = a; x <= b; x++) min = Math.min(min, cov[x]);
+      let best = null, run = null;
+      for (let x = a; x <= b + 1; x++) {
+        if (x <= b && cov[x] === min) { if (!run) run = [x, x]; else run[1] = x; }
+        else if (run) { if (!best || run[1] - run[0] > best[1] - best[0]) best = run; run = null; }
+      }
+      return (best[0] + best[1]) / 2;
+    });
     const colOf = ch => { let i = 0; while (i < bounds.length && ch.c > bounds[i]) i++; return i; };
-
-    const rows = [];
-    let prev = null, prevLine = null;
-    const headerIdx = header ? lines.indexOf(header) : -1;
-    lines.forEach((l, li) => {
+    const recs = lines.map((l, li) => {
       const row = cols.map(() => "");
       l.chunks.forEach(ch => { const i = colOf(ch); row[i] = row[i] ? row[i] + " " + ch.s : ch.s; });
-      const filled = row.filter(Boolean).length;
-      // Continuação de célula quebrada: poucas células, sem a primeira coluna, logo abaixo da linha anterior.
-      // (sem a 1ª coluna, só pedaços de texto — nada de número/data — e colada à linha de cima)
-      const isCont = li > headerIdx && prev && prevLine && prevLine.page === l.page && !row[0] && filled < cols.length * .6
-        && row.every(v => !v || !typed(v)) && (prevLine.y - l.y) < l.h * 1.9 && !JUNK_ROW.test(norm(row.find(Boolean) || ""));
-      if (isCont) { row.forEach((v, i) => { if (v) prev[i] = prev[i] ? prev[i] + " " + v : v; }); prevLine = l; return; }
-      rows.push(row); prev = li >= headerIdx && headerIdx >= 0 ? row : null; prevLine = l; // o cabeçalho também pode quebrar ("Custo" / "(R$)")
+      return { l, li, row, y: l.y, page: l.page, filled: row.filter(Boolean).length };
+    });
+    // Colunas de número/data: onde a maioria das linhas "completas" tem valor tipado.
+    const full = recs.filter(r => r.li > headerIdx && r.row[0] && r.filled >= Math.max(2, cols.length * .6));
+    const typedCol = cols.map((_, i) => { const v = full.map(r => r.row[i]).filter(Boolean); return v.length > 0 && v.filter(typed).length / v.length >= .6; });
+    const isKey = r => r.li > headerIdx && !!r.row[0] && r.filled >= 2;
+    // Pedaço de célula quebrada: sem a 1ª coluna e só em colunas de texto (pode ter números no meio do texto).
+    const isFrag = r => r.li > headerIdx && !r.row[0] && r.filled < cols.length * .6 && r.row.every((v, i) => !v || !typedCol[i])
+      && !JUNK_ROW.test(norm(r.row.find(Boolean) || "")) && !/^p[aá]g(ina)?\.?\s*\d/i.test(r.row.find(Boolean) || "");
+    // Cabeçalho repetido nas outras páginas: tratado como cabeçalho, não como registro.
+    const frags = recs.filter(r => isFrag(r));
+    const hdrKey = header ? recs[headerIdx].row.map(norm).join("|") : null;
+    recs.forEach(r => { r.isHdr = r.li === headerIdx || (hdrKey && r.li > headerIdx && r.row.map(norm).join("|") === hdrKey); });
+    const isAnchor = r => r.isHdr || isKey(r);
+    /* Pedaços entre duas âncoras (O.S. ou cabeçalho) são divididos no MAIOR espaço vertical:
+       dentro de uma célula as linhas ficam coladas; entre registros há borda/margem.
+       Assim funciona tanto com texto alinhado no topo quanto centralizado. */
+    const runs = []; let anchor = null, cur = [];
+    recs.forEach(r => {
+      if (isAnchor(r)) { runs.push({ a: anchor, b: r, fr: cur }); anchor = r; cur = []; }
+      else if (isFrag(r) || (r.li > headerIdx && anchor?.isHdr && !r.row[0] && r.row.every(v => !v || !typed(v)) && r.filled < cols.length * .6)) cur.push(r);
+      else { if (cur.length) runs.push({ a: anchor, b: null, fr: cur }); cur = []; if (r.li > headerIdx) anchor = null; }
+    });
+    if (cur.length) runs.push({ a: anchor, b: null, fr: cur });
+    const gapOf = (x, y) => x.page !== y.page ? Infinity : x.y - y.y;
+    // Altura normal de uma linha de texto: mediana dos espaços entre linhas seguidas da tabela.
+    // Medida entre duas linhas seguidas de texto quebrado (dentro da mesma célula); se não houver, entre quaisquer linhas.
+    const med = arr => arr.sort((x, y) => x - y)[Math.floor(arr.length / 2)];
+    const fragSet = new Set(frags);
+    const fragGaps = recs.slice(1).map((r, k) => fragSet.has(recs[k]) && fragSet.has(r) ? gapOf(recs[k], r) : NaN).filter(g => g > 0 && Number.isFinite(g));
+    const anyGaps = recs.slice(1).map((r, k) => recs[k].li > headerIdx ? gapOf(recs[k], r) : NaN).filter(g => g > 0 && Number.isFinite(g));
+    const L = fragGaps.length >= 3 ? med(fragGaps) : anyGaps.length ? med(anyGaps) : 12;
+    runs.forEach(run => {
+      if (!run.fr.length) return;
+      const seq = [run.a, ...run.fr, run.b].filter(Boolean);
+      const gaps = seq.slice(1).map((x, k) => gapOf(seq[k], x));
+      let split; // quantos pedaços (de cima) ficam com a âncora de cima
+      if (!run.a) split = 0;
+      else if (!run.b) split = run.fr.length;
+      else {
+        const max = Math.max(...gaps), k = gaps.indexOf(max);
+        // Só é divisa clara se um único espaço for bem maior que uma linha normal (borda/margem entre registros).
+        run.byGap = Number.isFinite(max) && max > L * 1.2 && gaps.filter(g => g > L * 1.2).length === 1;
+        run.sure = max === Infinity || run.byGap;
+        split = run.sure ? k : null; // null = espaçamento igual; decide pelo padrão do documento
+      }
+      run.split = split;
+    });
+    // Padrão do documento (topo x centralizado) pelos trechos sem dúvida.
+    const sure = runs.filter(r => r.byGap && r.a && r.b && !r.a.isHdr); // troca de página não diz nada sobre alinhamento
+    const topVotes = sure.filter(r => r.split === r.fr.length).length;
+    let topMode = topVotes >= sure.length / 2;
+    if (!sure.length) {
+      // Sem espaçamento para decidir: no centralizado, há O.S. com a célula de texto vazia na própria linha
+      // mas com pedaços colados logo acima E logo abaixo (a descrição "abraça" a O.S.). No topo isso não acontece.
+      const lh = header ? header.h * 1.35 : 13;
+      const textCols = cols.map((_, i) => i).filter(i => !typedCol[i]);
+      const evidence = recs.filter(r => isKey(r) && !r.isHdr && textCols.some(c => !r.row[c]
+        && frags.some(f => f.page === r.page && f.row[c] && f.y > r.y && f.y - r.y < lh)
+        && frags.some(f => f.page === r.page && f.row[c] && f.y < r.y && r.y - f.y < lh))).length;
+      topMode = evidence < Math.max(2, recs.filter(isKey).length * .1);
+    }
+    if (opts.align === "top") topMode = true;       // escolha manual na prévia
+    if (opts.align === "middle") topMode = false;
+    runs.forEach(run => {
+      // Centralizado sem espaçamento: a O.S. fica no meio da sua descrição (mesmo nº de linhas acima e abaixo).
+      if (run.split == null) run.split = topMode ? run.fr.length : Math.min(run.fr.length, run.a && !run.a.isHdr ? run.a.above || 0 : 0);
+      if (run.b) run.b.above = run.fr.length - run.split;
+      run.fr.forEach((fr, k) => {
+        const target = k < run.split ? run.a : run.b;
+        fr.skip = true;
+        if (!target || target.isHdr && target.li !== headerIdx) return; // sobra do cabeçalho repetido: descarta
+        (target.parts ||= []).push(fr);
+      });
+    });
+    // O cabeçalho principal já absorveu suas quebras; os repetidos recebem o mesmo texto para serem reconhecidos e removidos.
+    const hdrParts = recs[headerIdx]?.parts;
+    if (header && hdrParts) {
+      const merged = cols.map((_, i) => [recs[headerIdx], ...hdrParts].sort((a, b) => b.y - a.y).map(x => x.row[i]).filter(Boolean).join(" "));
+      recs[headerIdx].row = merged; delete recs[headerIdx].parts;
+    }
+    recs.forEach(r => { if (r.isHdr && r.li !== headerIdx && header) r.row = recs[headerIdx].row.slice(); });
+    const rows = [];
+    recs.forEach(r => {
+      if (r.skip) return;
+      if (r.parts) {
+        // Junta de cima para baixo na ordem em que aparece na página.
+        const all = [r, ...r.parts].sort((a, b) => a.page - b.page || b.y - a.y);
+        const row = cols.map((_, i) => all.map(x => x.row[i]).filter(Boolean).join(" "));
+        rows.push(row);
+      } else rows.push(r.row);
     });
     return { matrix: rows, note: `Li o PDF (${doc.numPages} página${doc.numPages > 1 ? "s" : ""}). Em PDF as colunas são deduzidas pela posição do texto; confira na prévia se ficaram certas. Se não ficarem, exporte do sistema em Excel ou CSV.` };
   }
 
   async function fileToMatrix(file) {
     const ext = (file.name.split(".").pop() || "").toLowerCase();
-    if (ext === "pdf" || file.type === "application/pdf") return pdfToMatrix(await file.arrayBuffer());
+    if (ext === "pdf" || file.type === "application/pdf") { const buf = await file.arrayBuffer(); const out = await pdfToMatrix(buf); out.pdfBuf = buf; return out; }
     if (["xlsx", "xls", "xlsm", "ods"].includes(ext)) {
       if (!window.XLSX) throw new Error("A biblioteca de Excel não carregou. Salve o arquivo como CSV e tente de novo.");
       const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
@@ -2338,6 +2440,8 @@
     if (res.addedMonth) notes.push("Adicionei a coluna <code>Mês</code> para agrupar por período no painel.");
     if (res.invalid.length) notes.push(`<span style="color:var(--warn)">${res.invalid.length} valor(es) não reconhecido(s) mantido(s) como estão, ex.: ${res.invalid.slice(0, 3).map(([c, v]) => `<code>${esc(v)}</code> em ${esc(c)}`).join(", ")}.</span>`);
     const prevRows = res.rows.slice(0, 10);
+    // Colunas de texto longo (descrição, defeito...) aparecem inteiras, sem "…".
+    const longCols = new Set(res.columns.map((_, i) => i).filter(i => { const v = res.rows.slice(0, 50).map(r => r[i] || ""); return v.reduce((a, x) => a + x.length, 0) / (v.length || 1) > 28; }));
     impContent.innerHTML = `
       <div class="imp-body">
         <div class="stats">
@@ -2366,10 +2470,11 @@
             <h3 class="sec-title">Como vai ficar${res.rows.length > 10 ? ` (primeiras 10 de ${res.rows.length})` : ""}</h3>
             <div class="preview-wrap"><table class="preview">
               <thead><tr>${res.columns.map((c, i) => `<th>${esc(c)}<small>${TYPE_LABEL[res.types[i]]}${res.addedMonth && i === res.periodCol ? " · nova" : ""}</small></th>`).join("")}</tr></thead>
-              <tbody>${prevRows.map(r => `<tr>${r.map((v, i) => `<td class="${["numero", "moeda", "percentual", "duracao"].includes(res.types[i]) ? "num" : ""} ${res.addedMonth && i === res.periodCol ? "new" : ""}">${esc(fmtPreview(v, res.types[i]))}</td>`).join("")}</tr>`).join("")}</tbody>
+              <tbody>${prevRows.map(r => `<tr>${r.map((v, i) => `<td class="${["numero", "moeda", "percentual", "duracao"].includes(res.types[i]) ? "num" : ""} ${res.addedMonth && i === res.periodCol ? "new" : ""} ${longCols.has(i) ? "long" : ""}">${esc(fmtPreview(v, res.types[i]))}</td>`).join("")}</tr>`).join("")}</tbody>
             </table></div>
           </div>
         </div>
+        ${imp.pdf ? `<div class="pdf-opt"><span>Leitura do PDF</span><div class="seg big" role="group" aria-label="Alinhamento das descrições">${[["auto", "Automático"], ["top", "Descrição no topo"], ["middle", "Descrição centralizada"]].map(([v, l]) => `<button type="button" data-pdfalign="${v}" aria-pressed="${imp.pdf.align === v}">${l}</button>`).join("")}</div><small>Se textos longos (descrição, defeito) saírem trocados entre as linhas, experimente outra opção.</small></div>` : ""}
         ${hasDate ? `<div class="opts">
           <label><input type="checkbox" id="optSort" ${imp.opts.sortDate ? "checked" : ""}> Ordenar por data</label>
           <label><input type="checkbox" id="optMonth" ${imp.opts.addMonth ? "checked" : ""}> Criar coluna Mês</label>
@@ -2463,10 +2568,16 @@
 
   dlg.addEventListener("click", async e => {
     if (e.target === dlg) return closeImport();
-    const b = e.target.closest("[data-imp]"); if (!b) return;
+    const b = e.target.closest("[data-imp], [data-pdfalign]"); if (!b) return;
     const a = b.dataset.imp;
     if (a === "close") closeImport();
     else if (a === "back") renderStep1("", "");
+    else if (b.dataset.pdfalign && imp?.pdf) {
+      const pdf = imp.pdf, name = $("#impName")?.value || imp.name;
+      pdf.align = b.dataset.pdfalign;
+      try { const out = await pdfToMatrix(pdf.buf, { align: pdf.align }); loadMatrix(out.matrix, name, { note: out.note }); imp.pdf = pdf; renderStep2(); }
+      catch (err) { renderStep1(err.message); }
+    }
     else if (a === "sample") { $("#impText").value = messySample(); }
     else if (a === "analyze") {
       const text = $("#impText").value;
@@ -2488,9 +2599,10 @@
     if (!imp) openImport();
     impContent.innerHTML = `<div class="imp-body"><p class="lead">Lendo <b>${esc(file.name)}</b>${/\.pdf$/i.test(file.name) ? "… PDFs grandes podem levar alguns segundos" : "…"}</p></div>`;
     try {
-      const { matrix, note } = await fileToMatrix(file);
+      const { matrix, note, pdfBuf } = await fileToMatrix(file);
       const fname = file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
       loadMatrix(matrix, fname.charAt(0).toUpperCase() + fname.slice(1), { note });
+      if (pdfBuf && imp) { imp.pdf = { buf: pdfBuf, align: "auto" }; renderStep2(); }
     } catch (err) {
       renderStep1(err.message || "Não consegui ler esse arquivo.");
     }
