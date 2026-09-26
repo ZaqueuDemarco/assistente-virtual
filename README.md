@@ -4,7 +4,15 @@ Assistente virtual para gestão com planilhas editáveis, painéis (dashboards) 
 
 ## Como abrir
 
-Abra o arquivo `index.html` no navegador. Não precisa instalar nada; os gráficos (Chart.js) e a exportação para Excel (SheetJS) são carregados de CDN. Os dados ficam salvos no próprio navegador (`localStorage`).
+Abra o arquivo `index.html` no navegador. Não precisa instalar nada; os gráficos (Chart.js) e a exportação para Excel (SheetJS) são carregados de CDN.
+
+## Onde ficam os dados
+
+Os dados ficam **só neste navegador**, no IndexedDB (armazenamento de maior capacidade, normalmente centenas de MB ou mais, conforme o disco). Nada vai para a internet. A barra lateral mostra quanto está sendo usado.
+
+- Versões anteriores usavam `localStorage` (limite de ~5 MB); esse conteúdo é migrado automaticamente na primeira abertura.
+- Se o navegador não liberar o IndexedDB, o app volta para o `localStorage` e avisa.
+- **Backup:** `backup` (ou o botão **Fazer backup** na barra lateral) baixa um arquivo `.json` com todas as planilhas, gráficos e tarefas. **Restaurar** (ou arrastar o arquivo para a página) carrega de volta, substituindo ou juntando com os dados atuais. Use para levar os dados a outro computador ou se proteger contra limpeza do navegador.
 
 ## O que já funciona
 
@@ -77,6 +85,8 @@ Para corrigir: troque o tipo no cabeçalho da coluna, na tela da planilha, ou di
 | `apagar exemplos` | Remove planilhas e tarefas de exemplo |
 | `apagar planilha Nome` · `apagar tudo` | Exclui uma planilha ou tudo |
 | `desfazer` | Recupera a última exclusão |
+| `backup` · `restaurar backup` | Salva / carrega um arquivo com todos os dados |
+| `armazenamento` | Mostra quanto espaço os dados ocupam |
 | `ver dados de exemplo` | Adiciona os exemplos de volta |
 
 Os dados iniciais (Vendas 2026 e Estoque) são fictícios, só para demonstração.
@@ -84,4 +94,4 @@ Os dados iniciais (Vendas 2026 e Estoque) são fictícios, só para demonstraç�
 ## Próximos passos possíveis
 
 - Conectar a um modelo de linguagem para entender pedidos livres, além dos comandos.
-- Salvar os dados em um servidor para acesso em vários dispositivos.
+- Sincronizar os dados entre dispositivos (hoje isso é feito com o arquivo de backup).

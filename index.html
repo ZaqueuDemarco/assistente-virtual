@@ -85,7 +85,13 @@
   .nav-item:hover .nav-del, .nav-del:focus-visible { opacity: 1; }
   .nav-del:hover { color: var(--bad); }
   .nav .count { margin-left: auto; color: var(--muted); font: 12px var(--mono); }
-  .side-foot { margin-top: auto; color: var(--muted); font-size: 12px; padding: 0 8px; }
+  .side-foot { margin-top: auto; color: var(--muted); font-size: 12px; padding: 0 8px; display: flex; flex-direction: column; gap: 10px; }
+  .store-line { color: var(--text-2); font-size: 11.5px; line-height: 1.4; }
+  .store-line.warn { color: var(--warn); }
+  .store-bar { height: 4px; border-radius: 2px; background: var(--grid); margin-top: 5px; overflow: hidden; }
+  .store-bar i { display: block; height: 100%; background: var(--accent); }
+  .store-actions { display: flex; gap: 4px; flex-wrap: wrap; margin: 0 -8px; }
+  .store-actions .btn { padding: 5px 8px; font-size: 12px; }
   kbd {
     font: 11px var(--mono); padding: 1px 5px; border-radius: 4px;
     border: 1px solid var(--border-strong); background: var(--raised); color: var(--text-2);
@@ -468,7 +474,12 @@
     <div class="nav" id="sheetNav">
       <div class="nav-label">Planilhas</div>
     </div>
-    <div class="side-foot">Digite <kbd>/</kbd> para comandos ou <kbd>Ctrl</kbd> + <kbd>K</kbd> para focar o assistente.</div>
+    <div class="side-foot">
+      <div class="store" id="storeInfo"><div class="store-line">Carregando dados…</div></div>
+      <div class="store-actions"><button type="button" class="btn ghost" data-run="fazer backup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Fazer backup</button><button type="button" class="btn ghost" data-act="restore"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V5M7 10l5-5 5 5M5 20h14"/></svg>Restaurar</button></div>
+      <input type="file" id="backupFile" accept=".json,application/json" hidden>
+      <div>Digite <kbd>/</kbd> para comandos ou <kbd>Ctrl</kbd> + <kbd>K</kbd> para focar o assistente.</div>
+    </div>
   </aside>
 
   <main class="main" id="main"><div class="main-inner" id="view"></div></main>
@@ -624,21 +635,85 @@
       history: [],
     };
   }
+  /* ---------- Armazenamento ----------
+     Os dados ficam no IndexedDB do navegador (centenas de MB ou mais, conforme o disco).
+     Versões anteriores usavam localStorage (~5 MB); o conteúdo antigo é migrado na primeira abertura.
+     Sem IndexedDB (ex.: algumas janelas anônimas), volta para localStorage; sem nenhum, fica só na memória. */
   const KEY = "assistente-gestao-v1";
-  let state;
-  try { state = JSON.parse(localStorage.getItem(KEY)) || defaultState(); } catch { state = defaultState(); }
+  let state = null;           // carregado de forma assíncrona em boot()
+  let storeMode = "memory";   // "idb" | "local" | "memory"
+  let idb = null, movedFromLocal = false;
   const migrated = [];
-  let saveTimer = null, warnedQuota = false;
-  function saveNow() {
-    clearTimeout(saveTimer); saveTimer = null;
-    try { localStorage.setItem(KEY, JSON.stringify(state)); }
-    catch {
-      if (!warnedQuota) { warnedQuota = true; setTimeout(() => say(`Seus dados passaram do limite que o navegador guarda (cerca de 5 MB). Eles continuam funcionando agora, mas <b>podem sumir ao fechar a página</b>. Para evitar: apague planilhas antigas, ou importe o relatório por período (ex.: um trimestre por vez).`, "bot", "err"), 0); }
+  const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
+  function idbOpen() {
+    return new Promise((res, rej) => {
+      let req; try { req = indexedDB.open("assistente-gestao", 1); } catch (e) { return rej(e); }
+      req.onupgradeneeded = () => req.result.createObjectStore("kv");
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+      req.onblocked = () => rej(new Error("blocked"));
+    });
+  }
+  const idbReq = (mode, fn) => new Promise((res, rej) => {
+    const tx = idb.transaction("kv", mode), out = fn(tx.objectStore("kv"));
+    tx.oncomplete = () => res(out?.result); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error);
+  });
+  function readLocal() { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } }
+  async function loadState() {
+    try {
+      idb = await withTimeout(idbOpen(), 4000);
+      let s = await idbReq("readonly", st => st.get("state"));
+      if (!s) {
+        const old = readLocal();
+        if (old) { s = old; await idbReq("readwrite", st => st.put(old, "state")); try { localStorage.removeItem(KEY); } catch {} movedFromLocal = true; }
+      }
+      storeMode = "idb";
+      navigator.storage?.persist?.().catch(() => {}); // pede ao navegador para não apagar os dados sozinho
+      return s || defaultState();
+    } catch {
+      idb = null;
+      try { localStorage.setItem(KEY + "-teste", "1"); localStorage.removeItem(KEY + "-teste"); storeMode = "local"; } catch { storeMode = "memory"; }
+      return readLocal() || defaultState();
     }
   }
-  const save = () => { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 500); };
+  let saveTimer = null, saveChain = Promise.resolve(), warnedQuota = false, lastSaveOk = true;
+  function warnStorage(msg) { if (warnedQuota) return; warnedQuota = true; setTimeout(() => say(msg, "bot", "err"), 0); }
+  function saveNow() {
+    clearTimeout(saveTimer); saveTimer = null;
+    if (!state) return;
+    if (storeMode === "idb") {
+      // Uma gravação por vez, na ordem.
+      saveChain = saveChain.then(() => idbReq("readwrite", st => st.put(state, "state")))
+        .then(() => { lastSaveOk = true; updateStoreInfo(); })
+        .catch(() => { lastSaveOk = false; updateStoreInfo(); warnStorage(`Não consegui salvar no navegador (o disco pode estar cheio). Os dados continuam abertos agora, mas faça um ${code("backup")} para não perder nada.`); });
+    } else if (storeMode === "local") {
+      try { localStorage.setItem(KEY, JSON.stringify(state)); lastSaveOk = true; }
+      catch { lastSaveOk = false; warnStorage(`Seus dados passaram do limite deste navegador (cerca de 5 MB) e <b>podem sumir ao fechar a página</b>. Faça um ${code("backup")} agora.`); }
+      updateStoreInfo();
+    } else {
+      warnStorage(`Este navegador não está permitindo salvar dados (janela anônima ou bloqueio). Tudo funciona agora, mas some ao fechar. Use ${code("backup")} para guardar um arquivo.`);
+      updateStoreInfo();
+    }
+  }
+  const save = () => { if (!state) return; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 500); };
   addEventListener("pagehide", () => { if (saveTimer) saveNow(); });
   document.addEventListener("visibilitychange", () => { if (document.hidden && saveTimer) saveNow(); });
+  const fmtBytes = b => b >= 1e9 ? nfNum.format(Math.round(b / 1e8) / 10) + " GB" : b >= 1e6 ? nfNum.format(Math.round(b / 1e5) / 10) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB";
+  let infoTimer = null;
+  function updateStoreInfo() {
+    clearTimeout(infoTimer);
+    infoTimer = setTimeout(async () => {
+      const el = $("#storeInfo"); if (!el || !state) return;
+      let used = 0; try { used = new Blob([JSON.stringify(state)]).size; } catch {}
+      let quota = 0; try { const est = await navigator.storage?.estimate?.(); quota = est?.quota || 0; } catch {}
+      const label = storeMode === "idb" ? `Salvo neste navegador · ${fmtBytes(used)}${quota ? ` de ${fmtBytes(quota)} disponíveis` : ""}`
+        : storeMode === "local" ? `Salvo neste navegador · ${fmtBytes(used)} de ~5 MB (armazenamento limitado)`
+        : "Não está salvando: use Fazer backup";
+      const warn = !lastSaveOk || storeMode === "memory" || (storeMode === "local" && used > 4e6);
+      const pct = storeMode === "idb" && quota ? Math.min(100, used / quota * 100) : storeMode === "local" ? Math.min(100, used / 5e6 * 100) : 0;
+      el.innerHTML = `<div class="store-line ${warn ? "warn" : ""}">${esc(lastSaveOk ? label : "Última gravação falhou. Faça um backup.")}</div>${pct ? `<div class="store-bar"><i style="width:${Math.max(1, pct)}%"></i></div>` : ""}`;
+    }, 300);
+  }
 
   const sheet = () => state.sheets.find(s => s.id === state.activeSheet) || state.sheets[0];
   // Versões anteriores não marcavam os exemplos; reconhece pelo conteúdo original.
@@ -1364,6 +1439,9 @@
     ["apagar planilha Vendas", "Exclui uma planilha"],
     ["desfazer", "Desfaz a última exclusão"],
     ["verificar", "Mostra como cada coluna é calculada"],
+    ["backup", "Baixa um arquivo com todos os seus dados"],
+    ["restaurar backup", "Carrega um backup salvo"],
+    ["armazenamento", "Mostra quanto espaço os dados ocupam"],
     ["tempo não é custo", "Corrige uma coluna tratada como dinheiro"],
     ["custo é custo", "Marca uma coluna como dinheiro (R$)"],
     ["nova planilha Clientes com colunas Nome, Cidade, Valor", "Cria uma planilha"],
@@ -1414,17 +1492,17 @@
   }
 
   function run(input) {
+    if (!state) return;
     bust();
     const raw = input.trim().replace(/^\//, "");
     if (!raw) return;
     say(esc(raw), "user");
     state.history.push(raw);
     state.history = state.history.slice(-50);
-    try { handle(raw); } catch (e) { if (!state.sheets.length) { say(`Você ainda não tem planilhas. Digite ${code("importar dados")} ou cole seus dados aqui.`, "bot", "err"); save(); return; } say("Não consegui executar esse comando. Digite " + code("ajuda") + " para ver exemplos.", "bot", "err"); console.error(e); }
-    save();
+    Promise.resolve().then(() => handle(raw)).catch(e => { if (!state.sheets.length) { say(`Você ainda não tem planilhas. Digite ${code("importar dados")} ou cole seus dados aqui.`, "bot", "err"); save(); return; } say("Não consegui executar esse comando. Digite " + code("ajuda") + " para ver exemplos.", "bot", "err"); console.error(e); }).finally(save);
   }
 
-  function handle(raw) {
+  async function handle(raw) {
     const n = norm(raw);
     const sh = sheet();
     let m;
@@ -1445,6 +1523,15 @@
       if (m[2]) { if (t !== "moeda") return say(`Diga o que a coluna é, por exemplo ${code(`${sh.columns[c].toLowerCase()} é número`)}.`); t = "numero"; }
       setType(sh, c, t); render();
       return say(`Certo: ${code(sh.columns[c])} agora é <b>${esc(TYPE_LABEL[t])}</b>. Painel e gráficos atualizados.`);
+    }
+    if (/^(fazer |salvar |criar |gerar )?(um )?backup$|^exportar tudo$|^(baixar|salvar) (todos os |meus )?dados$/.test(n)) return makeBackup();
+    if (/^restaurar( um| o)? backup$|^(abrir|carregar) backup$/.test(n)) { $("#backupFile").click(); return say("Escolha o arquivo de backup (.json)."); }
+    if (/^(armazenamento|espaco|quanto (espaco|ocupa)|onde (ficam|estao) (os )?(meus )?dados)/.test(n)) {
+      const used = new Blob([JSON.stringify(state)]).size;
+      let quota = 0; try { quota = (await navigator.storage?.estimate?.())?.quota || 0; } catch {}
+      return say(storeMode === "idb" ? `Seus dados ficam <b>neste navegador</b>, no armazenamento de maior capacidade: ${fmtBytes(used)} usados${quota ? ` de ${fmtBytes(quota)} disponíveis` : ""}. Eles não vão para a internet. Limpar os dados do navegador ou usar outro computador não traz esses dados; para isso use ${code("backup")}.`
+        : storeMode === "local" ? `Seus dados ficam neste navegador, mas no armazenamento limitado (~5 MB): ${fmtBytes(used)} usados. Faça ${code("backup")} com frequência.`
+        : `Este navegador não está permitindo salvar. Use ${code("backup")} para guardar um arquivo.`);
     }
     if (/^(verificar|diagnostico|conferir|checar|por que|porque|como (voce )?calcul)/.test(n)) {
       const rows = sh.rows.map((_, r) => r), nc = numericCols(sh);
@@ -1687,11 +1774,14 @@
       const csv = data.map(r => r.map(v => { const s = String(v ?? ""); return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }).join(";")).join("\n");
       blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
     }
+    return saveFile(filename, blob);
+  }
+  async function saveFile(filename, blob, okMsg) {
     const downloads = await downloadsReady;
     if (downloads) {
       try {
         await downloads.save({ filename, data: blob });
-        return say(`Arquivo <b>${esc(filename)}</b> salvo.`);
+        return say(okMsg || `Arquivo <b>${esc(filename)}</b> salvo.`);
       } catch (e) {
         if (e?.code === "declined") return say("Download cancelado.");
         return say("Não foi possível salvar o arquivo aqui. Abra o <code>index.html</code> direto no navegador para baixar.", "bot", "err");
@@ -1701,7 +1791,60 @@
     a.href = URL.createObjectURL(blob);
     a.download = filename; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    say(`Arquivo <b>${esc(filename)}</b> gerado.`);
+    say(okMsg || `Arquivo <b>${esc(filename)}</b> gerado.`);
+  }
+
+  /* ---------- Backup ---------- */
+  function makeBackup() {
+    const d = new Date(), stamp = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    const payload = { app: "assistente-gestao", backupVersion: 1, createdAt: d.toISOString(), state: { sheets: state.sheets, charts: state.charts, tasks: state.tasks, activeSheet: state.activeSheet } };
+    const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+    const rows = state.sheets.reduce((n, s) => n + s.rows.length, 0);
+    return saveFile(`assistente-backup-${stamp}.json`, blob, `Backup salvo: <b>assistente-backup-${stamp}.json</b> (${state.sheets.length} planilha(s), ${nfNum.format(rows)} linhas, ${state.tasks.length} tarefa(s), ${fmtBytes(blob.size)}). Guarde esse arquivo; para voltar, use <b>Restaurar</b> na barra lateral.`);
+  }
+  let pendingRestore = null;
+  async function readBackup(file) {
+    let data;
+    try { data = JSON.parse(await file.text()); } catch { return say("Esse arquivo não é um backup válido (não consegui ler o conteúdo).", "bot", "err"); }
+    if (data?.app !== "assistente-gestao" || !Array.isArray(data?.state?.sheets)) return say("Esse arquivo .json não é um backup do Assistente de Gestão.", "bot", "err");
+    pendingRestore = data;
+    const b = data.state, rows = b.sheets.reduce((n, s) => n + (s.rows?.length || 0), 0);
+    const when = data.createdAt ? new Date(data.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "data desconhecida";
+    $("#wipeTitle").textContent = "Restaurar backup";
+    $("#wipeBody").innerHTML = `<p class="lead" style="margin:0;color:var(--text-2)">Backup de <b>${esc(when)}</b>: ${b.sheets.length} planilha(s) (${b.sheets.map(s => esc(s.name)).join(", ")}), ${nfNum.format(rows)} linhas e ${(b.tasks || []).length} tarefa(s).</p>
+      <div class="wipe-opt">
+        <button type="button" data-restore="replace"><b>Substituir tudo pelo backup</b><span>Apaga o que está aberto agora e coloca o conteúdo do backup. Dá para desfazer.</span></button>
+        <button type="button" data-restore="merge"><b>Juntar com o que já tenho</b><span>Adiciona as planilhas e tarefas do backup às atuais.</span></button>
+        <button type="button" class="cancel" data-restore="cancel"><b>Cancelar</b><span>Não mudar nada.</span></button>
+      </div>`;
+    const d = $("#wipeDlg"); try { d.showModal(); } catch { d.setAttribute("open", ""); }
+  }
+  function applyRestore(mode) {
+    const d = $("#wipeDlg"); if (d.open) d.close();
+    $("#wipeTitle").textContent = "Apagar dados";
+    const data = pendingRestore; pendingRestore = null;
+    if (!data || mode === "cancel") return;
+    const b = data.state;
+    snapshot("backup");
+    if (mode === "replace") {
+      state.sheets = b.sheets; state.charts = b.charts || []; state.tasks = b.tasks || [];
+      state.activeSheet = b.activeSheet && b.sheets.some(s => s.id === b.activeSheet) ? b.activeSheet : b.sheets[0]?.id ?? null;
+    } else {
+      // Ids novos para não colidir com planilhas atuais.
+      b.sheets.forEach(s => {
+        const oldId = s.id, nid = uid();
+        let name = s.name, i = 2; while (state.sheets.some(x => norm(x.name) === norm(name))) name = `${s.name} (${i++})`;
+        state.sheets.push({ ...s, id: nid, name });
+        (b.charts || []).filter(c => c.sheetId === oldId).forEach(c => state.charts.push({ ...c, id: uid(), sheetId: nid }));
+      });
+      (b.tasks || []).forEach(t => { if (!state.tasks.some(x => x.text === t.text && x.due === t.due)) state.tasks.push({ ...t, id: uid() }); });
+      if (!state.activeSheet) state.activeSheet = state.sheets[0]?.id ?? null;
+    }
+    state.filter = { col: null, val: "" };
+    migrateTypes();
+    goto("painel"); saveNow();
+    openAssist();
+    say(`Backup restaurado (${mode === "replace" ? "substituindo" : "junto com"} os dados atuais): ${b.sheets.length} planilha(s).${undoBtn}`);
   }
 
   /* =====================================================================
@@ -2023,7 +2166,7 @@
           ${ICONS.up}<span>Arraste um arquivo aqui ou <u>escolha no computador</u></span>
           <small>.xlsx, .xls, .csv ou .txt</small>
         </label>
-        <input type="file" id="impFile" accept=".xlsx,.xls,.xlsm,.ods,.csv,.tsv,.txt" hidden>
+        <input type="file" id="impFile" accept=".xlsx,.xls,.xlsm,.ods,.csv,.tsv,.txt,.json" hidden>
         <div class="or">ou cole aqui</div>
         <textarea id="impText" spellcheck="false" placeholder="Data;Cliente;Cidade;Valor&#10;03/01/2026;Ana Souza;São Paulo;R$ 1.200,00&#10;07/01/2026;Bruno Lima;Campinas;850">${esc(text)}</textarea>
         ${err ? `<div class="imp-err" role="alert">${esc(err)}</div>` : ""}
@@ -2232,7 +2375,9 @@
     else if (t.dataset.colname) { imp.an.columns[+t.dataset.colname].name = t.value.trim() || imp.an.columns[+t.dataset.colname].name; imp.name = $("#impName").value; renderStep2(); }
     else if (t.id === "optSort" || t.id === "optMonth") { imp.opts = { sortDate: $("#optSort").checked, addMonth: $("#optMonth").checked }; imp.name = $("#impName").value; renderStep2(); }
   });
+  $("#backupFile").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) readBackup(f); });
   async function handleFile(file) {
+    if (/\.json$/i.test(file.name)) { closeImport(); return readBackup(file); }
     if (!imp) openImport();
     try {
       const { matrix, note } = await fileToMatrix(file);
@@ -2274,6 +2419,8 @@
   function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 1800); }
 
   document.addEventListener("click", e => {
+    if (!state) return;
+    if (e.target.closest("[data-restore]")) { applyRestore(e.target.closest("[data-restore]").dataset.restore); return; }
     const t = e.target.closest("button, [data-run]");
     if (!t) return;
     if (t.dataset.view) { goto(t.dataset.view); return; }
@@ -2289,6 +2436,7 @@
     if (t.dataset.fval !== undefined) { state.filter.val = t.dataset.fval; render(); return; }
     if (t.dataset.deltask) { state.tasks = state.tasks.filter(x => x.id !== t.dataset.deltask); render(); return; }
     if (t.dataset.act === "import") { openImport(); return; }
+    if (t.dataset.act === "restore") { $("#backupFile").click(); return; }
     if (t.dataset.page !== undefined) { gridPage.set(`${sheet().id}|${state.filter.col}|${state.filter.val}`, Math.max(0, +t.dataset.page)); render(); $(".grid-wrap").scrollTop = 0; return; }
     if (t.dataset.act === "wipe") { openWipe(); return; }
     if (t.dataset.delsheet) { state.activeSheet = t.dataset.delsheet; openWipe(); return; }
@@ -2468,13 +2616,23 @@
     }
     sh.typesV = 3;
   }); }
-  // Início
+  // Início: carrega os dados salvos e só então desenha a tela.
+  $("#view").innerHTML = `<div class="empty">Carregando seus dados…</div>`;
+  boot();
+  async function boot() {
+  state = await loadState();
+  state.history = state.history || [];
   migrateTypes();
   render();
+  updateStoreInfo();
+  if (movedFromLocal) { saveNow(); say(`Mudei seus dados para o armazenamento de maior capacidade do navegador. Antes o limite era de cerca de 5 MB; agora cabem relatórios bem maiores. Nada foi perdido.`); }
+  if (storeMode === "local") say(`Este navegador não liberou o armazenamento maior; seus dados ficam no limitado (~5 MB). Faça ${code("backup")} de vez em quando.`, "bot", "err");
+  if (storeMode === "memory") say(`Este navegador não está permitindo salvar dados (janela anônima ou bloqueio). Tudo funciona agora, mas some ao fechar. Use ${code("backup")} para guardar um arquivo.`, "bot", "err");
   if (fixedCols.length) say(`Encontrei colunas que estavam sendo <b>somadas por engano</b> (era daí que vinham valores como “500 mi” e “1 bi”):<ul>${fixedCols.map(([sh, c, k]) => `<li>${code(sh.columns[c])} em ${esc(sh.name)}: é ${k === "data" ? "uma <b>data</b> que o Excel gravou como número; converti para dd/mm/aaaa" : "um <b>código</b>; não entra mais em somas"}</li>`).join("")}</ul>Os gráficos que usavam essas colunas foram refeitos. Digite ${code("verificar")} para ver como cada coluna é calculada.`);
   if (migrated.length) say(`Revisei suas planilhas: ${migrated.map(x => code(x)).join(", ")} ${migrated.length > 1 ? "estavam sendo tratadas" : "estava sendo tratada"} como dinheiro sem motivo claro e ${migrated.length > 1 ? "voltaram" : "voltou"} a ser número. Se for mesmo custo, diga ${code(`${migrated[0].split(" › ")[1].toLowerCase()} é custo`)}.`);
   if (hasSamples()) say(`Olá! Sou seu assistente de gestão. O painel mostra <b>dados de exemplo</b>. Para usar os seus, digite ${code("apagar exemplos")} e depois ${code("importar dados")} (ou arraste o arquivo exportado do seu sistema para esta página).`);
   else say(`Olá! ${state.sheets.length ? `Suas planilhas estão carregadas. Digite ${code("resumo")} ou ${code("importar dados")}.` : `Para começar, digite ${code("importar dados")} ou arraste um arquivo .xlsx/.csv para a página.`}`);
   if (hasSamples()) say(`Com o exemplo, experimente:<ul><li>${code("resumo")}</li><li>${code("criar gráfico de receita por categoria")}</li><li>${code("nova planilha Clientes com colunas Nome, Cidade, Valor")}</li><li>${code("nova tarefa Revisar orçamento até 30/10")}</li></ul>Digite ${code("ajuda")} para ver tudo.`);
+  }
 })();
 </script>
