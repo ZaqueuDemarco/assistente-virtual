@@ -399,6 +399,24 @@
   }
   .imp-foot .grow { flex: 1; }
   .imp-err { color: var(--bad); font-size: 13px; }
+  .imp-err ul { margin: 6px 0 0; padding-left: 18px; }
+  .api-link {
+    display: flex; align-items: center; gap: 12px; text-align: left; width: 100%; cursor: pointer;
+    border: 1px solid var(--border-strong); border-radius: 10px; padding: 12px 16px; background: var(--bg); color: var(--text); font: inherit;
+  }
+  .api-link:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .api-link svg { width: 22px; height: 22px; color: var(--accent); flex: none; }
+  .api-link small { display: block; color: var(--muted); font-size: 12px; }
+  .api-form .fld { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .api-form .fld > span { font-size: 12px; color: var(--text-2); font-weight: 600; }
+  .api-form .fld small { color: var(--muted); font-weight: 400; }
+  .api-form .fld-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .api-form .fld-row .grow { flex: 1; min-width: 180px; }
+  .api-form textarea.ctl { background: var(--raised); color: var(--text); border: 1px solid var(--border-strong); border-radius: 6px; resize: vertical; font: 12.5px/1.5 var(--mono); padding: 8px 10px; height: auto; }
+  .api-form input.ctl { width: 100%; }
+  .api-form .hint { margin: 0; color: var(--muted); font-size: 12.5px; }
+  .tag.bad { color: var(--bad); border-color: var(--bad); background: transparent; }
+  .tag.api { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
   .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
   .stat { background: var(--raised); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
   .stat b { display: block; font-size: 18px; font-weight: 600; }
@@ -1201,6 +1219,8 @@
     edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/></svg>',
     trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
     dl: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
+    link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
+    refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4"/></svg>',
   };
   const VIEWS = [["painel", "Painel"], ["planilhas", "Planilhas"], ["tarefas", "Tarefas"]];
 
@@ -1267,8 +1287,8 @@
     const isSample = isSampleSheet(sh);
     return `${sampleBanner()}
       <div class="topbar">
-        <div><h1>Painel · ${esc(sh.name)}</h1><p>${sh.rows.length} linhas · atualizado ao editar a planilha ${isSample ? '· <span class="tag">dados de exemplo</span>' : ""}</p></div>
-        <div class="row">${sheetSelect()}<button class="btn" data-act="import">${ICONS.up}Importar dados</button><button class="btn danger" data-act="wipe">${ICONS.trash}Apagar dados</button></div>
+        <div><h1>Painel · ${esc(sh.name)}</h1><p>${sh.rows.length} linhas · ${sh.api ? `<span class="tag ${sh.api.lastError ? "bad" : "api"}" title="${esc(sh.api.url)}">API${sh.api.lastError ? " · falhou" : ""}</span> atualizado ${sh.api.lastAt ? new Date(sh.api.lastAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—"}` : "atualizado ao editar a planilha"} ${isSample ? '· <span class="tag">dados de exemplo</span>' : ""}</p></div>
+        <div class="row">${sheetSelect()}${sh.api ? `<button class="btn primary" data-act="apiRefresh">${ICONS.refresh}Atualizar</button><button class="btn" data-act="apiEdit" aria-label="Editar conexão com a API" title="Editar conexão">${ICONS.link}</button>` : ""}<button class="btn" data-act="import">${ICONS.up}Importar dados</button><button class="btn danger" data-act="wipe">${ICONS.trash}Apagar dados</button></div>
       </div>
       <div class="kpis" id="kpis"></div>
       <div class="filters">
@@ -1737,6 +1757,10 @@
   const COMMANDS = [
     ["ajuda", "Lista todos os comandos"],
     ["importar dados", "Cole ou envie dados para organizar"],
+    ["conectar api", "Busca os dados direto do sistema"],
+    ["atualizar", "Traz os dados novos da API"],
+    ["editar conexão", "Muda endereço, token ou horário da API"],
+    ["desconectar api", "Para de buscar na API"],
     ["organizar", "Identifica e arruma a planilha atual"],
     ["resumo", "Resumo da planilha atual"],
     ["apagar exemplos", "Remove os dados de exemplo"],
@@ -1820,6 +1844,15 @@
     if (/^(ajuda|help|\?|comandos|o que (voce )?(faz|sabe))/.test(n)) return say(helpText());
     if (/^limpar (conversa|chat|historico)/.test(n)) { log.innerHTML = ""; return say("Conversa limpa."); }
     if (/^(importar|colar|carregar|enviar|jogar)(\s+(os\s+)?(dados|arquivo|planilha))?$/.test(n)) { openImport(); return say("Abri a importação. Cole os dados, arraste um arquivo .xlsx/.csv ou teste com o exemplo."); }
+    if (/^(conectar|ligar|integrar|configurar)(\s+(a|com|na|uma))?\s+(api|sistema|integracao)$|^(nova\s+)?(conexao|integracao)( com)?( a)? api$|^api$/.test(n)) { openApi(null); return say("Abri a conexão com API. Informe o endereço e, se precisar, o token de acesso."); }
+    if (/^(editar|alterar|mudar|configurar)\s+(a\s+)?(conexao|api)/.test(n)) { if (!sh?.api) return say(`<b>${esc(sh?.name || "")}</b> não está ligada a uma API. Digite ${code("conectar api")} para criar uma conexão.`, "bot", "err"); openApi(sh); return say(`Abri a conexão de <b>${esc(sh.name)}</b>.`); }
+    if (/^desconectar(\s+(a|da))?\s+api$/.test(n)) { if (!sh?.api) return say("Esta planilha não está conectada a uma API."); delete sh.api; render(); return say(`Desconectei <b>${esc(sh.name)}</b> da API. Os dados atuais continuam na planilha.`); }
+    if (/^(atualizar|sincronizar|recarregar|buscar dados novos)(\s+(a\s+|os\s+)?(api|dados|planilha|tudo|todas))*$/.test(n)) {
+      const list = /tudo|todas/.test(n) ? state.sheets.filter(s => s.api) : sh?.api ? [sh] : state.sheets.filter(s => s.api);
+      if (!list.length) return say(`Nenhuma planilha está conectada a uma API. Digite ${code("conectar api")} para ligar ao seu sistema, ou ${code("importar dados")} para enviar um arquivo.`);
+      for (const s of list) await refreshApi(s);
+      return;
+    }
     if (/^(organizar|organiza|arrumar|limpar)(\s+(a\s+)?(planilha|dados))?$/.test(n)) {
       const matrix = [sh.columns, ...sh.rows.map((_, r) => sh.columns.map((_, c) => { const v = cellValue(sh, r, c).v; return typeof v === "number" ? String(v) : v; }))];
       openImport({ matrix, name: sh.name, replaceId: sh.id, forceHeader: true, types: sh.types });
@@ -2134,7 +2167,7 @@
   /* ---------- Backup ---------- */
   function makeBackup() {
     const d = new Date(), stamp = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-    const payload = { app: "assistente-gestao", backupVersion: 1, createdAt: d.toISOString(), state: { sheets: state.sheets, charts: state.charts, tasks: state.tasks, activeSheet: state.activeSheet } };
+    const payload = { app: "assistente-gestao", backupVersion: 1, createdAt: d.toISOString(), state: { sheets: state.sheets.map(s => s.api ? { ...s, api: { ...s.api, headers: "", body: s.api.body, lastError: "" } } : s), charts: state.charts, tasks: state.tasks, activeSheet: state.activeSheet } };
     const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
     const rows = state.sheets.reduce((n, s) => n + s.rows.length, 0);
     return saveFile(`assistente-backup-${stamp}.json`, blob, `Backup salvo: <b>assistente-backup-${stamp}.json</b> (${state.sheets.length} planilha(s), ${nfNum.format(rows)} linhas, ${state.tasks.length} tarefa(s), ${fmtBytes(blob.size)}). Guarde esse arquivo; para voltar, use <b>Restaurar</b> na barra lateral.`);
@@ -2707,6 +2740,7 @@
           <small>.xlsx, .xls, .csv, .txt ou .pdf</small>
         </label>
         <input type="file" id="impFile" accept=".xlsx,.xls,.xlsm,.ods,.csv,.tsv,.txt,.pdf,.json" hidden>
+        <button class="api-link" type="button" data-imp="api">${ICONS.link}<span><b>Conectar a uma API</b><small>Busca os dados direto do sistema, com atualização automática</small></span></button>
         <div class="or">ou cole aqui</div>
         <textarea id="impText" spellcheck="false" placeholder="Data;Cliente;Cidade;Valor&#10;03/01/2026;Ana Souza;São Paulo;R$ 1.200,00&#10;07/01/2026;Bruno Lima;Campinas;850">${esc(text)}</textarea>
         ${err ? `<div class="imp-err" role="alert">${esc(err)}</div>` : ""}
@@ -2855,7 +2889,8 @@
     const firstCat = sh.types.findIndex((t, i) => t === "categoria" && i !== sh.periodCol);
     state.filter = { col: firstCat >= 0 ? firstCat : null, val: "" };
     selCell = null;
-    const wasReplace = !!imp.replaceId;
+    const wasReplace = !!imp.replaceId, api = imp.api;
+    if (api) sh.api = { ...api, lastAt: Date.now(), lastError: "" };
     closeImport();
     goto("painel");
     openAssist();
@@ -2869,7 +2904,7 @@
       <li>${fixes} valor(es) corrigido(s)${res.dups ? `, ${res.dups} linha(s) duplicada(s) removida(s)` : ""}.</li>
       <li>${moneyCols.length ? `Tratei como dinheiro (R$): ${moneyCols.map(c => code(c)).join(", ")}.` : "Nenhuma coluna foi tratada como dinheiro."}${numCols.length ? ` Números comuns (sem R$): ${numCols.map(c => code(c)).join(", ")}.` : ""} Se algo estiver errado, diga por exemplo ${code(`${(moneyCols[0] || numCols[0] || "coluna").toLowerCase()} ${moneyCols.length ? "não é custo" : "é custo"}`)} ou troque o tipo no cabeçalho da planilha.</li>
       <li>${newCharts.length ? `Montei ${newCharts.length} gráfico(s) no painel: ${newCharts.map(c => esc(c.title.toLowerCase())).join("; ")}.` : "Não havia colunas numéricas ou categorias para gráficos automáticos."}</li>
-    </ul>Próximos passos: ${code("resumo")}${firstCat >= 0 ? `, ${code(`filtrar ${sh.columns[firstCat].toLowerCase()} = ${sh.rows.find(r => r[firstCat])?.[firstCat] || ""}`)}` : ""}${newCharts.length ? "" : `, ${code(`criar gráfico de registros por ${sh.columns[0].toLowerCase()}`)}`}.`);
+    </ul>${api ? `Conectada à API: para trazer dados novos, clique em <b>Atualizar</b> no painel ou digite ${code("atualizar")}${api.every ? ` (também atualizo sozinho a cada ${api.every >= 60 ? api.every / 60 + " hora(s)" : api.every + " min"} enquanto a página estiver aberta)` : ""}. ` : ""}Próximos passos: ${code("resumo")}${firstCat >= 0 ? `, ${code(`filtrar ${sh.columns[firstCat].toLowerCase()} = ${sh.rows.find(r => r[firstCat])?.[firstCat] || ""}`)}` : ""}${newCharts.length ? "" : `, ${code(`criar gráfico de registros por ${sh.columns[0].toLowerCase()}`)}`}.`);
     renderSuggest();
   }
 
@@ -2910,6 +2945,9 @@
       catch (err) { renderStep1(err.message); }
     }
     else if (a === "sample") { $("#impText").value = messySample(); }
+    else if (a === "api") { imp.apiSheet = null; renderApiForm(); }
+    else if (a === "apiGo") apiGo();
+    else if (a === "apiDisconnect") { const sh = state.sheets.find(s => s.id === imp.apiSheet); closeImport(); if (sh) { delete sh.api; render(); say(`Desconectei <b>${esc(sh.name)}</b> da API. Os dados atuais continuam na planilha.`); } }
     else if (a === "analyze") {
       const text = $("#impText").value;
       if (!text.trim()) return renderStep1("Cole os dados ou escolha um arquivo primeiro.");
@@ -2922,6 +2960,7 @@
     if (t.id === "impFile" && t.files[0]) handleFile(t.files[0]);
     else if (t.dataset.coltype) { imp.an.columns[+t.dataset.coltype].type = t.value; imp.name = $("#impName").value; renderStep2(); }
     else if (t.dataset.colname) { imp.an.columns[+t.dataset.colname].name = t.value.trim() || imp.an.columns[+t.dataset.colname].name; imp.name = $("#impName").value; renderStep2(); }
+    else if (t.id === "apiMethod") $("#apiBodyWrap").hidden = t.value !== "POST";
     else if (t.id === "optSort" || t.id === "optMonth") { imp.opts = { sortDate: $("#optSort").checked, addMonth: $("#optMonth").checked }; imp.name = $("#impName").value; renderStep2(); }
   });
   $("#backupFile").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) readBackup(f); });
@@ -2938,6 +2977,220 @@
       renderStep1(err.message || "Não consegui ler esse arquivo.");
     }
   }
+
+  /* ---------- Conexão com API (JSON ou CSV) ---------- */
+  // A conexão fica guardada na planilha (sh.api) para atualizar depois com um clique ou sozinha.
+  const inClaude = !!window.claude?.use;
+  const humanKey = k => { const s = String(k).split(".").map(p => p.replace(/([a-zà-ÿ])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").trim()).join(" › "); return s.charAt(0).toUpperCase() + s.slice(1); };
+  function jsonCell(v) {
+    if (v == null) return "";
+    if (typeof v === "boolean") return v ? "Sim" : "Não";
+    if (typeof v === "number") return String(v).replace(".", ","); // 1.5 -> "1,5" (padrão brasileiro)
+    if (Array.isArray(v)) return v.every(x => x == null || typeof x !== "object") ? v.filter(x => x != null).join(", ") : `${v.length} item(ns)`;
+    const s = String(v), m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/);
+    if (!m) return s;
+    if (!m[4]) return `${m[3]}/${m[2]}/${m[1]}`;
+    const dt = m[6] ? new Date(s) : new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+    if (isNaN(dt)) return s;
+    return dt.getHours() || dt.getMinutes() ? `${fmtDMY(dt)} ${fmtTime(dt)}` : fmtDMY(dt);
+  }
+  function flatRecord(o, pre = "", out = {}) {
+    if (o == null || typeof o !== "object" || Array.isArray(o)) { out[pre || "Valor"] = o; return out; }
+    for (const k of Object.keys(o)) {
+      const v = o[k], key = pre ? `${pre}.${k}` : k;
+      if (v && typeof v === "object" && !Array.isArray(v) && pre.split(".").length < 3) flatRecord(v, key, out); else out[key] = v;
+    }
+    return out;
+  }
+  // Acha a lista de registros dentro da resposta (ex.: {"dados": {"itens": [...]}}).
+  function findRecords(data, path) {
+    if (path) {
+      let cur = data;
+      for (const k of path.split(/[.\/]/).map(s => s.trim()).filter(Boolean)) cur = cur?.[k];
+      if (!Array.isArray(cur)) throw new Error(`Não encontrei uma lista em “${path}”. Deixe o campo vazio para eu procurar sozinho.`);
+      return { list: cur, path };
+    }
+    let best = null;
+    const walk = (v, p, d) => {
+      if (Array.isArray(v)) {
+        const score = v.length * (v.some(x => x && typeof x === "object") ? 10 : 1);
+        if (v.length && (!best || score > best.score)) best = { list: v, path: p, score };
+        return;
+      }
+      if (v && typeof v === "object" && d < 5) for (const k of Object.keys(v)) walk(v[k], p ? `${p}.${k}` : k, d + 1);
+    };
+    walk(data, "", 0);
+    if (!best) {
+      if (data && typeof data === "object") return { list: [data], path: "" };
+      throw new Error("A resposta da API não tem uma lista de registros.");
+    }
+    return best;
+  }
+  function recordsToMatrix(list) {
+    if (list.every(Array.isArray)) return list.map(r => r.map(jsonCell));
+    const flat = list.map(x => flatRecord(x)), keys = [];
+    const seen = new Set();
+    flat.forEach(o => Object.keys(o).forEach(k => { if (!seen.has(k)) { seen.add(k); keys.push(k); } }));
+    return [keys.map(humanKey), ...flat.map(o => keys.map(k => jsonCell(o[k])))];
+  }
+  const parseHeaders = text => {
+    const h = {};
+    String(text || "").split(/\n/).forEach(line => { const i = line.indexOf(":"); if (i > 0) { const k = line.slice(0, i).trim(), v = line.slice(i + 1).trim(); if (k) h[k] = v; } });
+    return h;
+  };
+  function apiError(conn, err, res) {
+    let host = conn.url; try { host = new URL(conn.url).host; } catch {}
+    if (res) {
+      if (res.status === 401 || res.status === 403) return `O sistema recusou o acesso (erro ${res.status}). Confira o token ou a senha no campo <b>Cabeçalhos</b>, por exemplo <code>Authorization: Bearer SEU_TOKEN</code>.`;
+      if (res.status === 404) return `O endereço não existe no sistema (erro 404). Confira a URL.`;
+      if (res.status === 429) return `O sistema pediu para esperar (muitas consultas seguidas). Tente de novo em alguns minutos.`;
+      return `O sistema respondeu com erro ${res.status}${res.statusText ? ` (${esc(res.statusText)})` : ""}.`;
+    }
+    if (err?.name === "AbortError") return `O sistema ${esc(host)} demorou mais de 30 segundos para responder.`;
+    const tips = [];
+    if (/^http:/i.test(conn.url) && location.protocol === "https:") tips.push(`O endereço começa com <b>http://</b>; páginas seguras só acessam <b>https://</b>.`);
+    if (inClaude) tips.push(`Dentro do Claude a página não pode acessar sistemas externos. Baixe o arquivo <code>index.html</code> do assistente e abra no navegador do computador; a conexão funciona lá.`);
+    tips.push(`O sistema precisa permitir acesso a partir do navegador (CORS). Se não permitir, peça ao responsável pelo sistema para liberar, ou use a exportação em Excel/CSV.`);
+    tips.push(`Confira se o endereço está certo e se há internet.`);
+    return `Não consegui me conectar a <b>${esc(host)}</b>. Possíveis motivos:<ul>${tips.map(t => `<li>${t}</li>`).join("")}</ul>`;
+  }
+  async function fetchOnce(conn, url) {
+    if (!/^https?:\/\//i.test(url)) throw Object.assign(new Error("x"), { html: "O endereço precisa começar com <b>https://</b>." });
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 30000);
+    const method = conn.method === "POST" ? "POST" : "GET";
+    const headers = parseHeaders(conn.headers);
+    if (method === "POST" && conn.body && !Object.keys(headers).some(k => /^content-type$/i.test(k))) headers["Content-Type"] = "application/json";
+    let res;
+    try { res = await fetch(url, { method, headers, body: method === "POST" && conn.body ? conn.body : undefined, signal: ctl.signal, credentials: "omit" }); }
+    catch (e) { throw Object.assign(new Error("x"), { html: apiError(conn, e) }); }
+    finally { clearTimeout(timer); }
+    if (!res.ok) throw Object.assign(new Error("x"), { html: apiError(conn, null, res) });
+    const text = await res.text();
+    const t = text.replace(/^﻿/, "").trim();
+    if (/^[\[{]/.test(t)) {
+      let data; try { data = JSON.parse(t); } catch { throw Object.assign(new Error("x"), { html: "A resposta parece JSON, mas está incompleta ou com erro." }); }
+      return { json: data };
+    }
+    if (/^</.test(t)) throw Object.assign(new Error("x"), { html: "O endereço devolveu uma página da web (HTML), não dados. Use o endereço da API, que normalmente devolve JSON." });
+    return { text: t };
+  }
+  // Busca os dados; com {pagina} na URL, percorre as páginas até vir uma vazia (máx. 50).
+  async function fetchApiMatrix(conn) {
+    const paged = /\{pagina\}|\{page\}/i.test(conn.url);
+    let all = [], path = "", note = "";
+    for (let p = 1; p <= (paged ? 50 : 1); p++) {
+      const out = await fetchOnce(conn, conn.url.replace(/\{pagina\}|\{page\}/gi, p));
+      if (out.text != null) {
+        if (paged && p > 1) break;
+        const m = textToMatrix(out.text);
+        return { matrix: m, note: `Dados recebidos da API em formato de texto/CSV (${Math.max(0, m.length - 1)} linhas).` };
+      }
+      // Da 2ª página em diante usa o mesmo caminho da 1ª: página vazia = fim.
+      let found;
+      try { found = findRecords(out.json, conn.path || (p > 1 ? path : "")); } catch (e) { if (p > 1) break; throw e; }
+      if (!found.list.length || (p > 1 && !path && found.list[0] === out.json)) break;
+      path = found.path; all = all.concat(found.list);
+      if (p === 50) note = " Parei em 50 páginas.";
+    }
+    if (!all.length) throw Object.assign(new Error("x"), { html: "A API respondeu, mas a lista de registros veio vazia." });
+    return { matrix: recordsToMatrix(all), path, note: `Dados recebidos da API: ${nfNum.format(all.length)} registro(s)${path ? ` na lista “${path}”` : ""}${paged ? " (todas as páginas)" : ""}.${note}` };
+  }
+
+  function renderApiForm(conn = {}, err = "") {
+    imp = imp || { replaceId: null, note: "", opts: { sortDate: true, addMonth: true } };
+    imp.apiDraft = { method: "GET", every: 0, ...conn };
+    const c = imp.apiDraft, editing = !!imp.apiSheet;
+    $("#impStep").textContent = editing ? "Conexão da planilha" : "Passo 1 de 2 · Conectar API";
+    impContent.innerHTML = `
+      <div class="imp-body api-form">
+        <p class="lead">Informe o endereço da API do seu sistema. O assistente busca os registros, identifica as colunas e monta a planilha. Depois é só clicar em <b>Atualizar</b> (ou escolher atualização automática) para trazer os dados novos, mantendo seus cartões e gráficos.</p>
+        <label class="fld"><span>Endereço (URL)</span><input class="ctl" id="apiUrl" type="url" spellcheck="false" placeholder="https://seusistema.com.br/api/ordens-servico" value="${esc(c.url || "")}"></label>
+        <div class="fld-row">
+          <label class="fld"><span>Método</span><select class="ctl" id="apiMethod">${["GET", "POST"].map(m => `<option ${c.method === m ? "selected" : ""}>${m}</option>`).join("")}</select></label>
+          <label class="fld grow"><span>Onde está a lista <small>(opcional)</small></span><input class="ctl" id="apiPath" spellcheck="false" placeholder="automático · ex.: dados.itens" value="${esc(c.path || "")}"></label>
+          <label class="fld"><span>Atualizar sozinho</span><select class="ctl" id="apiEvery">${[[0, "Não, só quando eu pedir"], [15, "A cada 15 min"], [60, "A cada 1 hora"], [240, "A cada 4 horas"]].map(([v, l]) => `<option value="${v}" ${+c.every === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+        </div>
+        <label class="fld"><span>Cabeçalhos <small>(token, chave de acesso; um por linha)</small></span><textarea class="ctl mono" id="apiHeaders" rows="3" spellcheck="false" placeholder="Authorization: Bearer SEU_TOKEN&#10;X-Api-Key: SUA_CHAVE">${esc(c.headers || "")}</textarea></label>
+        <label class="fld" id="apiBodyWrap" ${c.method === "POST" ? "" : "hidden"}><span>Corpo da requisição (JSON)</span><textarea class="ctl mono" id="apiBody" rows="3" spellcheck="false" placeholder='{"dataInicio": "2026-01-01"}'>${esc(c.body || "")}</textarea></label>
+        <p class="hint">Se a API divide os resultados em páginas, coloque <code>{pagina}</code> no endereço (ex.: <code>...?page={pagina}</code>) e eu busco todas. O token fica salvo só neste navegador e <b>não</b> vai no arquivo de backup.${inClaude ? ` <span style="color:var(--warn)">Aviso: dentro do Claude, a página não consegue acessar sistemas externos; para conectar, abra o <code>index.html</code> baixado no navegador do computador.</span>` : ""}</p>
+        ${err ? `<div class="imp-err" role="alert">${err}</div>` : ""}
+      </div>
+      <div class="imp-foot">
+        ${editing ? `<button class="btn danger" type="button" data-imp="apiDisconnect">Desconectar</button>` : `<button class="btn ghost" type="button" data-imp="back">Voltar</button>`}
+        <span class="grow"></span>
+        <button class="btn" type="button" data-imp="close">Cancelar</button>
+        <button class="btn primary" type="button" data-imp="apiGo">${editing ? "Salvar e atualizar" : "Conectar e buscar dados"}</button>
+      </div>`;
+    setTimeout(() => $("#apiUrl")?.focus(), 30);
+  }
+  const readApiForm = () => ({ ...imp.apiDraft, url: $("#apiUrl").value.trim(), method: $("#apiMethod").value, path: $("#apiPath").value.trim(), every: +$("#apiEvery").value, headers: $("#apiHeaders").value.trim(), body: $("#apiBody").value.trim() });
+  function openApi(sh) {
+    openImport();
+    imp.apiSheet = sh?.api ? sh.id : null;
+    renderApiForm(sh?.api || {});
+  }
+  async function apiGo() {
+    const conn = readApiForm();
+    if (!conn.url) return renderApiForm(conn, "Informe o endereço da API.");
+    if (imp.apiSheet) {
+      const sh = state.sheets.find(s => s.id === imp.apiSheet);
+      closeImport();
+      sh.api = { ...conn, lastAt: sh.api?.lastAt || 0 };
+      save();
+      return refreshApi(sh);
+    }
+    impContent.innerHTML = `<div class="imp-body"><p class="lead">Conectando a <b>${esc(conn.url)}</b>…</p></div>`;
+    try {
+      const out = await fetchApiMatrix(conn);
+      let name = "Dados da API"; try { const seg = new URL(conn.url).pathname.split("/").filter(s => s && !/^v\d+$|^api$/i.test(s)).pop(); if (seg) name = humanKey(decodeURIComponent(seg)); } catch {}
+      loadMatrix(out.matrix, name, { note: out.note });
+      if (imp) imp.api = { ...conn, path: conn.path || out.path || "" };
+    } catch (e) {
+      if (imp) renderApiForm(conn, e.html || esc(e.message));
+    }
+  }
+
+  // Busca de novo e troca as linhas, mantendo tipos escolhidos, cartões e gráficos.
+  const apiBusy = new Set();
+  async function refreshApi(sh, quiet = false) {
+    if (!sh?.api || apiBusy.has(sh.id)) return;
+    apiBusy.add(sh.id);
+    if (!quiet) say(`Buscando dados novos de <b>${esc(sh.name)}</b>…`);
+    try {
+      const out = await fetchApiMatrix(sh.api);
+      const an = analyze(out.matrix);
+      if (!an) throw Object.assign(new Error("x"), { html: "A API não trouxe registros." });
+      const oldCols = sh.columns.map(norm), oldType = new Map(oldCols.map((c, i) => [c, sh.types?.[i]]));
+      an.columns.forEach(c => { const t = oldType.get(norm(c.name)); if (t) c.type = t; });
+      const res = organize(an, { sortDate: true, addMonth: oldCols.includes("mes") });
+      const idx = new Map(res.columns.map((c, i) => [norm(c), i]));
+      const map = c => c == null || c < 0 ? c : idx.get(oldCols[c]) ?? null;
+      const before = sh.rows.length;
+      const mine = state.charts.filter(ch => ch.sheetId === sh.id);
+      mine.forEach(ch => { ch.label = map(ch.label); ch.values = ch.values.map(map); });
+      const lost = mine.filter(ch => ch.label === null || ch.values.includes(null));
+      state.charts = state.charts.filter(ch => !lost.includes(ch));
+      if (sh.cards) sh.cards = sh.cards.filter(cd => { if (cd.kind !== "data") return true; cd.col = map(cd.col); if (cd.where) cd.where.col = map(cd.where.col); return cd.col !== null && cd.where?.col !== null; });
+      if (sh.hiddenKpis) sh.hiddenKpis = sh.hiddenKpis.map(map).filter(c => c != null);
+      if (sh.userSet) sh.userSet = Object.fromEntries(Object.keys(sh.userSet).map(k => [map(+k), true]).filter(([k]) => k != null));
+      if (state.activeSheet === sh.id && state.filter.col != null) { state.filter.col = map(state.filter.col); if (state.filter.col == null) state.filter = { col: null, val: "" }; }
+      Object.assign(sh, { columns: res.columns, rows: res.rows, types: res.types, periodCol: res.periodCol ?? null, typesV: 3 });
+      if (sh.periodCol == null) sh.periodCol = periodCol(sh) ?? null;
+      sh.api.lastAt = Date.now(); sh.api.lastError = "";
+      render();
+      const diff = sh.rows.length - before;
+      if (!quiet || diff) say(`<b>${esc(sh.name)}</b> atualizada pela API: ${nfNum.format(sh.rows.length)} registro(s)${diff ? ` (${diff > 0 ? "+" : ""}${nfNum.format(diff)})` : ", nenhum novo"}.${lost.length ? ` Removi ${lost.length} gráfico(s) de colunas que não vieram mais.` : ""}`);
+    } catch (e) {
+      const msg = e.html || esc(e.message || "erro desconhecido");
+      if (!quiet || sh.api.lastError !== msg) say(`Não consegui atualizar <b>${esc(sh.name)}</b> pela API. ${msg}`, "bot", "err");
+      sh.api.lastError = msg; save();
+    } finally { apiBusy.delete(sh.id); }
+  }
+  // Atualização automática: confere a cada minuto quais conexões estão vencidas.
+  setInterval(() => {
+    if (!state || document.hidden) return;
+    state.sheets.forEach(sh => { if (sh.api?.every > 0 && Date.now() - (sh.api.lastAt || 0) >= sh.api.every * 60000) refreshApi(sh, true); });
+  }, 60000);
 
   // Arrastar arquivo para qualquer lugar da página
   let dragDepth = 0;
@@ -2990,6 +3243,8 @@
     if (t.dataset.fval !== undefined) { state.filter.val = t.dataset.fval; render(); return; }
     if (t.dataset.deltask) { state.tasks = state.tasks.filter(x => x.id !== t.dataset.deltask); render(); return; }
     if (t.dataset.act === "import") { openImport(); return; }
+    if (t.dataset.act === "apiRefresh") { openAssist(); refreshApi(sheet()); return; }
+    if (t.dataset.act === "apiEdit") { openApi(sheet()); return; }
     if (t.dataset.act === "restore") { $("#backupFile").click(); return; }
     if (t.dataset.page !== undefined) { gridPage.set(`${sheet().id}|${state.filter.col}|${state.filter.val}`, Math.max(0, +t.dataset.page)); render(); $(".grid-wrap").scrollTop = 0; return; }
     if (t.dataset.act === "wipe") { openWipe(); return; }

@@ -34,6 +34,19 @@ Os dados ficam **só neste navegador**, no IndexedDB (armazenamento de maior cap
 - **Painel**: indicadores com variação e minigráficos, filtros por categoria e gráficos de barras, linhas ou rosca que se atualizam quando a planilha muda.
 - **Tarefas**: prazos, atrasadas em destaque e contagem de pendentes.
 
+## Conectar à API do seu sistema
+
+Em **Importar dados → Conectar a uma API** (ou o comando `conectar api`), informe:
+
+- **Endereço (URL)** da API, por exemplo `https://seusistema.com.br/api/ordens-servico`. Se os resultados vêm em páginas, coloque `{pagina}` no endereço (`...?page={pagina}`) e o assistente busca todas (até 50).
+- **Cabeçalhos** com o token ou a chave, um por linha: `Authorization: Bearer SEU_TOKEN`.
+- **Onde está a lista** (opcional): o assistente acha sozinho a lista de registros dentro do JSON (ex.: `dados.itens`). Campos aninhados viram colunas (`Equipamento › setor`), datas ISO viram dd/mm/aaaa e respostas em CSV também são aceitas.
+- **Atualizar sozinho**: a cada 15 min, 1 h ou 4 h enquanto a página estiver aberta.
+
+Depois, o botão **Atualizar** no painel (ou `atualizar`) traz os dados novos e mantém os tipos de coluna, cartões e gráficos. `editar conexão` muda endereço/token, `desconectar api` para de buscar. O token fica só no navegador e não vai no arquivo de backup.
+
+Requisitos: o sistema precisa permitir acesso pelo navegador (CORS) e usar `https://`. Dentro do Claude a página não acessa sistemas externos; para usar a API, abra o `index.html` no navegador do computador.
+
 ## Apagar dados
 
 - Botão **Apagar dados** no painel e na planilha: apagar a planilha atual, esvaziar as linhas (mantendo as colunas), apagar só os exemplos ou apagar tudo.
