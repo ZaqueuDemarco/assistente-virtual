@@ -337,8 +337,13 @@
   .ex-chip { background: var(--raised); border: 1px solid var(--border-strong); border-radius: 999px; padding: 3px 10px; font: 12px var(--mono); color: var(--text-2); cursor: pointer; }
   .ex-chip:hover { border-color: var(--accent); color: var(--text); }
   .kpi { position: relative; }
-  .kpi-x { position: absolute; top: 8px; right: 8px; opacity: 0; }
-  .kpi:hover .kpi-x, .kpi-x:focus-visible { opacity: .8; }
+  .kpi-tools { position: absolute; top: 6px; right: 6px; display: flex; gap: 2px; opacity: 0; transition: opacity .12s; }
+  .kpi:hover .kpi-tools, .kpi:focus-within .kpi-tools { opacity: 1; }
+  @media (hover: none) { .kpi-tools { opacity: .7; } }
+  .kpi .lbl { padding-right: 52px; }
+  .kpi-add { align-items: center; justify-content: center; flex-direction: row; gap: 8px; cursor: pointer; color: var(--muted); border-style: dashed; background: transparent; font: inherit; min-height: 96px; }
+  .kpi-add:hover { color: var(--text); border-color: var(--accent); }
+  .kpi-add svg { width: 16px; height: 16px; }
   .chart-card .panel-head h2 { font-size: 14.5px; }
   .chart-card .sub { margin-top: 2px; }
   .rank-body { height: auto !important; min-height: 120px; padding: 10px 16px 16px !important; }
@@ -537,6 +542,13 @@
   </div>
   <div class="imp-body" id="chartDlgBody"></div>
   <div class="imp-foot"><span class="grow"></span><button class="btn" type="button" data-bact="cancel">Cancelar</button><button class="btn primary" type="button" data-bact="save" id="chartDlgSave">Adicionar ao painel</button></div>
+</dialog>
+<dialog class="imp builder" id="cardDlg" aria-labelledby="cardDlgTitle">
+  <div class="imp-head"><h2 id="cardDlgTitle">Novo cartão</h2>
+    <button class="icon-btn" type="button" data-cact="cancel" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="imp-body" id="cardDlgBody"></div>
+  <div class="imp-foot"><button class="btn danger" type="button" data-cact="delete" id="cardDlgDel">Remover cartão</button><span class="grow"></span><button class="btn" type="button" data-cact="cancel">Cancelar</button><button class="btn primary" type="button" data-cact="save" id="cardDlgSave">Adicionar</button></div>
 </dialog>
 <div class="drag-veil" id="dragVeil" hidden>Solte o arquivo para importar</div>
 <div class="toast" id="toast" hidden></div>
@@ -791,6 +803,111 @@
       <div class="bpreview"><span>Vai aparecer como</span><b>${esc(preview.title)}</b><small>${esc(unitText(sh, preview))}</small></div>`;
   }
   $("#chartDlg").addEventListener("close", () => { draft = null; });
+
+  // ---------- Editor de cartão ----------
+  let cdraft = null;
+  function openCardEditor(id) {
+    const sh = sheet(); if (!sh) return;
+    const existing = id ? cardsFor(sh).find(c => c.id === id) : null;
+    cdraft = existing ? { ...existing, where: existing.where ? { ...existing.where } : null, editing: id } : { kind: "data", col: -1, agg: "count", where: null, compare: true, title: "" };
+    $("#cardDlgTitle").textContent = existing ? "Editar cartão" : "Novo cartão";
+    $("#cardDlgSave").textContent = existing ? "Salvar" : "Adicionar";
+    $("#cardDlgDel").hidden = !existing;
+    renderCardEditor();
+    const d = $("#cardDlg"); try { d.showModal(); } catch { d.setAttribute("open", ""); }
+  }
+  function renderCardEditor() {
+    const sh = sheet(), d = cdraft, nc = numericCols(sh);
+    const cards = cardsFor(sh), pos = d.editing ? cards.findIndex(c => c.id === d.editing) : cards.length;
+    if (d.kind === "tasks") {
+      $("#cardDlgBody").innerHTML = `<div class="bfield"><label for="cTitle">Título</label><input class="ctl" id="cTitle" value="${esc(d.title || "")}" placeholder="Tarefas pendentes"></div>
+        ${d.editing ? `<div class="bfield"><label>Posição</label><div class="row"><button type="button" class="btn" data-cact="left" ${pos <= 0 ? "disabled" : ""}>◀ Para a esquerda</button><button type="button" class="btn" data-cact="right" ${pos >= cards.length - 1 ? "disabled" : ""}>Para a direita ▶</button></div></div>` : ""}`;
+      return;
+    }
+    const measures = [["-1|count", `Quantidade de ${countLabel(sh) === "O.S." ? "O.S." : "registros"}`], ...nc.flatMap(c => ["sum", "avg", "max", "min"].map(a => [`${c}|${a}`, `${AGG_LABEL[a]} de ${sh.columns[c]}`]))];
+    const cur = `${d.col}|${d.col < 0 ? "count" : d.agg}`;
+    const filterCols = sh.columns.map((_, i) => i).filter(i => !nc.includes(i) && !isIdCol(sh, i) && !isDateCol(sh, i));
+    const wc = d.where?.col;
+    const vals = wc != null ? [...new Set(sh.rows.map(r => r[wc]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "pt-BR")).slice(0, 200) : [];
+    const preview = { ...d }; const all = filteredRows(sh);
+    $("#cardDlgBody").innerHTML = `
+      <div class="bfield"><label for="cMeasure">O que mostrar</label>
+        <select class="ctl" id="cMeasure">${measures.map(([v, l]) => `<option value="${v}" ${v === cur ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></div>
+      <div class="bfield"><label for="cWhereCol">Considerar só quando (opcional)</label>
+        <div class="row nowrap"><select class="ctl" id="cWhereCol" style="flex:1"><option value="">Todos os registros</option>${filterCols.map(i => `<option value="${i}" ${i === wc ? "selected" : ""}>${esc(sh.columns[i])}</option>`).join("")}</select>
+        ${wc != null ? `<span>=</span><select class="ctl" id="cWhereVal" style="flex:1">${vals.map(v => `<option value="${esc(v)}" ${norm(v) === norm(d.where?.val) ? "selected" : ""}>${esc(v)}</option>`).join("")}</select>` : ""}</div></div>
+      <div class="bfield"><label for="cTitle">Título</label><input class="ctl" id="cTitle" value="${esc(d.title || "")}" placeholder="${esc(cardTitle(sh, { ...d, title: "" }))}"></div>
+      <label class="opts"><span style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="cCompare" ${d.compare !== false ? "checked" : ""}> Mostrar variação em relação ao período anterior e minigráfico</span></label>
+      ${d.editing ? `<div class="bfield"><label>Posição</label><div class="row"><button type="button" class="btn" data-cact="left" ${pos <= 0 ? "disabled" : ""}>◀ Para a esquerda</button><button type="button" class="btn" data-cact="right" ${pos >= cards.length - 1 ? "disabled" : ""}>Para a direita ▶</button></div></div>` : ""}
+      <div class="bpreview"><span>Vai mostrar</span><b>${esc(cardTitle(sh, preview))}: ${esc(cardFormat(sh, preview, cardValue(sh, preview, all)))}</b><small>${state.filter.val ? `com o filtro do painel (${esc(state.filter.val)})` : "com todos os registros da planilha"}</small></div>`;
+  }
+  document.addEventListener("change", e => {
+    if (!cdraft) return;
+    const sh = sheet(), t = e.target;
+    if (t.id === "cMeasure") { const [c, a] = t.value.split("|"); cdraft.col = +c; cdraft.agg = a; renderCardEditor(); }
+    if (t.id === "cWhereCol") { if (t.value === "") cdraft.where = null; else { const c = +t.value; const first = sh.rows.map(r => r[c]).find(Boolean) || ""; cdraft.where = { col: c, val: first }; } renderCardEditor(); }
+    if (t.id === "cWhereVal") { cdraft.where.val = t.value; renderCardEditor(); }
+    if (t.id === "cCompare") cdraft.compare = t.checked;
+  });
+  document.addEventListener("input", e => { if (cdraft && e.target.id === "cTitle") cdraft.title = e.target.value; });
+  function cardAct(a) {
+    const sh = sheet(), d = $("#cardDlg");
+    if (a === "left" || a === "right") {
+      const list = ownCards(sh), i = list.findIndex(c => c.id === cdraft.editing || c.id === cdraft.newId);
+      if (i < 0) { // id automático: acha pela posição original
+        const auto = defaultCards(sh).findIndex(c => c.id === cdraft.editing); if (auto >= 0) { cdraft.newId = list[auto].id; return cardAct(a); } return;
+      }
+      const j = a === "left" ? i - 1 : i + 1; if (j < 0 || j >= list.length) return;
+      [list[i], list[j]] = [list[j], list[i]]; cdraft.editing = list[j].id; delete cdraft.newId;
+      render(); renderCardEditor(); return;
+    }
+    if (a === "save" && cdraft) {
+      const list = ownCards(sh);
+      const auto = cdraft.editing && !list.some(c => c.id === cdraft.editing) ? defaultCards(sh).findIndex(c => c.id === cdraft.editing) : -1;
+      const card = { id: uid(), kind: cdraft.kind || "data", col: cdraft.col, agg: cdraft.col < 0 ? "count" : cdraft.agg, where: cdraft.where, compare: cdraft.compare !== false, title: (cdraft.title || "").trim() };
+      if (card.kind === "tasks") { delete card.col; delete card.agg; delete card.where; }
+      const i = auto >= 0 ? auto : list.findIndex(c => c.id === cdraft.editing);
+      if (i >= 0) { card.id = list[i].id; list[i] = card; } else list.splice(list.findIndex(c => c.kind === "tasks") >= 0 ? list.findIndex(c => c.kind === "tasks") : list.length, 0, card);
+      toast(i >= 0 ? "Cartão atualizado" : "Cartão adicionado");
+    }
+    if (a === "delete" && cdraft?.editing) removeCard(sh, cdraft.editing);
+    cdraft = null; if (d.open) d.close(); render();
+  }
+  function removeCard(sh, id) {
+    const auto = defaultCards(sh).findIndex(c => c.id === id);
+    const list = ownCards(sh);
+    const i = auto >= 0 && !list.some(c => c.id === id) ? auto : list.findIndex(c => c.id === id);
+    if (i >= 0) list.splice(i, 1);
+  }
+  $("#cardDlg").addEventListener("close", () => { cdraft = null; });
+  // "cartão de O.S. abertas", "cartão de tempo médio da UTI", "cartão com soma de custo"
+  function parseCardRequest(sh, n, raw = "") {
+    const text = n.replace(/^(criar|cria|novo|nova|adicionar|adiciona|quero|fazer)?\s*(um\s+)?(novo\s+)?(cartao|card|indicador|kpi)\s*(de|com|para|mostrando)?\s*/, "");
+    const card = { kind: "data", col: -1, agg: "count", where: null, compare: true, title: "" };
+    const nc = numericCols(sh);
+    const num = chartColsIn(sh, text).find(c => nc.includes(c));
+    if (num != null) {
+      card.col = num;
+      card.agg = /\bmedi[ao]s?\b/.test(text) ? "avg" : /\b(maior|maximo)\b/.test(text) ? "max" : /\b(menor|minimo)\b/.test(text) ? "min" : /\b(soma|total)\b/.test(text) ? "sum" : isAvgCol(sh, num) ? "avg" : "sum";
+    }
+    // Filtro: procura um valor de categoria citado no texto ("abertas" -> Situação = Aberta; "uti" -> Setor = UTI).
+    const words = text.split(/\s+/).filter(w => w.length >= 2 && !/^(de|do|da|dos|das|com|em|no|na|os|as|o|a|e|por|para|total|soma|media|medio|maior|menor|quantidade|numero|registros|o\.s\.?|os)$/.test(w));
+    const cats = sh.columns.map((_, i) => i).filter(i => !nc.includes(i) && !isIdCol(sh, i) && !isDateCol(sh, i));
+    const variants = w => [w, w.replace(/(oes)$/, "ao"), w.replace(/(as|os|es|s)$/, ""), w.replace(/(as)$/, "a"), w.replace(/(os)$/, "o")];
+    outer: for (let size = 3; size >= 1; size--) for (let k = 0; k + size <= words.length; k++) {
+      const piece = words.slice(k, k + size).join(" ");
+      for (const c of cats) {
+        const values = [...new Set(sh.rows.map(r => r[c]).filter(Boolean))];
+        const hit = values.find(v => variants(piece).includes(norm(v)));
+        if (hit) { card.where = { col: c, val: hit }; break outer; }
+      }
+    }
+    if (card.col < 0 && !card.where) return null;
+    // Título com as palavras do próprio pedido ("O.S. abertas", "Média de tempo").
+    const t = raw.replace(/^.*?(cart[aã]o|card|indicador|kpi)\s*(de|com|para|mostrando)?\s*/i, "").trim();
+    if (t) card.title = t.charAt(0).toUpperCase() + t.slice(1);
+    return card;
+  }
   function builderSet(key, v) { draft[key] = key === "top" ? +v : v; renderBuilder(); }
   document.addEventListener("change", e => {
     if (!draft) return;
@@ -1202,45 +1319,23 @@
   function drawPainel() {
     const sh = sheet();
     const rows = filteredRows(sh);
-    // Colunas de dinheiro quase sempre zeradas não viram cartão; o usuário também pode esconder cartões.
-    const nonZero = c => { const v = sh.rows.map((_, r) => cellValue(sh, r, c).v).filter(x => typeof x === "number"); return v.length && v.filter(x => x !== 0).length / sh.rows.length >= .3; };
-    const ncols = numericCols(sh).filter(c => !(sh.hiddenKpis || []).includes(c) && (!isMoney(sh, c) || isSampleSheet(sh) || nonZero(c))).slice(0, 3);
     const css = getComputedStyle(document.documentElement);
     const tok = n => css.getPropertyValue(n).trim();
     const series = ["--s1", "--s2", "--s3", "--s4", "--s5"].map(tok);
     Chart.defaults.font.family = "IBM Plex Sans, system-ui, sans-serif";
     Chart.defaults.color = tok("--muted");
 
-    // KPIs: total por coluna numérica + variação entre os dois últimos períodos (mês, data...)
-    const tc = periodCol(sh);
-    const groups = tc != null ? [...new Set(rows.map(r => sh.rows[r][tc]))] : [];
-    const countTile = isSampleSheet(sh) ? "" : `<div class="panel kpi"><span class="lbl">${countLabel(sh) === "O.S." ? "Total de O.S." : "Registros"}</span><span class="val">${nfNum.format(rows.length)}</span><div class="delta">${state.filter.val ? `filtro: ${esc(state.filter.val)}` : `${sh.columns.length} colunas`}</div></div>`;
-    $("#kpis").innerHTML = countTile + ncols.map((c, i) => {
-      const total = colSummary(sh, c, rows);
-      let delta = "";
-      if (groups.length >= 2 && !isPct(sh, c)) {
-        const agg = aggregate(sh, tc, c, rows);
-        const a = agg.get(groups[groups.length - 2]), b = agg.get(groups[groups.length - 1]);
-        if (a) {
-          const pct = (b - a) / Math.abs(a) * 100;
-          // Custo, despesa e tempo: cair é bom. Para as demais medidas, subir é bom.
-          const lowerIsBetter = /custo|despesa|tempo|duracao|atraso|falha|parada|mttr/.test(norm(sh.columns[c])) || isDur(sh, c);
-          const good = lowerIsBetter ? pct <= 0 : pct >= 0;
-          delta = `<div class="delta"><span class="${good ? "up" : "down"}">${pct >= 0 ? "▲" : "▼"} ${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: Math.abs(pct) >= 10 ? 0 : 1 }).format(Math.abs(pct))}%</span> ${esc(groups[groups.length - 1])} vs ${esc(groups[groups.length - 2])}</div>`;
-        }
-      }
-      return `<div class="panel kpi"><button class="icon-btn kpi-x" data-hidekpi="${c}" title="Esconder este cartão" aria-label="Esconder cartão ${esc(sh.columns[c])}">${ICONS.x}</button><span class="lbl">${esc(sh.columns[c])}${isAvgCol(sh, c) ? " (média)" : ""}</span><span class="val" title="${esc(fmtCol(sh, c, total))}">${isMoney(sh, c) ? (Math.abs(total) >= 1e6 ? nfBRLCompact.format(total) : nfBRL.format(total)) : Math.abs(total) >= 1e6 ? nfCompact.format(total) : fmtCol(sh, c, total)}</span>${Math.abs(total) >= 1e8 && !isMoney(sh, c) ? `<div class="delta" style="margin-top:2px"><span class="down">⚠ Valor muito alto. É um código?</span></div><button class="btn" style="margin-top:6px;align-self:flex-start" data-suggest="${esc(sh.columns[c].toLowerCase())} é código">Marcar como código</button>` : ""}${delta}<div class="spark"><canvas id="spark_${i}" aria-hidden="true"></canvas></div></div>`;
-    }).join("") + `<div class="panel kpi"><span class="lbl">Tarefas pendentes</span><span class="val">${state.tasks.filter(t => !t.done).length}</span><div class="delta">${state.tasks.filter(t => !t.done && dueClass(t.due) === "late").length} atrasada(s)</div></div>`;
-
-    // Sparklines
-    if (tc != null) ncols.forEach((c, i) => {
-      if (isPct(sh, c)) { $("#spark_" + i)?.parentElement.remove(); return; }
-      const agg = aggregate(sh, tc, c, rows);
-      const el = $("#spark_" + i);
-      if (!el || agg.size < 2) { el && el.parentElement.remove(); return; }
+    // Cartões do topo (editáveis): valor, variação entre os dois últimos períodos e minigráfico.
+    const cards = cardsFor(sh);
+    $("#kpis").innerHTML = cards.map((cd, i) => cardHtml(sh, cd, rows, i)).join("") +
+      `<button class="panel kpi kpi-add" data-act="newcard" aria-label="Novo cartão">${ICONS.plus}<span>Novo cartão</span></button>`;
+    cards.forEach((cd, i) => {
+      const el = $("#spark_" + i); if (!el) return;
+      const pts = cardSeries(sh, cd, rows);
+      if (!pts || pts.size < 2) { el.parentElement.remove(); return; }
       charts.push(new Chart(el, {
         type: "line",
-        data: { labels: [...agg.keys()], datasets: [{ data: [...agg.values()], borderColor: series[0], borderWidth: 2, pointRadius: 0, fill: true, backgroundColor: series[0] + "22", tension: 0 }] },
+        data: { labels: [...pts.keys()], datasets: [{ data: [...pts.values()], borderColor: series[0], borderWidth: 2, pointRadius: 0, fill: true, backgroundColor: series[0] + "22", tension: 0 }] },
         options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false } } },
       }));
     });
@@ -1267,6 +1362,86 @@
       }
     }
     return { aggs, labels, isPeriod };
+  }
+
+  /* ---------- Cartões ----------
+     Cada planilha guarda sua lista em sh.cards. Enquanto o usuário não mexe, a lista é gerada
+     automaticamente (contagem, colunas numéricas relevantes, tarefas). Ao editar, ela passa a ser fixa. */
+  const AGG_LABEL = { count: "Quantidade", sum: "Soma", avg: "Média", max: "Maior", min: "Menor" };
+  function defaultCards(sh) {
+    const nonZero = c => { const v = sh.rows.map((_, r) => cellValue(sh, r, c).v).filter(x => typeof x === "number"); return v.length && v.filter(x => x !== 0).length / sh.rows.length >= .3; };
+    const ncols = numericCols(sh).filter(c => !(sh.hiddenKpis || []).includes(c) && (!isMoney(sh, c) || isSampleSheet(sh) || nonZero(c))).slice(0, 3);
+    const list = [];
+    if (!isSampleSheet(sh)) list.push({ id: "auto-count", kind: "data", col: -1, agg: "count", where: null, compare: true });
+    ncols.forEach(c => list.push({ id: "auto-c" + c, kind: "data", col: c, agg: isAvgCol(sh, c) ? "avg" : "sum", where: null, compare: !isPct(sh, c) }));
+    list.push({ id: "auto-tasks", kind: "tasks" });
+    return list;
+  }
+  const cardsFor = sh => sh.cards || defaultCards(sh);
+  // Na primeira edição, a lista automática vira a lista da planilha (com ids próprios).
+  function ownCards(sh) { if (!sh.cards) sh.cards = defaultCards(sh).map(c => ({ ...c, id: uid() })); return sh.cards; }
+  function cardRows(sh, cd, rows) {
+    if (!cd.where || cd.where.col == null || cd.where.col >= sh.columns.length) return rows;
+    const v = norm(cd.where.val);
+    return rows.filter(r => norm(sh.rows[r][cd.where.col]) === v);
+  }
+  function cardValue(sh, cd, rows) {
+    const rr = cardRows(sh, cd, rows);
+    if (cd.col < 0 || cd.agg === "count") return rr.length;
+    const vals = rr.map(r => cellValue(sh, r, cd.col).v).filter(x => typeof x === "number");
+    if (!vals.length) return 0;
+    if (cd.agg === "avg") return vals.reduce((a, b) => a + b, 0) / vals.length;
+    if (cd.agg === "max") return Math.max(...vals);
+    if (cd.agg === "min") return Math.min(...vals);
+    return vals.reduce((a, b) => a + b, 0);
+  }
+  function cardTitle(sh, cd) {
+    if (cd.kind === "tasks") return cd.title || "Tarefas pendentes";
+    if (cd.title) return cd.title;
+    const base = cd.col < 0 || cd.agg === "count" ? (countLabel(sh) === "O.S." ? "Total de O.S." : "Registros")
+      : cd.agg === "sum" ? sh.columns[cd.col] : `${sh.columns[cd.col]} (${AGG_LABEL[cd.agg].toLowerCase()})`;
+    return cd.where ? `${base} · ${cd.where.val}` : base;
+  }
+  function cardFormat(sh, cd, v) {
+    if (cd.col < 0 || cd.agg === "count") return nfNum.format(v);
+    if (isMoney(sh, cd.col)) return Math.abs(v) >= 1e6 ? nfBRLCompact.format(v) : nfBRL.format(v);
+    return Math.abs(v) >= 1e6 ? nfCompact.format(v) : fmtCol(sh, cd.col, v);
+  }
+  // Série por período (mês) para variação e minigráfico.
+  function cardSeries(sh, cd, rows) {
+    if (cd.kind === "tasks" || cd.compare === false) return null;
+    const pc = periodCol(sh) ?? sh.columns.findIndex((_, i) => isDateCol(sh, i));
+    if (pc == null || pc < 0) return null;
+    const rr = cardRows(sh, cd, rows);
+    if (cd.col >= 0 && (cd.agg === "max" || cd.agg === "min")) return null;
+    return aggregate(sh, pc, cd.col < 0 || cd.agg === "count" ? -1 : cd.col, rr, cd.agg === "avg" ? "avg" : "sum");
+  }
+  function cardHtml(sh, cd, rows, i) {
+    const tools = `<span class="kpi-tools"><button class="icon-btn" data-editcard="${cd.id}" title="Editar cartão" aria-label="Editar cartão">${ICONS.edit}</button><button class="icon-btn" data-delcard="${cd.id}" title="Remover cartão" aria-label="Remover cartão">${ICONS.x}</button></span>`;
+    if (cd.kind === "tasks") {
+      const pend = state.tasks.filter(t => !t.done);
+      return `<div class="panel kpi">${tools}<span class="lbl">${esc(cardTitle(sh, cd))}</span><span class="val">${pend.length}</span><div class="delta">${pend.filter(t => dueClass(t.due) === "late").length} atrasada(s)</div></div>`;
+    }
+    const v = cardValue(sh, cd, rows);
+    let delta = "";
+    const ser = cardSeries(sh, cd, rows);
+    if (ser && ser.size >= 2 && !(cd.col >= 0 && isPct(sh, cd.col))) {
+      const keys = [...ser.keys()], a = ser.get(keys[keys.length - 2]), b = ser.get(keys[keys.length - 1]);
+      if (a) {
+        const pct = (b - a) / Math.abs(a) * 100;
+        // Custo, despesa, tempo e chamados abertos/atrasados: cair é bom. Para o resto, subir é bom.
+        const lowerIsBetter = (cd.col >= 0 && (/custo|despesa|tempo|duracao|atraso|falha|parada|mttr/.test(norm(sh.columns[cd.col])) || isDur(sh, cd.col)))
+          || /abert|atras|pendent|falha|parad/.test(norm(cd.where?.val || ""));
+        const good = lowerIsBetter ? pct <= 0 : pct >= 0;
+        delta = `<div class="delta"><span class="${good ? "up" : "down"}">${pct >= 0 ? "▲" : "▼"} ${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: Math.abs(pct) >= 10 ? 0 : 1 }).format(Math.abs(pct))}%</span> ${esc(keys[keys.length - 1])} vs ${esc(keys[keys.length - 2])}</div>`;
+      }
+    } else if (cd.col < 0 || cd.agg === "count") {
+      delta = `<div class="delta">${state.filter.val ? `filtro: ${esc(state.filter.val)}` : cd.where ? `de ${nfNum.format(rows.length)} no total` : `${sh.columns.length} colunas`}</div>`;
+    }
+    const huge = cd.col >= 0 && Math.abs(v) >= 1e8 && !isMoney(sh, cd.col);
+    return `<div class="panel kpi">${tools}<span class="lbl">${esc(cardTitle(sh, cd))}</span><span class="val" title="${esc(cd.col >= 0 && cd.agg !== "count" ? fmtCol(sh, cd.col, v) : nfNum.format(v))}">${cardFormat(sh, cd, v)}</span>`
+      + (huge ? `<div class="delta" style="margin-top:2px"><span class="down">⚠ Valor muito alto. É um código?</span></div><button class="btn" style="margin-top:6px;align-self:flex-start" data-suggest="${esc(sh.columns[cd.col].toLowerCase())} é código">Marcar como código</button>` : "")
+      + `${delta}${ser ? `<div class="spark"><canvas id="spark_${i}" aria-hidden="true"></canvas></div>` : ""}</div>`;
   }
 
   function drawChart(sh, c, rows, tok, series) {
@@ -1465,6 +1640,9 @@
     ["top 10 equipamentos", "Ranking dos maiores"],
     ["tempo médio por técnico", "Média por grupo"],
     ["limpar gráficos", "Remove os gráficos da planilha"],
+    ["cartão de O.S. abertas", "Novo cartão com filtro"],
+    ["cartão de média de tempo", "Novo cartão com média"],
+    ["restaurar cartões", "Volta aos cartões automáticos"],
     ["esconder custo", "Tira uma coluna do painel"],
     ["criar gráfico de receita por mês", "Adiciona gráfico ao painel"],
     ["gráfico de pizza de lucro por categoria", "Gráfico de rosca"],
@@ -1689,11 +1867,27 @@
     }
     if ((m = n.match(/^(esconder|ocultar|nao mostrar|tirar)\s+(?:o\s+|a\s+)?(?:cartao\s+(?:de\s+)?)?(.+)$/))) {
       const c = findCol(sh, m[2]);
-      if (c >= 0) { sh.hiddenKpis = [...new Set([...(sh.hiddenKpis || []), c])]; const rm = state.charts.filter(x => x.sheetId === sh.id && x.values.includes(c)); state.charts = state.charts.filter(x => !rm.includes(x)); goto("painel"); return say(`Pronto: ${code(sh.columns[c])} não aparece mais no painel${rm.length ? ` (removi ${rm.length} gráfico(s) que usavam essa coluna)` : ""}. Para voltar: ${code(`mostrar ${sh.columns[c].toLowerCase()}`)}.`); }
+      if (c >= 0) { sh.hiddenKpis = [...new Set([...(sh.hiddenKpis || []), c])]; if (sh.cards) sh.cards = sh.cards.filter(x => x.col !== c && x.where?.col !== c); const rm = state.charts.filter(x => x.sheetId === sh.id && x.values.includes(c)); state.charts = state.charts.filter(x => !rm.includes(x)); goto("painel"); return say(`Pronto: ${code(sh.columns[c])} não aparece mais no painel${rm.length ? ` (removi ${rm.length} gráfico(s) que usavam essa coluna)` : ""}. Para voltar: ${code(`mostrar ${sh.columns[c].toLowerCase()}`)}.`); }
     }
     if ((m = n.match(/^(mostrar|exibir|voltar a mostrar)\s+(?:o\s+|a\s+)?(.+)$/)) && !/ por /.test(n)) {
       const c = findCol(sh, m[2]);
-      if (c >= 0 && (sh.hiddenKpis || []).includes(c)) { sh.hiddenKpis = sh.hiddenKpis.filter(x => x !== c); goto("painel"); return say(`${code(sh.columns[c])} voltou ao painel.`); }
+      if (c >= 0 && (sh.hiddenKpis || []).includes(c)) { sh.hiddenKpis = sh.hiddenKpis.filter(x => x !== c); if (sh.cards && numericCols(sh).includes(c)) sh.cards.splice(Math.max(0, sh.cards.findIndex(x => x.kind === "tasks")), 0, { id: uid(), kind: "data", col: c, agg: isAvgCol(sh, c) ? "avg" : "sum", where: null, compare: true, title: "" }); goto("painel"); return say(`${code(sh.columns[c])} voltou ao painel.`); }
+    }
+    if (/^(criar|cria|novo|nova|adicionar|fazer|quero|editar)?\s*(um\s+)?(novo\s+)?(cartao|cartoes|card|cards|indicador|indicadores|kpi)$/.test(n)) { openCardEditor(); return say("Abri o editor de cartão. Para mudar um cartão existente, clique no lápis dele."); }
+    if (/^(restaurar|voltar|resetar)\s+(os\s+)?cartoes( automaticos| originais)?$/.test(n)) { delete sh.cards; sh.hiddenKpis = []; goto("painel"); return say("Voltei os cartões para a escolha automática."); }
+    if ((m = n.match(/^(?:remover|apagar|excluir|tirar)\s+(?:o\s+)?cartao\s+(?:de\s+)?(.+)$/))) {
+      const want = m[1].split(/\s+/).filter(w => w.length > 1 && !/^(de|do|da|dos|das|o|a|os|as|e)$/.test(w)).map(w => w.replace(/(as|os|es|s)$/, ""));
+      const cd = cardsFor(sh).find(c => norm(cardTitle(sh, c)).includes(m[1])) || cardsFor(sh).find(c => want.length && want.every(w => norm(cardTitle(sh, c)).includes(w)));
+      if (!cd) return say(`Não achei um cartão com “${esc(m[1])}”. Cartões: ${cardsFor(sh).map(c => code(cardTitle(sh, c))).join(", ")}.`, "bot", "err");
+      snapshot("cartão"); removeCard(sh, cd.id); goto("painel"); return say(`Cartão <b>${esc(cardTitle(sh, cd))}</b> removido.${undoBtn}`);
+    }
+    if (/^(criar|cria|novo|nova|adicionar|adiciona|quero|fazer)?\s*(um\s+)?(novo\s+)?(cartao|card|indicador|kpi)\s+/.test(n)) {
+      const cd = parseCardRequest(sh, n, raw);
+      if (!cd) { openCardEditor(); return say(`Não entendi o que o cartão deve mostrar; abri o editor. Exemplos: ${code(`cartão de ${countLabel(sh) === "O.S." ? "O.S." : "registros"} ${(() => { const nc = numericCols(sh); const cats = sh.columns.map((_, i) => i).filter(i => effType(sh, i) === "categoria" && i !== periodCol(sh) && !nc.includes(i)); const c = cats.find(i => /status|situacao|tipo|prioridade/.test(norm(sh.columns[i]))) ?? cats[0]; return c != null ? String(sh.rows.find(r => r[c])?.[c] || "").toLowerCase() : "abertas"; })()}`)}, ${code(`cartão de média de ${(sh.columns[numericCols(sh)[0]] || "tempo").toLowerCase()}`)}.`); }
+      const list = ownCards(sh); cd.id = uid();
+      list.splice(list.findIndex(c => c.kind === "tasks") >= 0 ? list.findIndex(c => c.kind === "tasks") : list.length, 0, cd);
+      goto("painel");
+      return say(`Cartão <b>${esc(cardTitle(sh, cd))}</b> adicionado: ${esc(cardFormat(sh, cd, cardValue(sh, cd, filteredRows(sh))))}. Clique no lápis dele para mudar título, filtro ou posição.`);
     }
     if (/^(criar|cria|novo|nova|adicionar|fazer|faz|gerar|gera|montar|quero)?\s*(um\s+)?(novo\s+)?grafico$/.test(n)) { openBuilder(); return say("Abri o montador de gráfico. Escolha o que medir e como agrupar."); }
     const chartIntent = !/^(nova|criar|cria|adicionar)\s+tarefa|^concluir|^(abrir|apagar|excluir|remover)\s+planilha/.test(n) && (/grafico|pizza|rosca|ranking|\btop\s*\d/.test(n)
@@ -2649,7 +2843,10 @@
     if (t.dataset.ctype) { const c = state.charts.find(c => c.id === t.dataset.chart); if (c.values.length > 1 && (t.dataset.ctype === "doughnut" || t.dataset.ctype === "rank")) { toast("Esse tipo mostra só uma medida; usei a primeira."); c.values = [c.values[0]]; c.title = chartTitle(sheet(), c); } c.type = t.dataset.ctype; render(); return; }
     if (t.dataset.editchart) { openBuilder(state.charts.find(c => c.id === t.dataset.editchart)); return; }
     if (t.dataset.act === "newchart") { openBuilder(); return; }
-    if (t.dataset.hidekpi) { const sh = sheet(); sh.hiddenKpis = [...new Set([...(sh.hiddenKpis || []), +t.dataset.hidekpi])]; render(); toast(`Cartão escondido. Para voltar: “mostrar ${sh.columns[+t.dataset.hidekpi].toLowerCase()}”`); return; }
+    if (t.dataset.editcard) { openCardEditor(t.dataset.editcard); return; }
+    if (t.dataset.delcard) { const sh = sheet(); snapshot("cartão"); removeCard(sh, t.dataset.delcard); render(); toast("Cartão removido"); return; }
+    if (t.dataset.act === "newcard") { openCardEditor(); return; }
+    if (t.dataset.cact) { cardAct(t.dataset.cact); return; }
     if (t.dataset.bset) { builderSet(t.dataset.bset, t.dataset.v); return; }
     if (t.dataset.bact) { builderAct(t.dataset.bact); return; }
     if (t.dataset.delchart) { state.charts = state.charts.filter(c => c.id !== t.dataset.delchart); render(); toast("Gráfico removido"); return; }

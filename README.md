@@ -55,6 +55,15 @@ Peça com suas palavras no assistente, usando os nomes das colunas da sua planil
 
 Ou clique em **Novo gráfico** para escolher o que medir, como agrupar, o tipo (barras, ranking, linhas, rosca) e quantos mostrar. O lápis em cada gráfico abre a edição. Ao importar, os gráficos automáticos contam registros; custo só aparece se você pedir.
 
+## Cartões do painel
+
+Os cartões do topo (Total de O.S., tempo médio, custo...) são editáveis:
+
+- **Lápis** em cada cartão: escolher o que mostrar (quantidade, soma, média, maior ou menor valor de uma coluna), um filtro ("considerar só quando Situação = Aberta"), o título, a variação em relação ao período anterior e a posição.
+- **×** remove o cartão (dá para `desfazer`); **+ Novo cartão** cria um.
+- Por texto: `cartão de O.S. abertas`, `cartão de média de tempo`, `cartão de maior custo em corretiva`, `remover cartão de O.S. abertas`, `restaurar cartões` (volta à escolha automática).
+- Os cartões respeitam o filtro escolhido no painel.
+
 ## Custo ou número?
 
 Uma coluna só é tratada como dinheiro (R$) quando os valores têm "R$" ou o nome indica claramente dinheiro (custo, preço, valor, receita, despesa...). Quantidades, horas, contagens e códigos (O.S., TAG, patrimônio) nunca viram dinheiro nem entram em somas. Cada gráfico diz a unidade ("soma em R$", "soma (número, não é dinheiro)", "quantidade de registros").
