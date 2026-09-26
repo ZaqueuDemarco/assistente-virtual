@@ -62,6 +62,8 @@ Os cartões do topo (Total de O.S., tempo médio, custo...) são editáveis:
 - **Lápis** em cada cartão: escolher o que mostrar (quantidade, soma, média, maior ou menor valor de uma coluna), um filtro ("considerar só quando Situação = Aberta"), o título, a variação em relação ao período anterior e a posição.
 - **×** remove o cartão (dá para `desfazer`); **+ Novo cartão** cria um.
 - Por texto: `cartão de O.S. abertas`, `cartão de média de tempo`, `cartão de maior custo em corretiva`, `remover cartão de O.S. abertas`, `restaurar cartões` (volta à escolha automática).
+- **Meses de cada cartão**: no lápis, escolha o valor de *todo o período*, do *último mês* (atualiza sozinho com dados novos), de *um mês* ou de um *intervalo* (ex.: Jul/26 a Set/26), e com o que comparar: *período anterior* de mesmo tamanho, *um mês escolhido* ou *não comparar*.
+- Por texto: `cartão de O.S. abertas em setembro`, `cartão de custo do último mês`, `cartões de julho a setembro` (muda todos; os que têm mês no título ficam como estão), `cartões de todo o período`.
 - Os cartões respeitam o filtro escolhido no painel.
 
 ## Custo ou número?

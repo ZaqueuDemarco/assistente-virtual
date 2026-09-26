@@ -809,7 +809,7 @@
   function openCardEditor(id) {
     const sh = sheet(); if (!sh) return;
     const existing = id ? cardsFor(sh).find(c => c.id === id) : null;
-    cdraft = existing ? { ...existing, where: existing.where ? { ...existing.where } : null, editing: id } : { kind: "data", col: -1, agg: "count", where: null, compare: true, title: "" };
+    cdraft = existing ? { ...existing, where: existing.where ? { ...existing.where } : null, range: existing.range && typeof existing.range === "object" ? { ...existing.range } : existing.range || null, cmp: cmpOf(existing), editing: id } : { kind: "data", col: -1, agg: "count", where: null, range: null, cmp: "auto", title: "" };
     $("#cardDlgTitle").textContent = existing ? "Editar cartão" : "Novo cartão";
     $("#cardDlgSave").textContent = existing ? "Salvar" : "Adicionar";
     $("#cardDlgDel").hidden = !existing;
@@ -837,9 +837,31 @@
         <div class="row nowrap"><select class="ctl" id="cWhereCol" style="flex:1"><option value="">Todos os registros</option>${filterCols.map(i => `<option value="${i}" ${i === wc ? "selected" : ""}>${esc(sh.columns[i])}</option>`).join("")}</select>
         ${wc != null ? `<span>=</span><select class="ctl" id="cWhereVal" style="flex:1">${vals.map(v => `<option value="${esc(v)}" ${norm(v) === norm(d.where?.val) ? "selected" : ""}>${esc(v)}</option>`).join("")}</select>` : ""}</div></div>
       <div class="bfield"><label for="cTitle">Título</label><input class="ctl" id="cTitle" value="${esc(d.title || "")}" placeholder="${esc(cardTitle(sh, { ...d, title: "" }))}"></div>
-      <label class="opts"><span style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="cCompare" ${d.compare !== false ? "checked" : ""}> Mostrar variação em relação ao período anterior e minigráfico</span></label>
+      ${(() => {
+        const P = periodInfo(sh);
+        if (!P) return `<div class="bfield"><label>Período</label><small style="color:var(--muted)">Esta planilha não tem coluna de data ou mês; o cartão usa todos os registros.</small></div>`;
+        const ks = P.keys, last = ks[ks.length - 1]?.key;
+        const mode = d.rangeMode || (!d.range ? "all" : d.range === "last" ? "last" : d.range.from && d.range.from === d.range.to ? "month" : "range");
+        const opt = (list, sel) => list.map(k => `<option value="${esc(k.key)}" ${k.key === sel ? "selected" : ""}>${esc(k.key)}</option>`).join("");
+        return `<div class="bfield"><label for="cRange">Valor do período</label>
+          <select class="ctl" id="cRange">
+            <option value="all" ${mode === "all" ? "selected" : ""}>Todo o período (${esc(ks[0].key)}–${esc(last)})</option>
+            <option value="last" ${mode === "last" ? "selected" : ""}>Último mês (hoje: ${esc(last)}; muda sozinho com dados novos)</option>
+            <option value="month" ${mode === "month" ? "selected" : ""}>Um mês específico</option>
+            <option value="range" ${mode === "range" ? "selected" : ""}>Intervalo de meses</option>
+          </select>
+          ${mode === "month" ? `<select class="ctl" id="cMonth">${opt(ks, d.range.from)}</select>` : ""}
+          ${mode === "range" ? `<div class="row nowrap"><span>De</span><select class="ctl" id="cFrom" style="flex:1">${opt(ks, d.range.from)}</select><span>até</span><select class="ctl" id="cTo" style="flex:1">${opt(ks, d.range.to)}</select></div>` : ""}
+        </div>
+        <div class="bfield"><label for="cCmp">Comparar com</label>
+          <select class="ctl" id="cCmp">
+            <option value="auto" ${d.cmp === "auto" ? "selected" : ""}>Período anterior (automático)</option>
+            ${ks.map(k => `<option value="${esc(k.key)}" ${d.cmp === k.key ? "selected" : ""}>${esc(k.key)}</option>`).join("")}
+            <option value="none" ${d.cmp === "none" ? "selected" : ""}>Não comparar (sem variação e minigráfico)</option>
+          </select></div>`;
+      })()}
       ${d.editing ? `<div class="bfield"><label>Posição</label><div class="row"><button type="button" class="btn" data-cact="left" ${pos <= 0 ? "disabled" : ""}>◀ Para a esquerda</button><button type="button" class="btn" data-cact="right" ${pos >= cards.length - 1 ? "disabled" : ""}>Para a direita ▶</button></div></div>` : ""}
-      <div class="bpreview"><span>Vai mostrar</span><b>${esc(cardTitle(sh, preview))}: ${esc(cardFormat(sh, preview, cardValue(sh, preview, all)))}</b><small>${state.filter.val ? `com o filtro do painel (${esc(state.filter.val)})` : "com todos os registros da planilha"}</small></div>`;
+      <div class="bpreview"><span>Vai mostrar</span><b>${esc(cardTitle(sh, preview))}: ${esc(cardFormat(sh, preview, cardValue(sh, preview, all)))}</b><small>${[state.filter.val ? `com o filtro do painel (${esc(state.filter.val)})` : "", (() => { const dl = cardDelta(sh, preview, all); return dl ? `comparação: ${dl.label}` : ""; })()].filter(Boolean).join(" · ") || "com todos os registros da planilha"}</small></div>`;
   }
   document.addEventListener("change", e => {
     if (!cdraft) return;
@@ -847,7 +869,20 @@
     if (t.id === "cMeasure") { const [c, a] = t.value.split("|"); cdraft.col = +c; cdraft.agg = a; renderCardEditor(); }
     if (t.id === "cWhereCol") { if (t.value === "") cdraft.where = null; else { const c = +t.value; const first = sh.rows.map(r => r[c]).find(Boolean) || ""; cdraft.where = { col: c, val: first }; } renderCardEditor(); }
     if (t.id === "cWhereVal") { cdraft.where.val = t.value; renderCardEditor(); }
-    if (t.id === "cCompare") cdraft.compare = t.checked;
+    if (t.id === "cRange") {
+      const ks = periodInfo(sh)?.keys || [], last = ks[ks.length - 1]?.key;
+      cdraft.rangeMode = t.value; // mantém o modo escolhido mesmo se início e fim coincidirem
+      cdraft.range = t.value === "all" ? null : t.value === "last" ? "last" : t.value === "month" ? { from: last, to: last } : { from: ks[Math.max(0, ks.length - 3)]?.key, to: last };
+      renderCardEditor();
+    }
+    if (t.id === "cMonth") { cdraft.range = { from: t.value, to: t.value }; renderCardEditor(); }
+    if (t.id === "cFrom" || t.id === "cTo") {
+      const ks = periodInfo(sh).keys, o = k => ks.find(x => x.key === k).order;
+      let from = $("#cFrom").value, to = $("#cTo").value;
+      if (o(from) > o(to)) [from, to] = [to, from];
+      cdraft.range = { from, to }; renderCardEditor();
+    }
+    if (t.id === "cCmp") { cdraft.cmp = t.value; renderCardEditor(); }
   });
   document.addEventListener("input", e => { if (cdraft && e.target.id === "cTitle") cdraft.title = e.target.value; });
   function cardAct(a) {
@@ -864,7 +899,7 @@
     if (a === "save" && cdraft) {
       const list = ownCards(sh);
       const auto = cdraft.editing && !list.some(c => c.id === cdraft.editing) ? defaultCards(sh).findIndex(c => c.id === cdraft.editing) : -1;
-      const card = { id: uid(), kind: cdraft.kind || "data", col: cdraft.col, agg: cdraft.col < 0 ? "count" : cdraft.agg, where: cdraft.where, compare: cdraft.compare !== false, title: (cdraft.title || "").trim() };
+      const card = { id: uid(), kind: cdraft.kind || "data", col: cdraft.col, agg: cdraft.col < 0 ? "count" : cdraft.agg, where: cdraft.where, range: cdraft.range || null, cmp: cdraft.cmp || "auto", title: (cdraft.title || "").trim() };
       if (card.kind === "tasks") { delete card.col; delete card.agg; delete card.where; }
       const i = auto >= 0 ? auto : list.findIndex(c => c.id === cdraft.editing);
       if (i >= 0) { card.id = list[i].id; list[i] = card; } else list.splice(list.findIndex(c => c.kind === "tasks") >= 0 ? list.findIndex(c => c.kind === "tasks") : list.length, 0, card);
@@ -881,6 +916,23 @@
   }
   $("#cardDlg").addEventListener("close", () => { cdraft = null; });
   // "cartão de O.S. abertas", "cartão de tempo médio da UTI", "cartão com soma de custo"
+  // Acha meses citados num texto ("setembro", "jul/26", "de julho a setembro", "último mês").
+  function monthsIn(sh, text) {
+    const P = periodInfo(sh); if (!P) return null;
+    if (/ultimo mes|mes passado|este mes|mes atual/.test(text)) return "last";
+    if (/todo o periodo|todos os meses|periodo todo|tudo/.test(text)) return "all";
+    const found = [];
+    const re = /\b(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\.?(?:\s*(?:\/|de)\s*(\d{2,4}))?\b/g;
+    let m;
+    while ((m = re.exec(text))) {
+      const mi = MES_NOMES.indexOf(m[1]); const y = m[2] ? (m[2].length === 2 ? 2000 + +m[2] : +m[2]) : null;
+      const cands = P.keys.filter(k => { const o = k.order; return o < 1e6 && (o % 12) === mi && (y == null || Math.floor(o / 12) === y || o < 12); });
+      if (cands.length) found.push(cands[cands.length - 1]); // sem ano: o mais recente
+    }
+    if (!found.length) return null;
+    found.sort((a, b) => a.order - b.order);
+    return { from: found[0].key, to: found[found.length - 1].key };
+  }
   function parseCardRequest(sh, n, raw = "") {
     const text = n.replace(/^(criar|cria|novo|nova|adicionar|adiciona|quero|fazer)?\s*(um\s+)?(novo\s+)?(cartao|card|indicador|kpi)\s*(de|com|para|mostrando)?\s*/, "");
     const card = { kind: "data", col: -1, agg: "count", where: null, compare: true, title: "" };
@@ -891,7 +943,7 @@
       card.agg = /\bmedi[ao]s?\b/.test(text) ? "avg" : /\b(maior|maximo)\b/.test(text) ? "max" : /\b(menor|minimo)\b/.test(text) ? "min" : /\b(soma|total)\b/.test(text) ? "sum" : isAvgCol(sh, num) ? "avg" : "sum";
     }
     // Filtro: procura um valor de categoria citado no texto ("abertas" -> Situação = Aberta; "uti" -> Setor = UTI).
-    const words = text.split(/\s+/).filter(w => w.length >= 2 && !/^(de|do|da|dos|das|com|em|no|na|os|as|o|a|e|por|para|total|soma|media|medio|maior|menor|quantidade|numero|registros|o\.s\.?|os)$/.test(w));
+    const words = text.split(/\s+/).filter(w => w.length >= 2 && !/^(de|do|da|dos|das|com|em|no|na|os|as|o|a|e|ate|por|para|total|soma|media|medio|maior|menor|quantidade|numero|registros|o\.s\.?|os|ultimo|mes|janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)$/.test(w));
     const cats = sh.columns.map((_, i) => i).filter(i => !nc.includes(i) && !isIdCol(sh, i) && !isDateCol(sh, i));
     const variants = w => [w, w.replace(/(oes)$/, "ao"), w.replace(/(as|os|es|s)$/, ""), w.replace(/(as)$/, "a"), w.replace(/(os)$/, "o")];
     outer: for (let size = 3; size >= 1; size--) for (let k = 0; k + size <= words.length; k++) {
@@ -902,7 +954,9 @@
         if (hit) { card.where = { col: c, val: hit }; break outer; }
       }
     }
-    if (card.col < 0 && !card.where) return null;
+    const per = monthsIn(sh, text);
+    if (per && per !== "all") card.range = per;
+    if (card.col < 0 && !card.where && !card.range) return null;
     // Título com as palavras do próprio pedido ("O.S. abertas", "Média de tempo").
     const t = raw.replace(/^.*?(cart[aã]o|card|indicador|kpi)\s*(de|com|para|mostrando)?\s*/i, "").trim();
     if (t) card.title = t.charAt(0).toUpperCase() + t.slice(1);
@@ -1380,13 +1434,53 @@
   const cardsFor = sh => sh.cards || defaultCards(sh);
   // Na primeira edição, a lista automática vira a lista da planilha (com ids próprios).
   function ownCards(sh) { if (!sh.cards) sh.cards = defaultCards(sh).map(c => ({ ...c, id: uid() })); return sh.cards; }
-  function cardRows(sh, cd, rows) {
+  /* Períodos (meses) da planilha: vêm da coluna Mês ou da primeira coluna de data.
+     Cada mês tem uma chave ("Set/26") e uma ordem numérica para comparar e montar intervalos. */
+  function monthOrder(key, fallback) {
+    const m = norm(key).match(/^([a-z]{3})[a-z]*\.?(?:[\/\s-]+(\d{2,4}))?$/);
+    const mi = m ? MES_NOMES.indexOf(m[1]) : -1;
+    if (mi < 0) return 1e6 + fallback;
+    const y = m[2] ? (m[2].length === 2 ? 2000 + +m[2] : +m[2]) : 0;
+    return y * 12 + mi;
+  }
+  function periodInfo(sh) {
+    return cached(sh, "periods", () => {
+      let pc = periodCol(sh);
+      if (pc == null || pc < 0) pc = sh.columns.findIndex((_, i) => isDateCol(sh, i));
+      if (pc == null || pc < 0) return null;
+      const dated = isDateCol(sh, pc), of = new Array(sh.rows.length), seen = new Map();
+      sh.rows.forEach((row, r) => {
+        let key, order;
+        if (dated) { const d = parseDate(String(row[pc] || "")); if (!d) return; key = monthLabel(d); order = d.getFullYear() * 12 + d.getMonth(); }
+        else { key = row[pc]; if (!key) return; if (!seen.has(key)) seen.set(key, monthOrder(key, seen.size)); order = seen.get(key); }
+        of[r] = { key, order }; if (!seen.has(key)) seen.set(key, order);
+      });
+      const keys = [...seen].map(([key, order]) => ({ key, order })).sort((a, b) => a.order - b.order);
+      return keys.length ? { col: pc, of, keys } : null;
+    });
+  }
+  const periodLabel = set => !set.length ? "" : set.length === 1 ? set[0].key : `${set[0].key}–${set[set.length - 1].key}`;
+  // Meses que o valor do cartão cobre: null = todos; "last" = último mês com dados; {from,to} = intervalo.
+  function cardPeriodSet(sh, cd, baseRows) {
+    const P = periodInfo(sh); if (!P || !cd.range) return null;
+    const present = new Set(baseRows.map(r => P.of[r]?.order).filter(o => o != null));
+    const keys = P.keys.filter(k => present.has(k.order));
+    if (cd.range === "last") return keys.length ? [keys[keys.length - 1]] : [];
+    const o = k => P.keys.find(x => x.key === k)?.order;
+    const from = cd.range.from != null ? o(cd.range.from) : -Infinity, to = cd.range.to != null ? o(cd.range.to) : Infinity;
+    return P.keys.filter(k => k.order >= (from ?? -Infinity) && k.order <= (to ?? Infinity));
+  }
+  function inSet(sh, rows, set) { const P = periodInfo(sh), ok = new Set(set.map(k => k.order)); return rows.filter(r => ok.has(P.of[r]?.order)); }
+  function whereRows(sh, cd, rows) {
     if (!cd.where || cd.where.col == null || cd.where.col >= sh.columns.length) return rows;
     const v = norm(cd.where.val);
     return rows.filter(r => norm(sh.rows[r][cd.where.col]) === v);
   }
-  function cardValue(sh, cd, rows) {
-    const rr = cardRows(sh, cd, rows);
+  function cardRows(sh, cd, rows) {
+    const base = whereRows(sh, cd, rows), set = cardPeriodSet(sh, cd, base);
+    return set ? inSet(sh, base, set) : base;
+  }
+  function measure(sh, cd, rr) {
     if (cd.col < 0 || cd.agg === "count") return rr.length;
     const vals = rr.map(r => cellValue(sh, r, cd.col).v).filter(x => typeof x === "number");
     if (!vals.length) return 0;
@@ -1395,12 +1489,39 @@
     if (cd.agg === "min") return Math.min(...vals);
     return vals.reduce((a, b) => a + b, 0);
   }
+  const cardValue = (sh, cd, rows) => measure(sh, cd, cardRows(sh, cd, rows));
+  const cmpOf = cd => cd.cmp || (cd.compare === false ? "none" : "auto");
+  // Comparação: período atual x período anterior de mesmo tamanho (automático) ou um mês escolhido.
+  function cardDelta(sh, cd, rows) {
+    const P = periodInfo(sh), cmp = cmpOf(cd);
+    if (!P || cmp === "none") return null;
+    const base = whereRows(sh, cd, rows);
+    const present = new Set(base.map(r => P.of[r]?.order).filter(o => o != null));
+    const avail = P.keys.filter(k => present.has(k.order));
+    let cur = cardPeriodSet(sh, cd, base);
+    if (!cur) cur = avail.length ? [avail[avail.length - 1]] : []; // "todo o período": compara o último mês
+    if (!cur.length) return null;
+    let prev;
+    if (cmp === "auto") {
+      const idx = P.keys.findIndex(k => k.order === cur[0].order);
+      prev = idx - cur.length >= 0 ? P.keys.slice(idx - cur.length, idx) : [];
+    } else prev = P.keys.filter(k => k.key === cmp);
+    if (!prev.length) return { label: `${periodLabel(cur)} · sem período anterior` };
+    const a = measure(sh, cd, inSet(sh, base, prev)), b = measure(sh, cd, inSet(sh, base, cur));
+    return { a, b, label: `${periodLabel(cur)} vs ${periodLabel(prev)}` };
+  }
   function cardTitle(sh, cd) {
     if (cd.kind === "tasks") return cd.title || "Tarefas pendentes";
     if (cd.title) return cd.title;
     const base = cd.col < 0 || cd.agg === "count" ? (countLabel(sh) === "O.S." ? "Total de O.S." : "Registros")
       : cd.agg === "sum" ? sh.columns[cd.col] : `${sh.columns[cd.col]} (${AGG_LABEL[cd.agg].toLowerCase()})`;
-    return cd.where ? `${base} · ${cd.where.val}` : base;
+    return (cd.where ? `${base} · ${cd.where.val}` : base) + periodSuffix(sh, cd);
+  }
+  function periodSuffix(sh, cd) {
+    if (!cd.range) return "";
+    if (cd.range === "last") return " · último mês";
+    const { from, to } = cd.range;
+    return from && to && from === to ? ` · ${from}` : ` · ${from || "início"}–${to || "fim"}`;
   }
   function cardFormat(sh, cd, v) {
     if (cd.col < 0 || cd.agg === "count") return nfNum.format(v);
@@ -1409,10 +1530,10 @@
   }
   // Série por período (mês) para variação e minigráfico.
   function cardSeries(sh, cd, rows) {
-    if (cd.kind === "tasks" || cd.compare === false) return null;
+    if (cd.kind === "tasks" || cmpOf(cd) === "none") return null;
     const pc = periodCol(sh) ?? sh.columns.findIndex((_, i) => isDateCol(sh, i));
     if (pc == null || pc < 0) return null;
-    const rr = cardRows(sh, cd, rows);
+    const rr = whereRows(sh, cd, rows); // minigráfico mostra todos os meses, para dar contexto
     if (cd.col >= 0 && (cd.agg === "max" || cd.agg === "min")) return null;
     return aggregate(sh, pc, cd.col < 0 || cd.agg === "count" ? -1 : cd.col, rr, cd.agg === "avg" ? "avg" : "sum");
   }
@@ -1425,15 +1546,17 @@
     const v = cardValue(sh, cd, rows);
     let delta = "";
     const ser = cardSeries(sh, cd, rows);
-    if (ser && ser.size >= 2 && !(cd.col >= 0 && isPct(sh, cd.col))) {
-      const keys = [...ser.keys()], a = ser.get(keys[keys.length - 2]), b = ser.get(keys[keys.length - 1]);
-      if (a) {
+    const dl = cd.col >= 0 && isPct(sh, cd.col) ? null : cardDelta(sh, cd, rows);
+    if (dl) {
+      const { a, b } = dl;
+      if (!a) delta = `<div class="delta">${esc(dl.label)}</div>`;
+      else {
         const pct = (b - a) / Math.abs(a) * 100;
         // Custo, despesa, tempo e chamados abertos/atrasados: cair é bom. Para o resto, subir é bom.
         const lowerIsBetter = (cd.col >= 0 && (/custo|despesa|tempo|duracao|atraso|falha|parada|mttr/.test(norm(sh.columns[cd.col])) || isDur(sh, cd.col)))
           || /abert|atras|pendent|falha|parad/.test(norm(cd.where?.val || ""));
         const good = lowerIsBetter ? pct <= 0 : pct >= 0;
-        delta = `<div class="delta"><span class="${good ? "up" : "down"}">${pct >= 0 ? "▲" : "▼"} ${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: Math.abs(pct) >= 10 ? 0 : 1 }).format(Math.abs(pct))}%</span> ${esc(keys[keys.length - 1])} vs ${esc(keys[keys.length - 2])}</div>`;
+        delta = `<div class="delta"><span class="${good ? "up" : "down"}">${pct >= 0 ? "▲" : "▼"} ${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: Math.abs(pct) >= 10 ? 0 : 1 }).format(Math.abs(pct))}%</span> ${esc(dl.label)}</div>`;
       }
     } else if (cd.col < 0 || cd.agg === "count") {
       delta = `<div class="delta">${state.filter.val ? `filtro: ${esc(state.filter.val)}` : cd.where ? `de ${nfNum.format(rows.length)} no total` : `${sh.columns.length} colunas`}</div>`;
@@ -1643,6 +1766,9 @@
     ["cartão de O.S. abertas", "Novo cartão com filtro"],
     ["cartão de média de tempo", "Novo cartão com média"],
     ["restaurar cartões", "Volta aos cartões automáticos"],
+    ["cartões de setembro", "Todos os cartões mostram um mês"],
+    ["cartões de julho a setembro", "Todos os cartões mostram um intervalo"],
+    ["cartão de O.S. abertas em setembro", "Cartão de um mês específico"],
     ["esconder custo", "Tira uma coluna do painel"],
     ["criar gráfico de receita por mês", "Adiciona gráfico ao painel"],
     ["gráfico de pizza de lucro por categoria", "Gráfico de rosca"],
@@ -1874,6 +2000,17 @@
       if (c >= 0 && (sh.hiddenKpis || []).includes(c)) { sh.hiddenKpis = sh.hiddenKpis.filter(x => x !== c); if (sh.cards && numericCols(sh).includes(c)) sh.cards.splice(Math.max(0, sh.cards.findIndex(x => x.kind === "tasks")), 0, { id: uid(), kind: "data", col: c, agg: isAvgCol(sh, c) ? "avg" : "sum", where: null, compare: true, title: "" }); goto("painel"); return say(`${code(sh.columns[c])} voltou ao painel.`); }
     }
     if (/^(criar|cria|novo|nova|adicionar|fazer|quero|editar)?\s*(um\s+)?(novo\s+)?(cartao|cartoes|card|cards|indicador|indicadores|kpi)$/.test(n)) { openCardEditor(); return say("Abri o editor de cartão. Para mudar um cartão existente, clique no lápis dele."); }
+    if (/^(mostrar\s+)?(os\s+)?cartoes\s+(de|do|da|em|no|para)\s+/.test(n)) {
+      const per = monthsIn(sh, n.replace(/^(mostrar\s+)?(os\s+)?cartoes\s+/, ""));
+      if (!per) return say(periodInfo(sh) ? `Não reconheci o mês. Meses disponíveis: ${periodInfo(sh).keys.map(k => code(k.key)).join(", ")}.` : "Esta planilha não tem coluna de data ou mês.", "bot", "err");
+      const list = ownCards(sh);
+      // Cartões que você batizou com um mês ("O.S. abertas em setembro", "Custo do último mês") ficam como estão.
+      const ownMonth = c => c.title && /\b(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\b|ultimo mes|mes passado/.test(norm(c.title));
+      const kept = list.filter(c => c.kind !== "tasks" && ownMonth(c));
+      list.forEach(c => { if (c.kind !== "tasks" && !ownMonth(c)) { c.range = per === "all" ? null : per; c.cmp = "auto"; } });
+      goto("painel");
+      return say(`Cartões mostrando <b>${per === "all" ? "todo o período" : per === "last" ? "o último mês" : per.from === per.to ? per.from : `${per.from} a ${per.to}`}</b>. ${kept.length ? ` Mantive como estavam: ${kept.map(c => `<b>${esc(c.title)}</b>`).join(", ")}.` : ""} Cada cartão pode ter um período próprio pelo lápis.`);
+    }
     if (/^(restaurar|voltar|resetar)\s+(os\s+)?cartoes( automaticos| originais)?$/.test(n)) { delete sh.cards; sh.hiddenKpis = []; goto("painel"); return say("Voltei os cartões para a escolha automática."); }
     if ((m = n.match(/^(?:remover|apagar|excluir|tirar)\s+(?:o\s+)?cartao\s+(?:de\s+)?(.+)$/))) {
       const want = m[1].split(/\s+/).filter(w => w.length > 1 && !/^(de|do|da|dos|das|o|a|os|as|e)$/.test(w)).map(w => w.replace(/(as|os|es|s)$/, ""));
