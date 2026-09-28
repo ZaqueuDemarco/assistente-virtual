@@ -908,8 +908,8 @@
         ${list("dlFilter", catVals)}
         <small class="understood" id="hFilter"></small></div>
       <div class="bfield"><label for="cPeriod">Período</label>
-        <input class="ctl free" id="cPeriod" list="dlPeriod" value="${esc(txt.period)}" placeholder="ex.: todo o período, último mês, agosto, julho a setembro" autocomplete="off" ${P ? "" : "disabled"}>
-        ${list("dlPeriod", ["todo o período", "último mês", ...ks.map(k => k.key)])}
+        <input class="ctl free" id="cPeriod" list="dlPeriod" value="${esc(txt.period)}" placeholder="vazio = sem período · ex.: agosto, 01/08 a 15/09, últimos 30 dias" autocomplete="off">
+        ${list("dlPeriod", ["nenhum", "todo o período", "último mês", "últimos 30 dias", "últimos 3 meses", "esta semana", "este ano", ...ks.map(k => k.key)])}
         <small class="understood" id="hPeriod"></small></div>
       <div class="bfield"><label for="cCmp">Comparar com</label>
         <input class="ctl free" id="cCmp" list="dlCmp" value="${esc(txt.cmp)}" placeholder="ex.: mês anterior, julho, não comparar" autocomplete="off" ${P ? "" : "disabled"}>
@@ -927,7 +927,7 @@
     return {
       measure: d.col < 0 || d.agg === "count" ? `Quantidade de ${cl}` : `${AGG_LABEL[d.agg] === "Maior" || AGG_LABEL[d.agg] === "Menor" ? AGG_LABEL[d.agg] : AGG_LABEL[d.agg] + " de"} ${sh.columns[d.col]}`,
       filter: conds.map(w => w.vals ? w.vals.join(" e ") : w.val).join(" e "),
-      period: !d.range ? "todo o período" : d.range === "last" ? "último mês" : d.range.from === d.range.to ? d.range.from : `${d.range.from} a ${d.range.to}`,
+      period: !d.range ? (cmpOf(d) === "none" ? "" : "todo o período") : d.range === "last" ? "último mês" : d.range.type === "dates" ? d.range.label : d.range.from === d.range.to ? d.range.from : `${d.range.from} a ${d.range.to}`,
       cmp: !d.cmp || d.cmp === "auto" ? "período anterior" : d.cmp === "none" ? "não comparar" : d.cmp,
     };
   }
@@ -961,17 +961,29 @@
         hint("hFilter", !left.length, `Entendi: ${hits.map(h => `<b>${esc(sh.columns[h.col])}</b> = ${h.vals.map(v => `<b>${esc(v)}</b>`).join(" ou ")}`).join(" e ")}${left.length ? ` · não reconheci: ${esc(left.join(", "))}` : ""}`);
       }
     }
-    // Período e comparação
+    // Período e comparação. Campo vazio ou "nenhum" = sem período (todos os registros, sem comparação).
     const P = periodInfo(sh), ks = P?.keys || [];
-    if (!P) { d.range = null; d.cmp = "none"; hint("hPeriod", true, "Esta planilha não tem coluna de data ou mês; o cartão usa todos os registros."); hint("hCmp", true, ""); }
+    const p = norm(t.period).trim();
+    let noPeriod = false;
+    if (!p || /^(nenhum|nenhuma|nada|nao|sem|-|x)$|^sem (periodo|data|mes|meses|filtro de data)/.test(p)) {
+      d.range = null; noPeriod = true;
+      hint("hPeriod", true, "Entendi: <b>sem período</b> — usa todos os registros, sem comparação");
+    } else if (!P) { d.range = null; hint("hPeriod", false, "Esta planilha não tem coluna de data ou mês; o cartão usa todos os registros."); }
+    else if (/\b(todo|toda|tudo|geral|sempre|todos os meses)\b/.test(p)) { d.range = null; hint("hPeriod", true, `Entendi: <b>todo o período</b> (${esc(ks[0].key)} a ${esc(ks[ks.length - 1].key)})`); }
     else {
-      const p = norm(t.period);
-      if (!p || /\b(todo|toda|tudo|geral|sempre|total|todos os meses)\b/.test(p)) { d.range = null; hint("hPeriod", true, `Entendi: <b>todo o período</b> (${esc(ks[0].key)} a ${esc(ks[ks.length - 1].key)})`); }
-      else {
-        const r = monthRangeIn(sh, p) || monthRangeIn(sh, p.replace(/\s+a\s+/, " e "));
-        if (r) { d.range = r; hint("hPeriod", true, r === "last" ? `Entendi: <b>último mês com dados</b> (hoje ${esc(ks[ks.length - 1].key)}; muda sozinho)` : `Entendi: <b>${esc(r.from === r.to ? r.from : `${r.from} a ${r.to}`)}</b>`); }
-        else { d.range = null; hint("hPeriod", false, `Não reconheci “${esc(t.period)}”; usando todo o período. Meses com dados: ${ks.map(k => esc(k.key)).join(", ")}.`); }
+      const r = !/\d{1,2}[\/.-]\d{1,2}/.test(p) && (monthRangeIn(sh, p) || monthRangeIn(sh, p.replace(/\s+a\s+/, " e ")));
+      const dr = r ? null : parseDateRange(sh, p, t.period);
+      const fmtD = x => x < -1e15 ? "o início" : x > 1e15 ? "hoje em diante" : fmtDMY(new Date(x));
+      if (r) { d.range = r; hint("hPeriod", true, r === "last" ? `Entendi: <b>último mês com dados</b> (hoje ${esc(ks[ks.length - 1].key)}; muda sozinho)` : `Entendi: <b>${esc(r.from === r.to ? r.from : `${r.from} a ${r.to}`)}</b>`); }
+      else if (dr && dateColOf(sh) < 0) { d.range = null; hint("hPeriod", false, `Esta planilha só tem a coluna de mês, sem datas completas; escreva meses (ex.: ${esc(ks[ks.length - 1].key)}, julho a setembro). Usando todo o período.`); }
+      else if (dr) {
+        d.range = dr; const [a, b] = dateBounds(dr);
+        hint("hPeriod", true, `Entendi: ${b > 1e15 ? `a partir de <b>${esc(fmtD(a))}</b>` : a < -1e15 ? `até <b>${esc(fmtD(b))}</b>` : `de <b>${esc(fmtD(a))}</b> até <b>${esc(fmtD(b))}</b>`}${dr.rel ? " (muda sozinho a cada dia)" : ""}`);
       }
+      else { d.range = null; hint("hPeriod", false, `Não reconheci “${esc(t.period)}”; usando todo o período. Exemplos: agosto, julho a setembro, 01/08 a 15/09, últimos 30 dias, 2026. Meses com dados: ${ks.map(k => esc(k.key)).join(", ")}.`); }
+    }
+    if (noPeriod || !P) { d.cmp = "none"; hint("hCmp", true, noPeriod ? "Sem período, então não há comparação" : ""); }
+    else {
       const c = norm(t.cmp);
       if (/\b(nao|sem|nenhum|nada)\b/.test(c)) { d.cmp = "none"; hint("hCmp", true, "Entendi: <b>sem comparação</b>"); }
       else if (!c || /anterior|automatic|passado|antes/.test(c)) { d.cmp = "auto"; hint("hCmp", true, "Entendi: <b>período anterior</b> (mesmo tamanho)"); }
@@ -1493,6 +1505,7 @@
     if (c.split) s += `: ${c.split.vals.join(" x ")}`;
     if (c.where) s += ` · ${c.where.vals ? c.where.vals.join(" x ") : c.where.val}`;
     if (c.range === "last") s += " · último mês";
+    else if (c.range?.type === "dates") s += ` · ${c.range.label}`;
     else if (c.range) s += ` · ${c.range.from === c.range.to ? c.range.from : `${c.range.from}–${c.range.to}`}`;
     return s;
   }
@@ -1646,7 +1659,7 @@
   const periodLabel = set => !set.length ? "" : set.length === 1 ? set[0].key : `${set[0].key}–${set[set.length - 1].key}`;
   // Meses que o valor do cartão cobre: null = todos; "last" = último mês com dados; {from,to} = intervalo.
   function cardPeriodSet(sh, cd, baseRows) {
-    const P = periodInfo(sh); if (!P || !cd.range) return null;
+    const P = periodInfo(sh); if (!P || !cd.range || cd.range.type === "dates") return null;
     const present = new Set(baseRows.map(r => P.of[r]?.order).filter(o => o != null));
     const keys = P.keys.filter(k => present.has(k.order));
     if (cd.range === "last") return keys.length ? [keys[keys.length - 1]] : [];
@@ -1655,6 +1668,47 @@
     return P.keys.filter(k => k.order >= (from ?? -Infinity) && k.order <= (to ?? Infinity));
   }
   function inSet(sh, rows, set) { const P = periodInfo(sh), ok = new Set(set.map(k => k.order)); return rows.filter(r => ok.has(P.of[r]?.order)); }
+  /* Período por datas digitadas: {type: "dates", from, to (ms), rel, label}. "rel" é relativo a hoje
+     ("últimos 30 dias", "este ano") e é recalculado a cada vez que o painel abre. */
+  const dateColOf = sh => sh.columns.findIndex((_, i) => isDateCol(sh, i));
+  function dateBounds(rg) {
+    if (!rg.rel) return [rg.from, rg.to];
+    const now = new Date(), s = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).getTime();
+    const { n, unit } = rg.rel;
+    if (unit === "dias") s.setDate(s.getDate() - n + 1);
+    else if (unit === "semanas") s.setDate(s.getDate() - 7 * n + 1);
+    else if (unit === "meses") s.setMonth(s.getMonth() - n);
+    else if (unit === "semana") s.setDate(s.getDate() - (s.getDay() + 6) % 7);
+    else if (unit === "ano") s.setMonth(0, 1);
+    return [s.getTime(), end];
+  }
+  function inDates(sh, rows, a, b) {
+    const dc = dateColOf(sh); if (dc < 0) return rows;
+    return rows.filter(r => { const d = parseDate(String(sh.rows[r][dc] || "")); return d && d.getTime() >= a && d.getTime() <= b; });
+  }
+  // "01/08 a 15/09", "desde 01/08/2026", "últimos 30 dias", "últimos 3 meses", "esta semana", "hoje", "este ano", "2026"
+  function parseDateRange(sh, p, raw) {
+    const label = String(raw).trim().replace(/\s+/g, " ");
+    let m;
+    if ((m = p.match(/^(?:n?[oa]s )?ultim[oa]s? (\d+) (dias?|semanas?|mes|meses)$/))) return { type: "dates", rel: { n: +m[1], unit: /^dia/.test(m[2]) ? "dias" : /^sem/.test(m[2]) ? "semanas" : "meses" }, label };
+    if (/^(ultima semana|ultimos sete dias)$/.test(p)) return { type: "dates", rel: { n: 7, unit: "dias" }, label };
+    if (/^hoje$/.test(p)) return { type: "dates", rel: { n: 1, unit: "dias" }, label };
+    if (/^(n?esta|essa) semana$|^semana atual$/.test(p)) return { type: "dates", rel: { n: 0, unit: "semana" }, label };
+    if (/^(n?este|esse|no) ano$|^ano atual$/.test(p)) return { type: "dates", rel: { n: 0, unit: "ano" }, label };
+    if ((m = p.match(/^(?:em |no ano de |ano de |ano |de )?(20\d{2})$/))) return { type: "dates", from: new Date(+m[1], 0, 1).getTime(), to: new Date(+m[1], 11, 31, 23, 59, 59, 999).getTime(), label };
+    const ds = [...p.matchAll(/(\d{1,2})[\/.-](\d{1,2})(?:[\/.-](\d{2,4}))?/g)];
+    if (!ds.length) return null;
+    // Sem ano: usa o ano mais recente dos dados.
+    const dc = dateColOf(sh);
+    const yDef = dc >= 0 ? Math.max(...sh.rows.map(r => parseDate(String(r[dc] || ""))?.getFullYear() || 0)) || new Date().getFullYear() : new Date().getFullYear();
+    const day = x => { let y = x[3] ? +x[3] : yDef; if (y < 100) y += 2000; const d = new Date(y, +x[2] - 1, +x[1]); return d.getMonth() === +x[2] - 1 && d.getDate() === +x[1] ? d.getTime() : null; };
+    const a = day(ds[0]), b = day(ds[ds.length - 1]); if (a == null || b == null) return null;
+    const DAY = 864e5 - 1;
+    if (ds.length === 1 && /^(desde|a partir d[eo]|apos|depois de)\b/.test(p)) return { type: "dates", from: a, to: 8.64e15, label };
+    if (ds.length === 1 && /^(ate|antes de)\b/.test(p)) return { type: "dates", from: -8.64e15, to: a + DAY, label };
+    return { type: "dates", from: Math.min(a, b), to: Math.max(a, b) + DAY, label };
+  }
   // Filtro: {col, val} ou {col, vals:[...]} (um OU outro), com condições extras em "more" (todas precisam valer).
   function whereRows(sh, cd, rows) {
     if (!cd.where || cd.where.col == null || cd.where.col >= sh.columns.length) return rows;
@@ -1667,7 +1721,9 @@
   }
   const whereText = w => !w ? "" : [w, ...(w.more || [])].map(x => x.vals ? x.vals.join(" ou ") : x.val).join(" · ");
   function cardRows(sh, cd, rows) {
-    const base = whereRows(sh, cd, rows), set = cardPeriodSet(sh, cd, base);
+    const base = whereRows(sh, cd, rows);
+    if (cd.range?.type === "dates") { const [a, b] = dateBounds(cd.range); return inDates(sh, base, a, b); }
+    const set = cardPeriodSet(sh, cd, base);
     return set ? inSet(sh, base, set) : base;
   }
   function measure(sh, cd, rr) {
@@ -1684,7 +1740,14 @@
   // Comparação: período atual x período anterior de mesmo tamanho (automático) ou um mês escolhido.
   function cardDelta(sh, cd, rows) {
     const P = periodInfo(sh), cmp = cmpOf(cd);
-    if (!P || cmp === "none") return null;
+    if (cmp === "none") return null;
+    // Datas digitadas: compara com o mesmo número de dias logo antes.
+    if (cd.range?.type === "dates") {
+      const [a1, b1] = dateBounds(cd.range); if (Math.abs(a1) > 1e15 || Math.abs(b1) > 1e15) return null;
+      const base = whereRows(sh, cd, rows), len = b1 - a1;
+      return { a: measure(sh, cd, inDates(sh, base, a1 - len - 1, a1 - 1)), b: measure(sh, cd, inDates(sh, base, a1, b1)), label: `${cd.range.label} vs período anterior` };
+    }
+    if (!P) return null;
     const base = whereRows(sh, cd, rows);
     const present = new Set(base.map(r => P.of[r]?.order).filter(o => o != null));
     const avail = P.keys.filter(k => present.has(k.order));
@@ -1710,6 +1773,7 @@
   function periodSuffix(sh, cd) {
     if (!cd.range) return "";
     if (cd.range === "last") return " · último mês";
+    if (cd.range.type === "dates") return ` · ${cd.range.label}`;
     const { from, to } = cd.range;
     return from && to && from === to ? ` · ${from}` : ` · ${from || "início"}–${to || "fim"}`;
   }

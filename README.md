@@ -95,7 +95,7 @@ Os cartões do topo são simples: título, valor e a variação em relação ao 
 - **Lápis** em cada cartão abre o editor. Todos os campos são **texto livre**, com sugestões enquanto digita, e embaixo de cada um aparece o que o assistente entendeu:
   - *O que mostrar*: "quantidade de O.S.", "custo total", "tempo médio", "maior custo";
   - *Considerar só*: "abertas", "corretivas da UTI Adulto", "abertas e em andamento" (valores da mesma coluna = um OU outro; de colunas diferentes = todos juntos);
-  - *Período*: "todo o período", "último mês", "agosto", "julho a setembro";
+  - *Período*: deixe **vazio** (ou "nenhum") para não usar período nem comparação; ou escreva "todo o período", "último mês", "agosto", "julho a setembro", "01/08 a 15/09", "desde 01/09", "até 31/07", "últimos 30 dias", "últimos 3 meses", "esta semana", "este ano", "2026";
   - *Comparar com*: "período anterior", "julho", "não comparar";
   - *Título* (opcional) e posição.
 - Se algo não for reconhecido, o aviso diz o que existe nos dados (colunas de número, meses disponíveis).
