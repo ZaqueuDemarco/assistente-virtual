@@ -374,6 +374,15 @@
   .ex-chip { background: var(--raised); border: 1px solid var(--border-strong); border-radius: 999px; padding: 3px 10px; font: 12px var(--mono); color: var(--text-2); cursor: pointer; }
   .ex-chip:hover { border-color: var(--accent); color: var(--text); }
   .kpi { position: relative; }
+  .sheet-tabs { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; scrollbar-width: thin; }
+  .sheet-tabs .st-lbl { font-size: 12px; color: var(--muted); white-space: nowrap; margin-right: 4px; }
+  .sheet-tabs button { display: inline-flex; align-items: center; gap: 6px; flex: none; background: var(--surface); border: 1px solid var(--border); color: var(--text-2); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; max-width: 240px; }
+  .sheet-tabs button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sheet-tabs button small { color: var(--muted); font-size: 11.5px; }
+  .sheet-tabs button svg { width: 14px; height: 14px; flex: none; }
+  .sheet-tabs button:hover { border-color: var(--border-strong); color: var(--text); }
+  .sheet-tabs button[aria-current="page"] { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
+  .sheet-tabs .st-add { border-style: dashed; background: transparent; }
   .kpi[data-card] { cursor: pointer; transition: border-color .12s; }
   .kpi[data-card]:hover { border-color: var(--border-strong); }
   .kpi[data-card]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -700,7 +709,9 @@
     });
     return rows;
   }
-  function defaultState() {
+  // Estado inicial: vazio. Os exemplos só aparecem quando o usuário pede ("ver dados de exemplo").
+  const emptyState = () => ({ view: "painel", activeSheet: null, filter: { col: null, val: "" }, sheets: [], charts: [], tasks: [], history: [] });
+  function sampleState() {
     const vendasId = uid(), estoqueId = uid();
     return {
       view: "painel",
@@ -766,11 +777,11 @@
       }
       storeMode = "idb";
       navigator.storage?.persist?.().catch(() => {}); // pede ao navegador para não apagar os dados sozinho
-      return s || defaultState();
+      return s || emptyState();
     } catch {
       idb = null;
       try { localStorage.setItem(KEY + "-teste", "1"); localStorage.removeItem(KEY + "-teste"); storeMode = "local"; } catch { storeMode = "memory"; }
-      return readLocal() || defaultState();
+      return readLocal() || emptyState();
     }
   }
   let saveTimer = null, saveChain = Promise.resolve(), warnedQuota = false, lastSaveOk = true;
@@ -787,12 +798,56 @@
       try { localStorage.setItem(KEY, JSON.stringify(state)); lastSaveOk = true; }
       catch { lastSaveOk = false; warnStorage(`Seus dados passaram do limite deste navegador (cerca de 5 MB) e <b>podem sumir ao fechar a página</b>. Faça um ${code("backup")} agora.`); }
       updateStoreInfo();
-    } else {
+    } else if (!cloudOk) {
       warnStorage(`Este navegador não está permitindo salvar dados (janela anônima ou bloqueio). Tudo funciona agora, mas some ao fechar. Use ${code("backup")} para guardar um arquivo.`);
       updateStoreInfo();
     }
   }
-  const save = () => { if (!state) return; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 500); };
+  const save = () => { if (!state) return; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 500); scheduleCloud(); };
+
+  /* ---------- Nuvem (capacidade "db" do Claude) ----------
+     No iPad, o que a página guarda no navegador pode ser apagado ao fechar. Por isso uma cópia fica
+     no banco do próprio assistente (só o dono lê e grava) e é carregada ao abrir, em qualquer aparelho.
+     O estado vai em partes de até 60 mil caracteres (limite do banco: 256 KiB por documento). */
+  const CLOUD_CHUNK = 60000;
+  const dbReady = window.claude?.use ? window.claude.use("db").catch(() => null) : Promise.resolve(null);
+  let cloudDb = null, cloudChunks = [], cloudLast = "", cloudTimer = null, cloudBusy = false, cloudDirty = false, cloudOk = null;
+  // Tokens de API não vão para a nuvem; ficam só no aparelho.
+  const cloudText = () => JSON.stringify({ ...state, savedAt: undefined, sheets: state.sheets.map(sh => sh.api ? { ...sh, api: { ...sh.api, headers: "", lastError: "" } } : sh) });
+  function scheduleCloud() { if (!cloudDb) return; clearTimeout(cloudTimer); cloudTimer = setTimeout(cloudSave, 2500); }
+  async function cloudSave() {
+    if (!cloudDb || !state) return;
+    if (cloudBusy) { cloudDirty = true; return; }
+    const txt = cloudText();
+    if (txt === cloudLast) return;
+    cloudBusy = true; cloudDirty = false;
+    try {
+      const now = Date.now(), parts = [];
+      for (let i = 0; i < txt.length; i += CLOUD_CHUNK) parts.push(txt.slice(i, i + CLOUD_CHUNK));
+      for (let i = 0; i < parts.length; i++) if (cloudChunks[i] !== parts[i]) { await cloudDb.doc(`nuvem/parte${i}`).set({ t: parts[i] }); cloudChunks[i] = parts[i]; }
+      await cloudDb.doc("nuvem/meta").set({ n: parts.length, len: txt.length, savedAt: now, v: 1 });
+      for (let i = parts.length; i < cloudChunks.length; i++) await cloudDb.doc(`nuvem/parte${i}`).delete().catch(() => {});
+      cloudChunks.length = parts.length; cloudLast = txt; cloudOk = true;
+      state.savedAt = now; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 500);
+    } catch (e) { cloudOk = false; console.warn("nuvem:", e?.code || e); }
+    finally { cloudBusy = false; updateStoreInfo(); if (cloudDirty) scheduleCloud(); }
+  }
+  async function cloudLoad() {
+    const db = await withTimeout(dbReady, 6000).catch(() => null);
+    if (!db) return null;
+    cloudDb = db;
+    try {
+      const meta = await withTimeout(db.doc("nuvem/meta").get(), 8000);
+      if (!meta.exists) { cloudOk = true; return { empty: true }; }
+      const m = meta.data();
+      const docs = await withTimeout(Promise.all(Array.from({ length: m.n }, (_, i) => db.doc(`nuvem/parte${i}`).get())), 15000);
+      if (docs.some(d => !d.exists)) return null;
+      const parts = docs.map(d => d.data().t), txt = parts.join("");
+      if (m.len && txt.length !== m.len) return null; // cópia pela metade: fica com a do aparelho
+      cloudChunks = parts; cloudLast = txt; cloudOk = true;
+      return { state: JSON.parse(txt), savedAt: m.savedAt || 0 };
+    } catch (e) { cloudOk = false; console.warn("nuvem:", e?.code || e); return null; }
+  }
   addEventListener("pagehide", () => { if (saveTimer) saveNow(); });
   document.addEventListener("visibilitychange", () => { if (document.hidden && saveTimer) saveNow(); });
   const fmtBytes = b => b >= 1e9 ? nfNum.format(Math.round(b / 1e8) / 10) + " GB" : b >= 1e6 ? nfNum.format(Math.round(b / 1e5) / 10) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB";
@@ -803,10 +858,12 @@
       const el = $("#storeInfo"); if (!el || !state) return;
       let used = 0; try { used = new Blob([JSON.stringify(state)]).size; } catch {}
       let quota = 0; try { const est = await navigator.storage?.estimate?.(); quota = est?.quota || 0; } catch {}
-      const label = storeMode === "idb" ? `Salvo neste navegador · ${fmtBytes(used)}${quota ? ` de ${fmtBytes(quota)} disponíveis` : ""}`
+      const cloudTxt = cloudOk === true ? " · cópia na nuvem ✓" : cloudOk === false ? " · nuvem indisponível" : "";
+      const label0 = storeMode === "idb" ? `Salvo neste navegador · ${fmtBytes(used)}${quota ? ` de ${fmtBytes(quota)} disponíveis` : ""}`
         : storeMode === "local" ? `Salvo neste navegador · ${fmtBytes(used)} de ~5 MB (armazenamento limitado)`
-        : "Não está salvando: use Fazer backup";
-      const warn = !lastSaveOk || storeMode === "memory" || (storeMode === "local" && used > 4e6);
+        : cloudOk ? "Salvo só na nuvem do assistente" : "Não está salvando: use Fazer backup";
+      const label = label0 + cloudTxt;
+      const warn = !lastSaveOk || (storeMode === "memory" && !cloudOk) || (storeMode === "local" && used > 4e6);
       const pct = storeMode === "idb" && quota ? Math.min(100, used / quota * 100) : storeMode === "local" ? Math.min(100, used / 5e6 * 100) : 0;
       el.innerHTML = `<div class="store-line ${warn ? "warn" : ""}">${esc(lastSaveOk ? label : "Última gravação falhou. Faça um backup.")}</div>${pct ? `<div class="store-bar"><i style="width:${Math.max(1, pct)}%"></i></div>` : ""}`;
     }, 300);
@@ -1431,6 +1488,11 @@
     save();
   }
 
+  // Abas "Minhas planilhas": escolher a planilha com um toque (painel e planilhas).
+  function sheetTabs() {
+    if (!state.sheets.length) return "";
+    return `<nav class="sheet-tabs" aria-label="Minhas planilhas"><span class="st-lbl">Minhas planilhas</span>${state.sheets.map(s => `<button type="button" data-tab="${s.id}" aria-current="${s.id === state.activeSheet ? "page" : "false"}">${ICONS.sheet}<span>${esc(s.name)}</span><small>${nfNum.format(s.rows.length)}</small></button>`).join("")}<button type="button" class="st-add" data-act="import">${ICONS.plus}<span>Nova</span></button></nav>`;
+  }
   function sheetSelect(id = "sheetPick") {
     return `<select class="ctl" id="${id}" aria-label="Planilha">${state.sheets.map(s => `<option value="${s.id}" ${s.id === state.activeSheet ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select>`;
   }
@@ -1465,7 +1527,7 @@
     if (f.val && !values.includes(f.val)) f.val = "";
     const myCharts = state.charts.filter(c => c.sheetId === sh.id);
     const isSample = isSampleSheet(sh);
-    return `${sampleBanner()}
+    return `${sampleBanner()}${sheetTabs()}
       <div class="topbar">
         <div><h1>Painel · ${esc(sh.name)}</h1><p>${sh.rows.length} linhas · ${sh.api ? `<span class="tag ${sh.api.lastError ? "bad" : "api"}" title="${esc(sh.api.url)}">API${sh.api.lastError ? " · falhou" : ""}</span> atualizado ${sh.api.lastAt ? new Date(sh.api.lastAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—"}` : "atualizado ao editar a planilha"} ${isSample ? '· <span class="tag">dados de exemplo</span>' : ""}</p></div>
         <div class="row">${sheetSelect()}${sh.api ? `<button class="btn primary" data-act="apiRefresh">${ICONS.refresh}Atualizar</button><button class="btn" data-act="apiEdit" aria-label="Editar conexão com a API" title="Editar conexão">${ICONS.link}</button>` : ""}<button class="btn" data-act="import">${ICONS.up}Importar dados</button><button class="btn danger" data-act="wipe">${ICONS.trash}Apagar dados</button></div>
@@ -1927,7 +1989,7 @@
     const shown = all.slice(page * PAGE, page * PAGE + PAGE);
     const totals = sh.rows.map((_, r) => r);
     const longGrid = new Set(sh.columns.map((_, c) => c).filter(c => { const v = shown.slice(0, 50).map(r => String(sh.rows[r][c] ?? "")); return v.reduce((a, x) => a + x.length, 0) / (v.length || 1) > 28; }));
-    return `
+    return `${sheetTabs()}
       <div class="topbar">
         <div><h1>${esc(sh.name)}</h1><p>Edite direto nas células. Fórmulas começam com <code style="font-family:var(--mono)">=</code>, como <code style="font-family:var(--mono)">=SOMA(C2:C10)</code> ou <code style="font-family:var(--mono)">=C2-D2</code>.</p></div>
         <div class="row">
@@ -2225,7 +2287,7 @@
     if (/^(restaurar|ver|mostrar|carregar) (os )?(dados de )?exemplos?/.test(n)) {
       // Só acrescenta os exemplos; nunca apaga as planilhas do usuário.
       if (state.sheets.some(isSampleSheet)) return say("Os dados de exemplo já estão carregados.");
-      const d = defaultState();
+      const d = sampleState();
       state.sheets.push(...d.sheets); state.charts.push(...d.charts);
       state.tasks.push(...d.tasks.filter(t => !state.tasks.some(x => x.text === t.text)));
       state.activeSheet = d.activeSheet; state.filter = d.filter; goto("painel");
@@ -3791,6 +3853,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
     const t = e.target.closest("button, [data-run]");
     if (!t) return;
     if (t.dataset.view) { goto(t.dataset.view); return; }
+    if (t.dataset.tab) { state.activeSheet = t.dataset.tab; state.filter = { col: null, val: "" }; selCell = null; render(); return; }
     if (t.dataset.sheet) { state.activeSheet = t.dataset.sheet; state.filter = { col: null, val: "" }; selCell = null; state.view = "planilhas"; render(); return; }
     if (t.dataset.run) { const inp = $("#cmdInput"); if (/ $|nova planilha$|gráfico$/.test(t.dataset.run)) { openAssist(); inp.value = t.dataset.run + " "; inp.focus(); } else run(t.dataset.run); return; }
     if (t.dataset.ctype) { const c = state.charts.find(c => c.id === t.dataset.chart); if (c.values.length > 1 && (t.dataset.ctype === "doughnut" || t.dataset.ctype === "rank")) { toast("Esse tipo mostra só uma medida; usei a primeira."); c.values = [c.values[0]]; c.title = chartTitle(sheet(), c); } c.type = t.dataset.ctype; render(); return; }
@@ -3994,6 +4057,15 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   boot();
   async function boot() {
   state = await loadState();
+  const cloud = await cloudLoad();
+  let fromCloud = false;
+  if (cloud?.state && cloud.savedAt > (state.savedAt || 0)) {
+    // Mantém os tokens de API deste aparelho (não vão para a nuvem).
+    const localApi = new Map(state.sheets.filter(s => s.api?.headers).map(s => [s.id, s.api.headers]));
+    state = cloud.state; state.savedAt = cloud.savedAt; fromCloud = true;
+    state.sheets.forEach(s => { if (s.api && localApi.has(s.id)) s.api.headers = localApi.get(s.id); });
+    saveNow();
+  } else if (cloud) scheduleCloud();
   state.history = state.history || [];
   migrateTypes();
   const hadChat = !!state.chat?.length;
@@ -4003,10 +4075,11 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   updateStoreInfo();
   if (movedFromLocal) { saveNow(); say(`Mudei seus dados para o armazenamento de maior capacidade do navegador. Antes o limite era de cerca de 5 MB; agora cabem relatórios bem maiores. Nada foi perdido.`); }
   if (storeMode === "local") say(`Este navegador não liberou o armazenamento maior; seus dados ficam no limitado (~5 MB). Faça ${code("backup")} de vez em quando.`, "bot", "err");
-  if (storeMode === "memory") say(`Este navegador não está permitindo salvar dados (janela anônima ou bloqueio). Tudo funciona agora, mas some ao fechar. Use ${code("backup")} para guardar um arquivo.`, "bot", "err");
+  if (storeMode === "memory" && !cloudOk) say(`Este navegador não está permitindo salvar dados (janela anônima ou bloqueio). Tudo funciona agora, mas some ao fechar. Use ${code("backup")} para guardar um arquivo.`, "bot", "err");
   if (fixedCols.length) say(`Encontrei colunas que estavam sendo <b>somadas por engano</b> (era daí que vinham valores como “500 mi” e “1 bi”):<ul>${fixedCols.map(([sh, c, k]) => `<li>${code(sh.columns[c])} em ${esc(sh.name)}: é ${k === "data" ? "uma <b>data</b> que o Excel gravou como número; converti para dd/mm/aaaa" : "um <b>código</b>; não entra mais em somas"}</li>`).join("")}</ul>Os gráficos que usavam essas colunas foram refeitos. Digite ${code("verificar")} para ver como cada coluna é calculada.`);
   if (migrated.length) say(`Revisei suas planilhas: ${migrated.map(x => code(x)).join(", ")} ${migrated.length > 1 ? "estavam sendo tratadas" : "estava sendo tratada"} como dinheiro sem motivo claro e ${migrated.length > 1 ? "voltaram" : "voltou"} a ser número. Se for mesmo custo, diga ${code(`${migrated[0].split(" › ")[1].toLowerCase()} é custo`)}.`);
   if (hadChat) return; // conversa já existente: não repete as boas-vindas
+  if (fromCloud && !hadChat) say(`Carreguei suas ${state.sheets.length} planilha(s) salvas.`);
   if (hasSamples()) say(`Oi! 👋 Sou seu assistente de gestão. Pode falar comigo como no WhatsApp. O painel mostra <b>dados de exemplo</b>. Para usar os seus, digite ${code("apagar exemplos")} e depois ${code("importar dados")} (ou arraste o arquivo exportado do seu sistema para esta página).`);
   else say(`Oi! 👋 Sou seu assistente de gestão. Pode falar comigo como no WhatsApp: pergunte, peça gráficos, cartões ou tarefas. ${state.sheets.length ? `Suas planilhas estão carregadas. Digite ${code("resumo")} ou ${code("importar dados")}.` : `Para começar, digite ${code("importar dados")} ou arraste um arquivo .xlsx/.csv para a página.`}`);
   if (hasSamples()) say(`Com o exemplo, experimente:<ul><li>${code("resumo")}</li><li>${code("criar gráfico de receita por categoria")}</li><li>${code("nova planilha Clientes com colunas Nome, Cidade, Valor")}</li><li>${code("nova tarefa Revisar orçamento até 30/10")}</li></ul>Digite ${code("ajuda")} para ver tudo.`);

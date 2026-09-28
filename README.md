@@ -8,12 +8,11 @@ Abra o arquivo `index.html` no navegador. Não precisa instalar nada; os gráfic
 
 ## Onde ficam os dados
 
-Os dados ficam **só neste navegador**, no IndexedDB (armazenamento de maior capacidade, normalmente centenas de MB ou mais, conforme o disco). Nada vai para a internet. A barra lateral mostra quanto está sendo usado.
-
-- Versões anteriores usavam `localStorage` (limite de ~5 MB); esse conteúdo é migrado automaticamente na primeira abertura.
-- Se o navegador não liberar o IndexedDB, o app volta para o `localStorage` e avisa.
-- **Backup:** `backup` (ou o botão **Fazer backup** na barra lateral) baixa um arquivo `.json` com todas as planilhas, gráficos e tarefas. **Restaurar** (ou arrastar o arquivo para a página) carrega de volta, substituindo ou juntando com os dados atuais. Use para levar os dados a outro computador ou se proteger contra limpeza do navegador.
-
+- O assistente começa **vazio**; os dados de exemplo só aparecem se você pedir (`ver dados de exemplo`).
+- As planilhas ficam salvas no navegador **e**, quando aberto pelo link do Claude, numa cópia na nuvem do próprio assistente (o banco do artifact, que só o dono lê e grava). Ao abrir em qualquer aparelho (iPad, computador), ele carrega a versão mais recente. Isso resolve o iPad apagar os dados da página.
+- Tokens de API não vão para a nuvem; ficam só no aparelho.
+- **Minhas planilhas**: abas no topo do painel e da planilha para trocar com um toque; **Nova** importa outra.
+- **Fazer backup** continua disponível para guardar um arquivo.
 ## O que já funciona
 
 - **Importar e organizar dados**: cole dados (do Excel, Google Sheets, CSV, e-mail) ou arraste um arquivo `.xlsx`, `.xls`, `.csv`, `.txt` ou `.pdf`. O assistente:
