@@ -1026,6 +1026,10 @@
     if (a === "save" && draft) {
       const sh = sheet();
       const c = { id: draft.editing || uid(), sheetId: sh.id, type: draft.type, label: draft.label, values: draft.values, agg: draft.agg, top: draft.top, dateGroup: draft.dateGroup };
+      // Mantém filtro, comparação e meses que o gráfico já tinha (criados por texto ou pela IA).
+      if (draft.where) c.where = draft.where;
+      if (draft.range) c.range = draft.range;
+      if (draft.split && draft.values.length === 1 && draft.label !== draft.split.col) { c.split = draft.split; if (c.type === "doughnut" || c.type === "rank") c.type = "bar"; }
       c.title = chartTitle(sh, c);
       const i = state.charts.findIndex(x => x.id === c.id);
       if (i >= 0) state.charts[i] = c; else state.charts.push(c);
@@ -1174,9 +1178,53 @@
     }
     return found;
   }
-  function parseChartRequest(sh, n) {
+  /* Valores citados no pedido: "abertas x fechadas" são valores (Aberta, Fechada) da coluna Situação,
+     não nomes de coluna. Compara por radical, ignorando plural e gênero. */
+  const sing = w => w.replace(/(oes|aes)$/, "ao").replace(/is$/, "l").replace(/(es|s)$/, "").replace(/[oae]$/, "");
+  const stemPhrase = s => norm(s).replace(/[^\w\s]/g, " ").split(/\s+/).filter(Boolean).map(sing).join(" ");
+  function valuesIn(sh, text) {
+    const t = ` ${stemPhrase(text)} `, hits = [], pc = periodCol(sh);
+    sh.columns.forEach((_, c) => {
+      if (c === pc || effType(sh, c) !== "categoria") return;
+      const vals = [...new Set(sh.rows.map(r => r[c]).filter(Boolean))];
+      if (vals.length > 60) return;
+      const pos = v => t.indexOf(` ${stemPhrase(v)} `);
+      const found = vals.filter(v => { const s = stemPhrase(v); return s.length >= 3 && pos(v) >= 0; }).sort((a, b) => pos(a) - pos(b)); // na ordem em que foram escritos
+      if (found.length) hits.push({ col: c, vals: found });
+    });
+    return hits.sort((a, b) => b.vals.length - a.vals.length);
+  }
+  const MES_FULL = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  // (criado sob demanda: MES_NOMES é definido mais abaixo no arquivo)
+  let monthRe = null;
+  const MONTH_RE_SRC = () => `\\b(?:(?:em|de|do|no|durante|entre|a|ate|e)\\s+)?(${MES_FULL.join("|")}|(?:${MES_NOMES.join("|")})\\/\\d{2,4})(?:\\s*(?:de|\\/)\\s*\\d{2,4})?\\b`;
+  const MONTH_RE = () => (monthRe ||= new RegExp(MONTH_RE_SRC(), "g"));
+  // Meses citados por extenso ("em agosto", "de julho a setembro", "ago/26") -> intervalo da planilha.
+  function monthRangeIn(sh, n) {
+    if (/\b(ultimo mes|mes passado|este mes|mes atual)\b/.test(n)) return periodInfo(sh) ? "last" : null;
+    const found = n.match(MONTH_RE()); if (!found) return null;
+    const r = monthsIn(sh, found.join(" "));
+    return r && typeof r === "object" ? r : null;
+  }
+  const stripMonths = n => n.replace(MONTH_RE(), " ").replace(/\b(no |do |o )?(ultimo mes|mes passado|este mes|mes atual)\b/g, " ").replace(/\s+/g, " ").trim();
+  // Palavras que o interpretador de gráficos conhece; sobrando outras, o pedido vai para a IA (quando disponível).
+  const CHART_WORDS = new Set(("de do da dos das por e o a os as em no na nos nas com um uma para pra que quero queria criar crie cria faca faz fazer gerar gere gera monte montar mostrar mostre mostra ver exibir exiba grafico graficos pizza rosca donut torta barra barras coluna colunas linha linhas ranking top lista tabela quantidade numero total soma somar media medio medias contagem qtd quantos quantas cada mes meses ano anos dia dias periodo mensal anual diario evolucao tendencia versus vs x contra comparando comparar comparacao comparativo entre me novo nova adicionar adiciona colocar coloca painel mais maiores principais primeiros registro registros o.s os ao longo tempo valor valores so apenas somente").split(" "));
+  function chartUnderstood(sh, n) {
+    const vh = valuesIn(sh, n)[0];
+    const vStems = new Set(vh ? vh.vals.flatMap(v => stemPhrase(v).split(" ")) : []);
+    const cStems = sh.columns.flatMap(c => stemPhrase(c).split(" ")).filter(s => s.length >= 3);
+    return stripMonths(n).split(/\s+/).map(w => w.replace(/^[^\w]+|[^\w.]+$/g, "").replace(/\.$/, "")).filter(Boolean).every(w => {
+      const s = sing(w);
+      return CHART_WORDS.has(w) || /^\d+$/.test(w) || vStems.has(s) || (s.length >= 3 && cStems.some(cs => cs === s || cs.startsWith(s)));
+    });
+  }
+  function parseChartRequest(sh, n0) {
     const out = { type: "bar", agg: "auto", top: 0, dateGroup: "mes" };
     let m;
+    // Meses e valores citados viram filtro; o resto do texto diz o que medir e como agrupar.
+    const range = monthRangeIn(sh, n0), vh = valuesIn(sh, n0)[0];
+    const vStems = new Set(vh ? vh.vals.flatMap(v => stemPhrase(v).split(" ")) : []);
+    const n = stripMonths(n0).split(/\s+/).filter(w => !vStems.has(sing(w.replace(/[^\w]/g, "")))).join(" ").replace(/\s+(versus|vs|x|contra|e)(?=\s|$)/g, " ").replace(/\s+/g, " ").trim();
     if ((m = n.match(/top\s*(\d+)|(\d+)\s*(?:maiores|mais|primeiros|principais)/))) out.top = Math.min(50, +(m[1] || m[2]));
     const parts = n.split(/\s+(?:por|de cada|em cada|para cada|agrupado por|separado por)\s+/);
     let measureText = parts.length > 1 ? parts.slice(0, -1).join(" ") : n;
@@ -1204,13 +1252,25 @@
     // Sem "por": agrupa pela coluna de texto/categoria citada ("top 10 equipamentos")
     if (out.label == null) {
       const g = chartColsIn(sh, measureText).find(c => !numericCols(sh).includes(c));
-      if (g == null) return { error: `Diga como agrupar, por exemplo: ${chartExamples(sh).slice(0, 3).map(e => code(e)).join(", ")}.` };
-      out.label = g;
+      if (g != null) out.label = g;
     }
+    // Valores citados: dois ou mais ("abertas x fechadas") viram comparação; um só vira filtro.
+    if (vh) {
+      if (vh.vals.length >= 2) {
+        if (out.label == null || out.label === vh.col) { out.label = vh.col; out.where = { col: vh.col, vals: vh.vals }; }
+        else { out.split = { col: vh.col, vals: vh.vals }; out.values = [out.values[0]]; }
+      } else if (out.label !== vh.col) {
+        out.where = { col: vh.col, val: vh.vals[0] };
+        if (out.label == null) { const pc = periodCol(sh); out.label = pc ?? dateCols[0]; }
+      }
+    }
+    if (out.label == null) return { error: `Diga como agrupar, por exemplo: ${chartExamples(sh).slice(0, 3).map(e => code(e)).join(", ")}.` };
+    if (range) out.range = range;
     // Tipo
-    if (/pizza|rosca|donut|torta/.test(n)) out.type = "doughnut";
-    else if (/ranking|lista|tabela/.test(n) || (out.top && !/barra|coluna/.test(n))) out.type = "rank";
-    else if (/linha|evolucao|tendencia|ao longo/.test(n) || (isDateCol(sh, out.label) || out.label === periodCol(sh)) && !/barra|coluna/.test(n)) out.type = "line";
+    const period = isDateCol(sh, out.label) || out.label === periodCol(sh);
+    if (/pizza|rosca|donut|torta/.test(n0) && !out.split) out.type = "doughnut";
+    else if ((/ranking|lista|tabela/.test(n0) || (out.top && !/barra|coluna/.test(n0))) && !out.split) out.type = "rank";
+    else if (/linha|evolucao|tendencia|ao longo/.test(n0) || period && !/barra|coluna|versus|\bvs\b|\bx\b|contra|compar/.test(n0)) out.type = "line";
     else out.type = "bar";
     if (out.type === "doughnut" && out.values.length > 1) out.values = [out.values[0]];
     return out;
@@ -1372,7 +1432,12 @@
     const m = c.values.map(v => v < 0 ? countLabel(sh) : `${useAvg(sh, v, c.agg) ? "Média de " : ""}${useAvg(sh, v, c.agg) ? sh.columns[v].toLowerCase() : sh.columns[v]}`).join(" e ");
     const g = isDateCol(sh, c.label) ? ({ ano: "ano", dia: "dia" }[c.dateGroup] || "mês") : sh.columns[c.label].toLowerCase();
     const t = `${c.top ? `Top ${c.top}: ` : ""}${m} por ${g}`;
-    return t.charAt(0).toUpperCase() + t.slice(1);
+    let s = t.charAt(0).toUpperCase() + t.slice(1);
+    if (c.split) s += `: ${c.split.vals.join(" x ")}`;
+    if (c.where) s += ` · ${c.where.vals ? c.where.vals.join(" x ") : c.where.val}`;
+    if (c.range === "last") s += " · último mês";
+    else if (c.range) s += ` · ${c.range.from === c.range.to ? c.range.from : `${c.range.from}–${c.range.to}`}`;
+    return s;
   }
   function unitText(sh, c) {
     const what = c.values.map(v => v < 0 ? `contagem de ${countLabel(sh) === "O.S." ? "O.S." : "registros"}` : `${useAvg(sh, v, c.agg) ? "média" : "soma"} de ${sh.columns[v]}${isMoney(sh, v) ? " em R$" : isDur(sh, v) ? " em horas" : ""}`).join(" · ");
@@ -1454,18 +1519,25 @@
 
   function chartData(sh, c, rows) {
     const round = c.type === "doughnut";
-    let aggs = c.values.map(v => aggregate(sh, c.label, v, rows, c.agg, c.dateGroup));
+    // Com "split", cada valor (ex.: Aberta, Fechada) vira uma série do gráfico.
+    const S = c.split && c.split.col < sh.columns.length ? c.split : null;
+    const inVal = v => r => norm(sh.rows[r][S.col]) === norm(v);
+    let aggs = S ? S.vals.map(v => aggregate(sh, c.label, c.values[0], rows.filter(inVal(v)), c.agg, c.dateGroup))
+      : c.values.map(v => aggregate(sh, c.label, v, rows, c.agg, c.dateGroup));
     const isPeriod = isDateCol(sh, c.label) || c.label === periodCol(sh);
-    let labels = [...aggs[0].keys()];
+    let labels = S ? [...aggregate(sh, c.label, -1, rows.filter(r => S.vals.some(v => inVal(v)(r))), "auto", c.dateGroup).keys()] : [...aggs[0].keys()];
     if (!isPeriod) {
       // Categorias: do maior para o menor.
-      labels.sort((a, b) => (aggs[0].get(b) || 0) - (aggs[0].get(a) || 0));
+      const tot = l => aggs.reduce((s, a) => s + (a.get(l) || 0), 0);
+      labels.sort((a, b) => tot(b) - tot(a));
+      // Comparação ("abertas x fechadas"): mantém a ordem pedida, mesmo com valor zero.
+      if (c.where?.vals && c.where.col === c.label) labels = c.where.vals.slice();
       const limit = c.top || (round ? 5 : c.type === "rank" ? 10 : 12);
       if (labels.length > limit) {
         if (c.top) labels = labels.slice(0, c.top);
         else {
           const keep = labels.slice(0, limit - 1), rest = labels.slice(limit - 1);
-          aggs = aggs.map((a, i) => { const m = new Map(keep.map(l => [l, a.get(l) || 0])); const tot = rest.reduce((s, l) => s + (a.get(l) || 0), 0); m.set(`Outros (${rest.length})`, useAvg(sh, c.values[i], c.agg) ? tot / rest.length : tot); return m; });
+          aggs = aggs.map((a, i) => { const m = new Map(keep.map(l => [l, a.get(l) || 0])); const tot = rest.reduce((s, l) => s + (a.get(l) || 0), 0); m.set(`Outros (${rest.length})`, useAvg(sh, c.values[S ? 0 : i], c.agg) ? tot / rest.length : tot); return m; });
           labels = [...keep, `Outros (${rest.length})`];
         }
       }
@@ -1528,6 +1600,7 @@
   function inSet(sh, rows, set) { const P = periodInfo(sh), ok = new Set(set.map(k => k.order)); return rows.filter(r => ok.has(P.of[r]?.order)); }
   function whereRows(sh, cd, rows) {
     if (!cd.where || cd.where.col == null || cd.where.col >= sh.columns.length) return rows;
+    if (cd.where.vals) { const ok = new Set(cd.where.vals.map(norm)); return rows.filter(r => ok.has(norm(sh.rows[r][cd.where.col]))); }
     const v = norm(cd.where.val);
     return rows.filter(r => norm(sh.rows[r][cd.where.col]) === v);
   }
@@ -1645,7 +1718,7 @@
     const vals = round ? [aggs[0]] : aggs;
     const single = vals.length === 1;
     const datasets = vals.map((a, i) => ({
-      label: measureLabel(sh, c.values[i], c.agg),
+      label: c.split ? c.split.vals[i] : measureLabel(sh, c.values[i], c.agg),
       data: labels.map(l => a.get(l) || 0),
       backgroundColor: round ? labels.map((l, j) => /^Outros/.test(l) ? tok("--border-strong") : series[j]) : (c.type === "line" ? series[i] + "22" : series[i]),
       borderColor: round ? tok("--surface") : series[i],
@@ -2147,6 +2220,7 @@
       snapshot("cartão"); removeCard(sh, cd.id); goto("painel"); return say(`Cartão <b>${esc(cardTitle(sh, cd))}</b> removido.${undoBtn}`);
     }
     if (/^(criar|cria|novo|nova|adicionar|adiciona|quero|fazer)?\s*(um\s+)?(novo\s+)?(cartao|card|indicador|kpi)\s+/.test(n)) {
+      if (!nested && !chartUnderstood(sh, n.replace(/\b(cartao|card|indicador|kpi|cartoes|maior|menor|maximo|minimo)\b/g, " ")) && await askAI(raw)) return;
       const cd = parseCardRequest(sh, n, raw);
       if (!cd) { openCardEditor(); return say(`Não entendi o que o cartão deve mostrar; abri o editor. Exemplos: ${code(`cartão de ${countLabel(sh) === "O.S." ? "O.S." : "registros"} ${(() => { const nc = numericCols(sh); const cats = sh.columns.map((_, i) => i).filter(i => effType(sh, i) === "categoria" && i !== periodCol(sh) && !nc.includes(i)); const c = cats.find(i => /status|situacao|tipo|prioridade/.test(norm(sh.columns[i]))) ?? cats[0]; return c != null ? String(sh.rows.find(r => r[c])?.[c] || "").toLowerCase() : "abertas"; })()}`)}, ${code(`cartão de média de ${(sh.columns[numericCols(sh)[0]] || "tempo").toLowerCase()}`)}.`); }
       const list = ownCards(sh); cd.id = uid();
@@ -2159,8 +2233,10 @@
       || (/ por /.test(` ${n} `) && /^(mostrar|mostre|mostra|quero|ver|exibir|quantos|quantas|quantidade|numero|total|qtd|media|contar|conte|distribuicao|evolucao|comparar|o\.?s\b|os\b)/.test(n))
       || / por /.test(` ${n} `) && chartColsIn(sh, n.split(" por ")[0]).length > 0);
     if (chartIntent) {
+      // Pedido com palavras que o interpretador não conhece: a IA entende melhor (quando disponível).
+      if (!nested && !chartUnderstood(sh, n) && await askAI(raw)) return;
       const req = parseChartRequest(sh, n);
-      if (req.error) return say(req.error, "bot", "err");
+      if (req.error) { if (!nested && await askAI(raw)) return; return say(req.error, "bot", "err"); }
       const c = { id: uid(), sheetId: sh.id, ...req };
       c.title = chartTitle(sh, c);
       state.charts.push(c);
@@ -2314,16 +2390,26 @@
           const lim = Math.min(30, +inp.limite || 15);
           return { total: rows.length, colunas: cols.map(c => sh.columns[c]), linhas: rows.slice(0, lim).map(r => cols.map(c => String(sh.rows[r][c] ?? "").slice(0, 120))) };
         } },
-      { name: "criar_grafico", description: "Adiciona um gráfico ao painel. Pode ter filtro e meses próprios. Retorna o título criado.",
-        inputSchema: { type: "object", properties: { tipo: { type: "string", enum: ["barras", "ranking", "linha", "rosca"] }, agrupar_por: { type: "string", description: "Coluna do eixo (categoria ou data)" }, agrupamento_data: { type: "string", enum: ["mes", "ano", "dia"] }, medida: { type: "string", enum: ["contagem", "soma", "media"] }, coluna_valor: { type: "string" }, top: { type: "number" }, filtro: { type: "object", properties: { coluna: { type: "string" }, valor: { type: "string" } } }, meses: MONTHS_SCHEMA, titulo: { type: "string" } }, required: ["agrupar_por", "medida"] },
+      { name: "criar_grafico", description: "Adiciona um gráfico ao painel. Pode ter filtro (um ou vários valores), meses próprios e séries separadas por valor (ex.: Aberta x Fechada ao longo dos meses). Retorna o título criado.",
+        inputSchema: { type: "object", properties: { tipo: { type: "string", enum: ["barras", "ranking", "linha", "rosca"] }, agrupar_por: { type: "string", description: "Coluna do eixo (categoria ou data)" }, agrupamento_data: { type: "string", enum: ["mes", "ano", "dia"] }, medida: { type: "string", enum: ["contagem", "soma", "media"] }, coluna_valor: { type: "string" }, top: { type: "number" }, filtro: { type: "object", description: "Mostra só as linhas com esse(s) valor(es)", properties: { coluna: { type: "string" }, valor: { type: "string" }, valores: { type: "array", items: { type: "string" } } } }, separar_por: { type: "object", description: "Uma série (cor) para cada valor desta coluna, ex.: {coluna: 'Situação', valores: ['Aberta','Fechada']}. Use quando o eixo for outra coluna (ex.: mês ou setor).", properties: { coluna: { type: "string" }, valores: { type: "array", items: { type: "string" } } } }, meses: MONTHS_SCHEMA, titulo: { type: "string" } }, required: ["agrupar_por", "medida"] },
         execute(inp) {
           const sh = sheet(), label = aiCol(sh, inp.agrupar_por), agg = AGG_IN[norm(inp.medida)] || "count";
           const v = agg === "count" ? -1 : aiCol(sh, inp.coluna_valor);
-          const type = { barras: "bar", ranking: "rank", linha: "line", rosca: "doughnut" }[inp.tipo] || (isDateCol(sh, label) ? "line" : "bar");
+          // Valores escritos pela IA -> grafia exata da planilha
+          const realVals = (col, list) => [].concat(list || []).map(x => { const hit = sh.rows.map(r => r[col]).find(y => y && norm(y) === norm(x)); if (!hit) throw new Error(`Valor “${x}” não existe em ${sh.columns[col]}.`); return hit; });
+          let type = { barras: "bar", ranking: "rank", linha: "line", rosca: "doughnut" }[inp.tipo] || (isDateCol(sh, label) || label === periodCol(sh) ? "line" : "bar");
           const c = { id: uid(), sheetId: sh.id, type, label, values: [v], agg: agg === "count" ? "auto" : agg, top: Math.min(50, +inp.top || 0), dateGroup: inp.agrupamento_data || "mes" };
-          if (inp.filtro?.coluna) c.where = { col: aiCol(sh, inp.filtro.coluna), val: String(inp.filtro.valor ?? "") };
+          if (inp.filtro?.coluna) {
+            const col = aiCol(sh, inp.filtro.coluna), vals = realVals(col, inp.filtro.valores?.length ? inp.filtro.valores : [inp.filtro.valor]);
+            c.where = vals.length > 1 ? { col, vals } : { col, val: vals[0] };
+          }
+          if (inp.separar_por?.coluna && inp.separar_por.valores?.length) {
+            const col = aiCol(sh, inp.separar_por.coluna);
+            if (col === label) c.where = { col, vals: realVals(col, inp.separar_por.valores) };
+            else { c.split = { col, vals: realVals(col, inp.separar_por.valores) }; if (type === "doughnut" || type === "rank") c.type = "bar"; }
+          }
           const range = aiRange(sh, inp.meses); if (range) c.range = range;
-          c.title = String(inp.titulo || "").slice(0, 80) || chartTitle(sh, c) + (c.where ? ` · ${c.where.val}` : "") + (range && range !== "last" ? ` · ${periodLabel([{ key: range.from }, ...(range.to !== range.from ? [{ key: range.to }] : [])])}` : "");
+          c.title = String(inp.titulo || "").slice(0, 80) || chartTitle(sh, c);
           state.charts.push(c); aiChanged = true;
           return `Gráfico criado: ${c.title}`;
         } },
@@ -2392,6 +2478,7 @@
 Regras:
 - Nunca invente números: use consultar_dados ou listar_registros para qualquer valor. Use os nomes EXATOS das colunas e valores listados abaixo.
 - Se o pedido for para ver algo no painel (gráfico, cartão, filtro), faça com as ferramentas e diga em uma frase o que foi feito.
+- Palavras como "abertas", "fechadas", "corretivas", "UTI" costumam ser VALORES de uma coluna (veja a lista de valores abaixo), não nomes de coluna. "O.S. abertas x fechadas" = gráfico agrupado pela coluna da situação com filtro.valores [Aberta, Fechada]; "abertas x fechadas por mês" = agrupar_por o mês com separar_por essa coluna. Pedidos com várias partes (ex.: "um gráfico por setor e outro por mês") = várias chamadas.
 - Para outras ações, use executar_comando com um comando da lista. Comandos que apagam dados não são permitidos: diga ao usuário qual comando digitar.
 - Se o pedido for ambíguo, escolha a interpretação mais útil e diga qual escolheu. Se faltar dado (ex.: coluna inexistente), explique o que existe.
 - Formatação: texto simples; pode usar **negrito** e listas com "- ". Valores em R$ no padrão brasileiro.
@@ -3496,7 +3583,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
       const map = c => c == null || c < 0 ? c : idx.get(oldCols[c]) ?? null;
       const before = sh.rows.length;
       const mine = state.charts.filter(ch => ch.sheetId === sh.id);
-      mine.forEach(ch => { ch.label = map(ch.label); ch.values = ch.values.map(map); if (ch.where) { ch.where.col = map(ch.where.col); if (ch.where.col == null) ch.label = null; } });
+      mine.forEach(ch => { ch.label = map(ch.label); ch.values = ch.values.map(map); if (ch.where) { ch.where.col = map(ch.where.col); if (ch.where.col == null) ch.label = null; } if (ch.split) { ch.split.col = map(ch.split.col); if (ch.split.col == null) ch.label = null; } });
       const lost = mine.filter(ch => ch.label === null || ch.values.includes(null));
       state.charts = state.charts.filter(ch => !lost.includes(ch));
       if (sh.cards) sh.cards = sh.cards.filter(cd => { if (cd.kind !== "data") return true; cd.col = map(cd.col); if (cd.where) cd.where.col = map(cd.where.col); return cd.col !== null && cd.where?.col !== null; });

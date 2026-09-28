@@ -45,6 +45,15 @@ No link do Claude, o assistente entende pedidos em linguagem natural. Os comando
 
 Comandos que apagam ou restauram dados nunca são executados pela IA; ela diz qual comando digitar. O primeiro pedido livre pede sua permissão e usa o seu limite de uso do Claude. Fora do Claude (arquivo aberto no computador), valem só os comandos.
 
+Gráficos comparativos e com filtro (funcionam também sem a IA):
+
+- `gráfico de O.S. abertas x fechadas` → barras comparando os valores Aberta e Fechada da coluna Situação;
+- `O.S. abertas x fechadas por mês` → uma série para cada valor, mês a mês;
+- `gráfico de O.S. corretivas por setor em agosto` → filtro por valor e por mês;
+- `gráfico de custo por setor de julho a agosto` → intervalo de meses.
+
+O assistente reconhece valores das colunas (aberta, fechada, corretiva, UTI...) pelo radical, sem ligar para plural ou gênero. Quando um pedido de gráfico ou cartão tem palavras que ele não conhece, ou várias partes ("um gráfico por setor e outro por mês"), ele passa o pedido para a IA.
+
 ## Conectar à API do seu sistema
 
 Em **Importar dados → Conectar a uma API** (ou o comando `conectar api`), informe:
