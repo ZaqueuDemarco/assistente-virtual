@@ -34,6 +34,17 @@ Os dados ficam **só neste navegador**, no IndexedDB (armazenamento de maior cap
 - **Painel**: indicadores com variação e minigráficos, filtros por categoria e gráficos de barras, linhas ou rosca que se atualizam quando a planilha muda.
 - **Tarefas**: prazos, atrasadas em destaque e contagem de pendentes.
 
+## Pedidos livres
+
+No link do Claude, o assistente entende pedidos em linguagem natural. Os comandos conhecidos continuam funcionando na hora; perguntas (com "?", "qual", "quantas", "me diga", "poderia"...) e tudo o que as regras não reconhecem vão para o Claude, que:
+
+- consulta os dados de verdade antes de responder (nunca inventa números): "quantas O.S. corretivas o CTI teve em agosto?", "qual equipamento deu mais custo?";
+- monta gráficos e cartões com filtro e meses próprios: "faça um gráfico das corretivas por setor de julho a agosto";
+- filtra o painel e executa comandos do assistente (exportar, criar tarefa, ordenar...);
+- lembra das últimas perguntas, então dá para continuar: "e em setembro?".
+
+Comandos que apagam ou restauram dados nunca são executados pela IA; ela diz qual comando digitar. O primeiro pedido livre pede sua permissão e usa o seu limite de uso do Claude. Fora do Claude (arquivo aberto no computador), valem só os comandos.
+
 ## Conectar à API do seu sistema
 
 Em **Importar dados → Conectar a uma API** (ou o comando `conectar api`), informe:

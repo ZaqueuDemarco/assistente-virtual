@@ -264,6 +264,11 @@
   }
   .msg.bot { align-self: flex-start; background: var(--raised); border: 1px solid var(--border); }
   .msg.bot.err { border-color: rgba(229,83,75,.45); }
+  .msg.bot.ai .thinking { color: var(--muted); animation: pulse 1.4s ease-in-out infinite; }
+  .msg.bot.ai .ai-stop { padding: 2px 8px; font-size: 12px; margin-left: 6px; }
+  .msg.bot.ai ul { margin: 4px 0; padding-left: 18px; }
+  @keyframes pulse { 50% { opacity: .45; } }
+  @media (prefers-reduced-motion: reduce) { .msg.bot.ai .thinking { animation: none; } }
   .msg code { font-family: var(--mono); font-size: 12px; color: #9cc3ff; background: rgba(91,157,255,.1); padding: 1px 4px; border-radius: 4px; }
   .msg ul { margin: 6px 0 0; padding-left: 18px; }
   .msg li { margin: 2px 0; }
@@ -1588,7 +1593,7 @@
   }
 
   function drawChart(sh, c, rows, tok, series) {
-    const { aggs, labels, isPeriod } = chartData(sh, c, rows);
+    const { aggs, labels, isPeriod } = chartData(sh, c, c.where || c.range ? cardRows(sh, c, rows) : rows); // gráfico pode ter filtro/mês próprios
     const round = c.type === "doughnut";
     const money = c.values.every(v => v >= 0 && isMoney(sh, v));
     const dur = c.values.every(v => v >= 0 && isDur(sh, v));
@@ -1809,10 +1814,12 @@
   ];
 
   const log = $("#log");
+  let sayCapture = null; // quando a IA executa um comando, guarda as respostas para devolver a ela
   function say(html, who = "bot", extra = "") {
     const el = document.createElement("div");
     el.className = `msg ${who} ${extra}`;
     el.innerHTML = html;
+    if (sayCapture && who === "bot") return sayCapture.push(html); // a IA resume o resultado na resposta dela
     log.appendChild(el);
     log.scrollTop = log.scrollHeight;
   }
@@ -1822,7 +1829,7 @@
   function goto(view) { state.view = view; render(); }
 
   function helpText() {
-    return `Posso criar e editar planilhas, montar gráficos e organizar tarefas. Alguns comandos:<ul>${COMMANDS.slice(0, -1).map(([c, d]) => `<li>${code(c)} · ${esc(d)}</li>`).join("")}</ul>Também entendo variações, como “cria uma planilha chamada Metas”.`;
+    return `Posso criar e editar planilhas, montar gráficos e organizar tarefas. Alguns comandos:<ul>${COMMANDS.slice(0, -1).map(([c, d]) => `<li>${code(c)} · ${esc(d)}</li>`).join("")}</ul>Também entendo variações, como “cria uma planilha chamada Metas”.${aiOff ? "" : " No link do Claude, pode perguntar ou pedir do seu jeito: “quantas corretivas o CTI teve em agosto?”, “faça um gráfico das O.S. abertas por técnico”."}`;
   }
 
   function run(input) {
@@ -1836,13 +1843,14 @@
     Promise.resolve().then(() => handle(raw)).catch(e => { if (!state.sheets.length) { say(`Você ainda não tem planilhas. Digite ${code("importar dados")} ou cole seus dados aqui.`, "bot", "err"); save(); return; } say("Não consegui executar esse comando. Digite " + code("ajuda") + " para ver exemplos.", "bot", "err"); console.error(e); }).finally(save);
   }
 
-  async function handle(raw) {
+  async function handle(raw, nested = false) {
     const n = norm(raw);
     const sh = sheet();
     let m;
 
     if (/^(ajuda|help|\?|comandos|o que (voce )?(faz|sabe))/.test(n)) return say(helpText());
-    if (/^limpar (conversa|chat|historico)/.test(n)) { log.innerHTML = ""; return say("Conversa limpa."); }
+    if (/^limpar (conversa|chat|historico)/.test(n)) { log.innerHTML = ""; aiTurns = []; return say("Conversa limpa."); }
+    if (!nested && AI_FIRST.test(n) && await askAI(raw)) return;
     if (/^(importar|colar|carregar|enviar|jogar)(\s+(os\s+)?(dados|arquivo|planilha))?$/.test(n)) { openImport(); return say("Abri a importação. Cole os dados, arraste um arquivo .xlsx/.csv ou teste com o exemplo."); }
     if (/^(conectar|ligar|integrar|configurar)(\s+(a|com|na|uma))?\s+(api|sistema|integracao)$|^(nova\s+)?(conexao|integracao)( com)?( a)? api$|^api$/.test(n)) { openApi(null); return say("Abri a conexão com API. Informe o endereço e, se precisar, o token de acesso."); }
     if (/^(editar|alterar|mudar|configurar)\s+(a\s+)?(conexao|api)/.test(n)) { if (!sh?.api) return say(`<b>${esc(sh?.name || "")}</b> não está ligada a uma API. Digite ${code("conectar api")} para criar uma conexão.`, "bot", "err"); openApi(sh); return say(`Abri a conexão de <b>${esc(sh.name)}</b>.`); }
@@ -2121,7 +2129,239 @@
       return say(`<b>${esc(sh.name)}</b>: ${rows.length} linhas, ${sh.columns.length} colunas.<ul>${lines.join("")}</ul>`);
     }
 
-    say(`Não entendi “${esc(raw)}”. Tente ${code("ajuda")} ou um destes: ${code("resumo")}, ${code("criar gráfico de receita por mês")}, ${code("nova tarefa ...")}.`, "bot", "err");
+    if (!nested && await askAI(raw)) return;
+    say(`Não entendi “${esc(raw)}”. Tente ${code("ajuda")} ou um destes: ${code("resumo")}, ${code("criar gráfico de receita por mês")}, ${code("nova tarefa ...")}.${!nested && !(await sampleReady) ? " <small>(Pedidos livres, em linguagem natural, funcionam quando o assistente é aberto pelo link do Claude.)</small>" : ""}`, "bot", "err");
+  }
+
+  /* =====================================================================
+     Pedidos livres: o que as regras não entendem vai para o Claude, que
+     consulta os dados e age no painel por meio das funções abaixo.
+     Só funciona dentro do Claude (capacidade "sample"); fora dele, as regras seguem valendo.
+     ===================================================================== */
+  const sampleReady = window.claude?.use ? window.claude.use("sample").catch(() => null) : Promise.resolve(null);
+  let aiOff = "", aiTurns = [], aiCtl = null;
+  sampleReady.then(async sample => { if (!sample) return; try { if ((await sample.limits())?.tools) $("#cmdInput").placeholder = "Pergunte ou peça o que quiser sobre seus dados"; } catch {} });
+  const AI_FIRST = /\?\s*$|^(qual|quais|quem|onde|quando|como|por ?que|o que|existe|existem|teve|houve|tem algum|tem alguma|me (diga|diz|explica|explique|fala|conta|ajuda|ajude|mostra|mostre|mostrar)|poderia|pode|podes|consegue|gostaria|queria|preciso|analis|compar|expliq|avali|identifiq|sugir|sugest|recomend|verifique se|descubra|calcule|calcula)/;
+  const BLOCKED_CMD = /^(apagar|apaga|excluir|exclui|remover|remove|limpar|limpa|desconectar|restaurar|esvaziar|zerar|deletar)\b/;
+  function aiCol(sh, name) {
+    const s = String(name ?? "").trim();
+    if (s === "" ) return -1;
+    let c = sh.columns.findIndex(x => norm(x) === norm(s));
+    if (c < 0) c = findCol(sh, s);
+    if (c < 0) throw new Error(`Coluna “${s}” não existe. Colunas: ${sh.columns.join(", ")}`);
+    return c;
+  }
+  const aiSheet = name => { if (!name) return sheet(); const s = state.sheets.find(x => norm(x.name) === norm(name)) || state.sheets.find(x => norm(x.name).includes(norm(name))); if (!s) throw new Error(`Planilha “${name}” não existe. Planilhas: ${state.sheets.map(x => x.name).join(", ")}`); return s; };
+  // "Ago/26", "agosto", "agosto de 2026" -> chave de mês da planilha
+  function aiMonth(sh, v) {
+    const P = periodInfo(sh); if (!P || v == null || v === "") return null;
+    const k = P.keys.find(x => norm(x.key) === norm(v)); if (k) return k.key;
+    const r = monthsIn(sh, norm(String(v)));
+    if (r && typeof r === "object") return r.from;
+    throw new Error(`Mês “${v}” não existe nos dados. Meses disponíveis: ${P.keys.map(x => x.key).join(", ")}`);
+  }
+  function aiRange(sh, m) {
+    if (!m) return null;
+    if (m === "ultimo" || m === "último" || m?.de === "ultimo") return "last";
+    const from = aiMonth(sh, m.de ?? m.from), to = aiMonth(sh, m.ate ?? m.to ?? m.de ?? m.from);
+    if (!from) return null;
+    const P = periodInfo(sh), o = k => P.keys.find(x => x.key === k).order;
+    return o(from) <= o(to) ? { from, to } : { from: to, to: from };
+  }
+  function aiRows(sh, inp) {
+    let rows = sh.rows.map((_, i) => i);
+    for (const f of [].concat(inp.filtros || [])) {
+      const c = aiCol(sh, f.coluna), op = String(f.operador || "=").trim(), val = String(f.valor ?? "");
+      const nv = norm(val), numV = parseNum(val), dV = parseDate(val);
+      const cmp = r => {
+        const raw = sh.rows[r][c] ?? "", x = cellValue(sh, r, c).v;
+        if (dV && isDateCol(sh, c)) { const d = parseDate(String(raw)); return d ? d - dV : NaN; }
+        if (typeof x === "number" && !isNaN(numV)) return x - numV;
+        return norm(raw).localeCompare(nv);
+      };
+      rows = rows.filter(r => {
+        const raw = String(sh.rows[r][c] ?? "");
+        switch (op) {
+          case "=": case "==": case "igual": return norm(raw) === nv || (!isNaN(numV) && cellValue(sh, r, c).v === numV);
+          case "!=": case "≠": case "diferente": return norm(raw) !== nv;
+          case "contem": case "contém": return norm(raw).includes(nv);
+          case "nao contem": case "não contém": return !norm(raw).includes(nv);
+          case "vazio": return !raw.trim();
+          case "preenchido": return !!raw.trim();
+          case ">": return cmp(r) > 0; case ">=": return cmp(r) >= 0;
+          case "<": return cmp(r) < 0; case "<=": return cmp(r) <= 0;
+          default: throw new Error(`Operador “${op}” inválido.`);
+        }
+      });
+    }
+    const range = aiRange(sh, inp.meses);
+    if (range) { const set = cardPeriodSet(sh, { range }, rows); rows = set ? inSet(sh, rows, set) : rows; }
+    return rows;
+  }
+  const AGG_IN = { contagem: "count", soma: "sum", media: "avg", média: "avg", maximo: "max", máximo: "max", minimo: "min", mínimo: "min" };
+  const fmtAi = (sh, c, agg, v) => c < 0 || agg === "count" ? nfNum.format(v) : fmtCol(sh, c, Math.round(v * 100) / 100);
+  const FILTER_SCHEMA = { type: "array", description: "Condições (todas precisam valer)", items: { type: "object", properties: { coluna: { type: "string" }, operador: { type: "string", enum: ["=", "!=", "contem", "nao contem", ">", ">=", "<", "<=", "vazio", "preenchido"] }, valor: { type: "string", description: "Texto, número ou data dd/mm/aaaa" } }, required: ["coluna", "operador"] } };
+  const MONTHS_SCHEMA = { type: "object", description: "Só esses meses (use as chaves listadas, ex.: Ago/26). Omitir = todo o período.", properties: { de: { type: "string" }, ate: { type: "string" } } };
+  function aiTools() {
+    return [
+      { name: "consultar_dados", description: "Calcula um número ou uma tabela agrupada a partir das linhas da planilha (contagem, soma, média, máximo, mínimo), com filtros e meses. Use SEMPRE que a resposta envolver números. Retorna {linhas, resultado} ou {linhas, grupos:[[grupo, valor]]}.",
+        inputSchema: { type: "object", properties: { planilha: { type: "string" }, filtros: FILTER_SCHEMA, meses: MONTHS_SCHEMA, medida: { type: "string", enum: ["contagem", "soma", "media", "maximo", "minimo"] }, coluna_valor: { type: "string", description: "Coluna numérica medida (não usar em contagem)" }, agrupar_por: { type: "string", description: "Coluna para agrupar (opcional)" }, agrupamento_data: { type: "string", enum: ["mes", "ano", "dia"] }, limite: { type: "number" } }, required: ["medida"] },
+        execute(inp) {
+          const sh = aiSheet(inp.planilha), rows = aiRows(sh, inp), agg = AGG_IN[norm(inp.medida)] || "count";
+          const vc = agg === "count" ? -1 : aiCol(sh, inp.coluna_valor);
+          if (vc >= 0 && !numericCols(sh).includes(vc)) throw new Error(`“${sh.columns[vc]}” não é numérica; use contagem.`);
+          if (!inp.agrupar_por) return { linhas: rows.length, resultado: fmtAi(sh, vc, agg, measure(sh, { col: vc, agg }, rows)) };
+          const g = aiCol(sh, inp.agrupar_por), groups = new Map();
+          rows.forEach(r => { let k = sh.rows[r][g] || "(vazio)"; if (isDateCol(sh, g)) { const d = parseDate(String(sh.rows[r][g] || "")); k = !d ? "(sem data)" : inp.agrupamento_data === "ano" ? String(d.getFullYear()) : inp.agrupamento_data === "dia" ? fmtDMY(d) : monthLabel(d); } (groups.get(k) || groups.set(k, []).get(k)).push(r); });
+          let list = [...groups].map(([k, rr]) => [k, measure(sh, { col: vc, agg }, rr)]);
+          if (!isDateCol(sh, g)) list.sort((a, b) => b[1] - a[1]);
+          const lim = Math.min(40, +inp.limite || 25);
+          return { linhas: rows.length, total_grupos: list.length, grupos: list.slice(0, lim).map(([k, v]) => [k, fmtAi(sh, vc, agg, v)]) };
+        } },
+      { name: "listar_registros", description: "Retorna até 30 linhas que atendem aos filtros, com as colunas pedidas. Use para mostrar exemplos, casos específicos ou o maior/menor registro.",
+        inputSchema: { type: "object", properties: { planilha: { type: "string" }, filtros: FILTER_SCHEMA, meses: MONTHS_SCHEMA, colunas: { type: "array", items: { type: "string" } }, ordenar_por: { type: "string" }, decrescente: { type: "boolean" }, limite: { type: "number" } } },
+        execute(inp) {
+          const sh = aiSheet(inp.planilha); let rows = aiRows(sh, inp);
+          const cols = (inp.colunas?.length ? inp.colunas.map(c => aiCol(sh, c)) : sh.columns.map((_, i) => i)).slice(0, 10);
+          if (inp.ordenar_por) { const c = aiCol(sh, inp.ordenar_por), num = numericCols(sh).includes(c), dt = isDateCol(sh, c); const key = r => num ? (cellValue(sh, r, c).v || 0) : dt ? (parseDate(String(sh.rows[r][c] || "")) || 0) : norm(sh.rows[r][c]); rows = [...rows].sort((a, b) => { const x = key(a), y = key(b); return (x > y) - (x < y); }); if (inp.decrescente) rows.reverse(); }
+          const lim = Math.min(30, +inp.limite || 15);
+          return { total: rows.length, colunas: cols.map(c => sh.columns[c]), linhas: rows.slice(0, lim).map(r => cols.map(c => String(sh.rows[r][c] ?? "").slice(0, 120))) };
+        } },
+      { name: "criar_grafico", description: "Adiciona um gráfico ao painel. Pode ter filtro e meses próprios. Retorna o título criado.",
+        inputSchema: { type: "object", properties: { tipo: { type: "string", enum: ["barras", "ranking", "linha", "rosca"] }, agrupar_por: { type: "string", description: "Coluna do eixo (categoria ou data)" }, agrupamento_data: { type: "string", enum: ["mes", "ano", "dia"] }, medida: { type: "string", enum: ["contagem", "soma", "media"] }, coluna_valor: { type: "string" }, top: { type: "number" }, filtro: { type: "object", properties: { coluna: { type: "string" }, valor: { type: "string" } } }, meses: MONTHS_SCHEMA, titulo: { type: "string" } }, required: ["agrupar_por", "medida"] },
+        execute(inp) {
+          const sh = sheet(), label = aiCol(sh, inp.agrupar_por), agg = AGG_IN[norm(inp.medida)] || "count";
+          const v = agg === "count" ? -1 : aiCol(sh, inp.coluna_valor);
+          const type = { barras: "bar", ranking: "rank", linha: "line", rosca: "doughnut" }[inp.tipo] || (isDateCol(sh, label) ? "line" : "bar");
+          const c = { id: uid(), sheetId: sh.id, type, label, values: [v], agg: agg === "count" ? "auto" : agg, top: Math.min(50, +inp.top || 0), dateGroup: inp.agrupamento_data || "mes" };
+          if (inp.filtro?.coluna) c.where = { col: aiCol(sh, inp.filtro.coluna), val: String(inp.filtro.valor ?? "") };
+          const range = aiRange(sh, inp.meses); if (range) c.range = range;
+          c.title = String(inp.titulo || "").slice(0, 80) || chartTitle(sh, c) + (c.where ? ` · ${c.where.val}` : "") + (range && range !== "last" ? ` · ${periodLabel([{ key: range.from }, ...(range.to !== range.from ? [{ key: range.to }] : [])])}` : "");
+          state.charts.push(c); aiChanged = true;
+          return `Gráfico criado: ${c.title}`;
+        } },
+      { name: "criar_cartao", description: "Adiciona um cartão (indicador) no topo do painel: contagem, soma, média, máximo ou mínimo, com filtro e período opcionais.",
+        inputSchema: { type: "object", properties: { medida: { type: "string", enum: ["contagem", "soma", "media", "maximo", "minimo"] }, coluna_valor: { type: "string" }, filtro: { type: "object", properties: { coluna: { type: "string" }, valor: { type: "string" } } }, periodo: { type: "string", description: "'todo', 'ultimo' (último mês) ou um mês (ex.: Ago/26)" }, periodo_ate: { type: "string", description: "Fim do intervalo, se for mais de um mês" }, titulo: { type: "string" } }, required: ["medida"] },
+        execute(inp) {
+          const sh = sheet(), agg = AGG_IN[norm(inp.medida)] || "count";
+          const cd = { id: uid(), kind: "data", col: agg === "count" ? -1 : aiCol(sh, inp.coluna_valor), agg, where: null, range: null, cmp: "auto", title: String(inp.titulo || "").slice(0, 60) };
+          if (inp.filtro?.coluna) cd.where = { col: aiCol(sh, inp.filtro.coluna), val: String(inp.filtro.valor ?? "") };
+          const p = norm(inp.periodo || "todo");
+          if (/^ultimo/.test(p)) cd.range = "last"; else if (p && p !== "todo") cd.range = aiRange(sh, { de: inp.periodo, ate: inp.periodo_ate || inp.periodo });
+          const list = ownCards(sh), ti = list.findIndex(c => c.kind === "tasks");
+          list.splice(ti >= 0 ? ti : list.length, 0, cd); aiChanged = true;
+          return `Cartão criado: ${cardTitle(sh, cd)} = ${cardFormat(sh, cd, cardValue(sh, cd, filteredRows(sh)))}`;
+        } },
+      { name: "filtrar_painel", description: "Filtra o painel inteiro por um valor de uma coluna (valor vazio remove o filtro).",
+        inputSchema: { type: "object", properties: { coluna: { type: "string" }, valor: { type: "string" } } },
+        execute(inp) {
+          const sh = sheet();
+          if (!inp.valor) { state.filter = { col: state.filter.col, val: "" }; aiChanged = true; return "Filtro removido."; }
+          const c = aiCol(sh, inp.coluna), val = sh.rows.map(r => r[c]).find(v => norm(v) === norm(inp.valor));
+          if (!val) throw new Error(`Valor “${inp.valor}” não existe em ${sh.columns[c]}.`);
+          state.filter = { col: c, val }; aiChanged = true;
+          return `Painel filtrado por ${sh.columns[c]} = ${val} (${filteredRows(sh).length} linhas).`;
+        } },
+      { name: "executar_comando", description: "Executa um comando do assistente (lista no início da conversa), ex.: 'exportar excel', 'ordenar por custo desc', 'nova tarefa Revisar bomba até 30/10', 'esconder custo', 'custo não é custo', 'abrir planilha X', 'mostrar planilha'. Comandos que apagam dados não são permitidos. Retorna a resposta do assistente.",
+        inputSchema: { type: "object", properties: { comando: { type: "string" } }, required: ["comando"] },
+        async execute(inp) {
+          const cmd = String(inp.comando || "").trim();
+          if (!cmd) throw new Error("Comando vazio.");
+          if (BLOCKED_CMD.test(norm(cmd))) throw new Error(`Por segurança, comandos que apagam ou restauram dados só podem ser digitados pelo usuário. Sugira que ele digite: ${cmd}`);
+          const out = []; sayCapture = out;
+          try { await handle(cmd, true); } finally { sayCapture = null; }
+          aiChanged = true;
+          return out.map(h => h.replace(/<[^>]+>/g, " ").replace(/&[a-z#0-9]+;/g, " ").replace(/\s+/g, " ").trim()).join("\n").slice(0, 1500) || "Feito.";
+        } },
+    ];
+  }
+  let aiChanged = false;
+  function aiContext() {
+    const sh = sheet(), lines = [];
+    const today = new Date();
+    lines.push(`Hoje: ${fmtDMY(today)}.`);
+    if (!sh) return lines.join("\n") + "\nO usuário ainda não tem planilhas. Oriente a digitar 'importar dados' ou arrastar um arquivo.";
+    lines.push(`Planilhas: ${state.sheets.map(s => `${s.name} (${s.rows.length} linhas)`).join("; ")}. Aberta agora: "${sh.name}".`);
+    lines.push(`Colunas de "${sh.name}":`);
+    sh.columns.forEach((c, i) => {
+      const t = effType(sh, i);
+      let extra = "";
+      if (t === "categoria" || t === "texto") {
+        const cnt = new Map(); sh.rows.forEach(r => { const v = r[i]; if (v) cnt.set(v, (cnt.get(v) || 0) + 1); });
+        const top = [...cnt].sort((a, b) => b[1] - a[1]);
+        extra = isIdCol(sh, i) && top.length > 10 ? ` · ${top.length} códigos distintos, ex.: ${top.slice(0, 3).map(([v]) => v).join(", ")}` : t === "categoria" || top.length <= 40 ? ` · ${top.length} valores: ${top.slice(0, 25).map(([v, n]) => `${String(v).slice(0, 40)} (${n})`).join(", ")}${top.length > 25 ? ", …" : ""}` : ` · ex.: ${top.slice(0, 3).map(([v]) => String(v).slice(0, 60)).join(" | ")}`;
+      } else if (numericCols(sh).includes(i)) extra = isMoney(sh, i) ? " · em R$" : isDur(sh, i) ? " · em horas" : "";
+      else if (t === "data") { const ds = sh.rows.map(r => parseDate(String(r[i] || ""))).filter(Boolean); if (ds.length) extra = ` · de ${fmtDMY(new Date(Math.min(...ds)))} a ${fmtDMY(new Date(Math.max(...ds)))}`; }
+      lines.push(`- ${c} [${TYPE_LABEL[t] || t}${isIdCol(sh, i) ? ", código" : ""}]${extra}`);
+    });
+    const P = periodInfo(sh); if (P) lines.push(`Meses com dados (chaves): ${P.keys.map(k => k.key).join(", ")}.`);
+    if (state.filter.val && state.filter.col != null) lines.push(`Painel filtrado agora: ${sh.columns[state.filter.col]} = ${state.filter.val}.`);
+    lines.push(`Cartões no painel: ${cardsFor(sh).map(c => cardTitle(sh, c)).join("; ")}.`);
+    lines.push(`Gráficos no painel: ${state.charts.filter(c => c.sheetId === sh.id).map(c => c.title).join("; ") || "nenhum"}.`);
+    lines.push(`Tarefas: ${state.tasks.filter(t => !t.done).length} pendente(s).`);
+    return lines.join("\n").slice(0, 20000);
+  }
+  const AI_RULES = `Você é o assistente de gestão de manutenção dentro de um painel (planilhas, cartões, gráficos, tarefas). Responda SEMPRE em português do Brasil, de forma curta e direta (até ~8 linhas), sem jargão técnico.
+Regras:
+- Nunca invente números: use consultar_dados ou listar_registros para qualquer valor. Use os nomes EXATOS das colunas e valores listados abaixo.
+- Se o pedido for para ver algo no painel (gráfico, cartão, filtro), faça com as ferramentas e diga em uma frase o que foi feito.
+- Para outras ações, use executar_comando com um comando da lista. Comandos que apagam dados não são permitidos: diga ao usuário qual comando digitar.
+- Se o pedido for ambíguo, escolha a interpretação mais útil e diga qual escolheu. Se faltar dado (ex.: coluna inexistente), explique o que existe.
+- Formatação: texto simples; pode usar **negrito** e listas com "- ". Valores em R$ no padrão brasileiro.
+Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
+  function aiFormat(text) {
+    const lines = esc(text.trim()).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>").split("\n");
+    let html = "", inList = false;
+    for (const l of lines) {
+      const m = l.match(/^\s*[-•*]\s+(.*)$/);
+      if (m) { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${m[1]}</li>`; continue; }
+      if (inList) { html += "</ul>"; inList = false; }
+      html += l.trim() ? l.replace(/^#+\s*/, "") + "<br>" : "";
+    }
+    return (inList ? html + "</ul>" : html).replace(/(<br>)+$/, "");
+  }
+  // true = tratou (ou tentou); false = IA indisponível, seguir com as regras.
+  async function askAI(raw) {
+    if (aiOff) return false;
+    const sample = await sampleReady;
+    if (!sample) return false;
+    let caps = null; try { caps = await sample.limits(); } catch {}
+    if (!caps?.tools) return false;
+    if (aiCtl) aiCtl.abort();
+    const ctl = aiCtl = new AbortController();
+    const el = document.createElement("div");
+    el.className = "msg bot ai";
+    el.innerHTML = `<span class="thinking">Pensando…</span> <button class="btn ghost ai-stop" type="button">Parar</button>`;
+    el.querySelector(".ai-stop").onclick = () => ctl.abort();
+    log.appendChild(el); log.scrollTop = log.scrollHeight;
+    const status = t => { const s = el.querySelector(".thinking"); if (s) s.textContent = t; };
+    const tools = aiTools().map(t => ({ ...t, execute: async (inp, cx) => { status(t.name === "consultar_dados" || t.name === "listar_registros" ? "Consultando os dados…" : "Atualizando o painel…"); const r = await t.execute(inp || {}, cx); return r; } }));
+    const turns = [{ role: "user", content: `${AI_RULES}\n\nDADOS ATUAIS:\n${aiContext()}` }, ...aiTurns.slice(-8), { role: "user", content: raw }];
+    aiChanged = false;
+    try {
+      const { text, truncated } = await sample(turns, { tools, signal: ctl.signal, modelTier: "default", onText: ({ text }) => { el.innerHTML = aiFormat(text); log.scrollTop = log.scrollHeight; } });
+      el.innerHTML = aiFormat(text) + (truncated ? `<br><small style="color:var(--muted)">(resposta cortada; peça algo mais específico)</small>` : "");
+      aiTurns.push({ role: "user", content: raw }, { role: "assistant", content: text.slice(0, 2000) });
+      aiTurns = aiTurns.slice(-8);
+    } catch (e) {
+      const partial = e?.text ? aiFormat(e.text) + "<br>" : "";
+      const msg = {
+        cancelled: "Parei.",
+        not_granted: `Pedidos livres precisam da sua permissão para usar o Claude. Enquanto isso, uso os comandos: digite ${code("ajuda")}.`,
+        sampling_disabled: "Pedidos livres não estão disponíveis para esta conta.",
+        rate_limited: "Muitos pedidos seguidos ou limite de uso atingido. Tente de novo em alguns minutos.",
+        session_expired: "Sua sessão do Claude expirou. Entre de novo e repita o pedido.",
+        refused: "Não consegui responder esse pedido. Tente escrever de outro jeito.",
+        prompt_too_large: "A planilha é grande demais para esse pedido. Tente algo mais específico.",
+      }[e?.code] || "Não consegui responder agora (falha de conexão com o Claude). Tente de novo.";
+      if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed", "tools_unavailable"].includes(e?.code)) aiOff = e.code;
+      el.classList.toggle("err", e?.code !== "cancelled");
+      el.innerHTML = (e?.code === "refused" ? "" : partial) + msg;
+    } finally {
+      if (aiCtl === ctl) aiCtl = null;
+      if (aiChanged) { render(); save(); }
+    }
+    return true;
   }
 
   // Dentro do visualizador do Claude, o download passa pela capacidade "downloads";
@@ -3167,7 +3407,7 @@
       const map = c => c == null || c < 0 ? c : idx.get(oldCols[c]) ?? null;
       const before = sh.rows.length;
       const mine = state.charts.filter(ch => ch.sheetId === sh.id);
-      mine.forEach(ch => { ch.label = map(ch.label); ch.values = ch.values.map(map); });
+      mine.forEach(ch => { ch.label = map(ch.label); ch.values = ch.values.map(map); if (ch.where) { ch.where.col = map(ch.where.col); if (ch.where.col == null) ch.label = null; } });
       const lost = mine.filter(ch => ch.label === null || ch.values.includes(null));
       state.charts = state.charts.filter(ch => !lost.includes(ch));
       if (sh.cards) sh.cards = sh.cards.filter(cd => { if (cd.kind !== "data") return true; cd.col = map(cd.col); if (cd.where) cd.where.col = map(cd.where.col); return cd.col !== null && cd.where?.col !== null; });
