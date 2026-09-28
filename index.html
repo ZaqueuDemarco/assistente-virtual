@@ -408,6 +408,10 @@
   .bfield .ctl.free:focus { outline: none; border-color: var(--accent); }
   .bfield label .opt { text-transform: none; letter-spacing: 0; }
   .understood { font-size: 12.5px; min-height: 1em; }
+  .fill-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .fill-chips:empty { display: none; }
+  .fill-chips button { background: var(--raised); border: 1px solid var(--border-strong); color: var(--text-2); border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 12.5px; cursor: pointer; }
+  .fill-chips button:hover { border-color: var(--accent); color: var(--text); }
   .understood.ok { color: var(--text-2); }
   .understood.ok::before { content: "✓ "; color: var(--good); }
   .understood.warn { color: var(--warn); }
@@ -891,7 +895,7 @@
     $("#cardDlgDel").hidden = !existing;
     renderCardEditor();
     const d = $("#cardDlg"); try { d.showModal(); } catch { d.setAttribute("open", ""); }
-    const first = $("#cMeasure") || $("#cTitle"); if (first) { first.focus(); try { first.setSelectionRange(first.value.length, first.value.length); } catch {} }
+    if (!matchMedia("(hover: none)").matches) { const first = $("#cMeasure") || $("#cTitle"); if (first) first.focus(); } // no iPad, o toque no campo abre o teclado
   }
   function renderCardEditor() {
     const sh = sheet(), d = cdraft, nc = numericCols(sh);
@@ -905,26 +909,27 @@
     const cl = countLabel(sh) === "O.S." ? "O.S." : "registros";
     const P = periodInfo(sh), ks = P?.keys || [];
     const catVals = sh.columns.map((_, i) => i).filter(i => effType(sh, i) === "categoria" && i !== periodCol(sh))
-      .flatMap(i => [...new Set(sh.rows.map(r => r[i]).filter(Boolean))].slice(0, 30));
-    const list = (id, items) => `<datalist id="${id}">${[...new Set(items)].slice(0, 120).map(v => `<option value="${esc(v)}"></option>`).join("")}</datalist>`;
+      .flatMap(i => [...new Set(sh.rows.map(r => r[i]).filter(Boolean))].slice(0, 3));
+    // Sugestões como botões embaixo do campo (sem <datalist>: no iPad ele pode abrir a lista em vez do teclado).
+    const list = (id, items) => `<div class="fill-chips" role="group" aria-label="Sugestões">${[...new Set(items)].slice(0, 8).map(v => `<button type="button" data-fill="${esc(id)}" data-v="${esc(v)}">${esc(v)}</button>`).join("")}</div>`;
     if (!d.txt) d.txt = cardTexts(sh, d);
     const txt = d.txt;
     $("#cardDlgBody").innerHTML = `
       <div class="bfield"><label for="cMeasure">O que mostrar</label>
-        <input class="ctl free" id="cMeasure" list="dlMeasure" value="${esc(txt.measure)}" placeholder="ex.: quantidade de ${esc(cl)}, custo total, tempo médio" autocomplete="off">
-        ${list("dlMeasure", [`Quantidade de ${cl}`, ...nc.flatMap(c => [`Soma de ${sh.columns[c]}`, `Média de ${sh.columns[c]}`, `Maior ${sh.columns[c]}`])])}
+        <input class="ctl free" id="cMeasure" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(txt.measure)}" placeholder="ex.: quantidade de ${esc(cl)}, custo total, tempo médio" autocomplete="off">
+        ${list("cMeasure", [`Quantidade de ${cl}`, ...nc.flatMap(c => [`Soma de ${sh.columns[c]}`, `Média de ${sh.columns[c]}`, `Maior ${sh.columns[c]}`])])}
         <small class="understood" id="hMeasure"></small></div>
       <div class="bfield"><label for="cFilter">Considerar só <span class="opt">(opcional)</span></label>
-        <input class="ctl free" id="cFilter" list="dlFilter" value="${esc(txt.filter)}" placeholder="ex.: abertas, corretivas da UTI Adulto" autocomplete="off">
-        ${list("dlFilter", catVals)}
+        <input class="ctl free" id="cFilter" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(txt.filter)}" placeholder="ex.: abertas, corretivas da UTI Adulto" autocomplete="off">
+        ${list("cFilter", catVals)}
         <small class="understood" id="hFilter"></small></div>
       <div class="bfield"><label for="cPeriod">Período</label>
-        <input class="ctl free" id="cPeriod" list="dlPeriod" value="${esc(txt.period)}" placeholder="vazio = sem período · ex.: agosto, 01/08 a 15/09, últimos 30 dias" autocomplete="off">
-        ${list("dlPeriod", ["nenhum", "todo o período", "último mês", "últimos 30 dias", "últimos 3 meses", "esta semana", "este ano", ...ks.map(k => k.key)])}
+        <input class="ctl free" id="cPeriod" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(txt.period)}" placeholder="vazio = sem período · ex.: agosto, 01/08 a 15/09, últimos 30 dias" autocomplete="off">
+        ${list("cPeriod", ["nenhum", "todo o período", "último mês", ...(dateColOf(sh) >= 0 ? ["últimos 30 dias"] : []), ...ks.slice(-3).map(k => k.key), ...(dateColOf(sh) >= 0 ? ["este ano"] : [])])}
         <small class="understood" id="hPeriod"></small></div>
       <div class="bfield"><label for="cCmp">Comparar com</label>
-        <input class="ctl free" id="cCmp" list="dlCmp" value="${esc(txt.cmp)}" placeholder="ex.: mês anterior, julho, não comparar" autocomplete="off" ${P ? "" : "disabled"}>
-        ${list("dlCmp", ["período anterior", "não comparar", ...ks.map(k => k.key)])}
+        <input class="ctl free" id="cCmp" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(txt.cmp)}" placeholder="ex.: mês anterior, julho, não comparar" autocomplete="off" ${P ? "" : "disabled"}>
+        ${list("cCmp", ["período anterior", "não comparar", ...ks.slice(-3).map(k => k.key)])}
         <small class="understood" id="hCmp"></small></div>
       <div class="bfield"><label for="cTitle">Título <span class="opt">(opcional)</span></label><input class="ctl free" id="cTitle" value="${esc(d.title || "")}" placeholder="" autocomplete="off"></div>
       ${d.editing ? `<div class="bfield"><label>Posição</label><div class="row"><button type="button" class="btn" data-cact="left" ${pos <= 0 ? "disabled" : ""}>◀ Para a esquerda</button><button type="button" class="btn" data-cact="right" ${pos >= cards.length - 1 ? "disabled" : ""}>Para a direita ▶</button></div></div>` : ""}
@@ -3779,6 +3784,8 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
     if (!state) return;
     if (e.target.closest("[data-restore]")) { applyRestore(e.target.closest("[data-restore]").dataset.restore); return; }
     // Tocar em qualquer parte do cartão abre o editor (no iPad o lápis é pequeno).
+    const fb = e.target.closest("[data-fill]");
+    if (fb && cdraft) { const inp = $("#" + fb.dataset.fill), k = CARD_FIELDS[fb.dataset.fill]; if (inp && k) { inp.value = fb.dataset.v; cdraft.txt[k] = fb.dataset.v; applyCardTexts(); } return; }
     const kc = e.target.closest(".kpi[data-card]");
     if (kc && !e.target.closest("button")) { openCardEditor(kc.dataset.card); return; }
     const t = e.target.closest("button, [data-run]");
