@@ -90,13 +90,17 @@ Ou clique em **Novo gráfico** para escolher o que medir, como agrupar, o tipo (
 
 ## Cartões do painel
 
-Os cartões do topo (Total de O.S., tempo médio, custo...) são editáveis:
+Os cartões do topo são simples: título, valor e a variação em relação ao período anterior (▲/▼ vs mês anterior).
 
-- **Lápis** em cada cartão: escolher o que mostrar (quantidade, soma, média, maior ou menor valor de uma coluna), um filtro ("considerar só quando Situação = Aberta"), o título, a variação em relação ao período anterior e a posição.
+- **Lápis** em cada cartão abre o editor. Todos os campos são **texto livre**, com sugestões enquanto digita, e embaixo de cada um aparece o que o assistente entendeu:
+  - *O que mostrar*: "quantidade de O.S.", "custo total", "tempo médio", "maior custo";
+  - *Considerar só*: "abertas", "corretivas da UTI Adulto", "abertas e em andamento" (valores da mesma coluna = um OU outro; de colunas diferentes = todos juntos);
+  - *Período*: "todo o período", "último mês", "agosto", "julho a setembro";
+  - *Comparar com*: "período anterior", "julho", "não comparar";
+  - *Título* (opcional) e posição.
+- Se algo não for reconhecido, o aviso diz o que existe nos dados (colunas de número, meses disponíveis).
 - **×** remove o cartão (dá para `desfazer`); **+ Novo cartão** cria um.
-- Por texto: `cartão de O.S. abertas`, `cartão de média de tempo`, `cartão de maior custo em corretiva`, `remover cartão de O.S. abertas`, `restaurar cartões` (volta à escolha automática).
-- **Meses de cada cartão**: no lápis, escolha o valor de *todo o período*, do *último mês* (atualiza sozinho com dados novos), de *um mês* ou de um *intervalo* (ex.: Jul/26 a Set/26), e com o que comparar: *período anterior* de mesmo tamanho, *um mês escolhido* ou *não comparar*.
-- Por texto: `cartão de O.S. abertas em setembro`, `cartão de custo do último mês`, `cartões de julho a setembro` (muda todos; os que têm mês no título ficam como estão), `cartões de todo o período`.
+- Por texto: `cartão de O.S. abertas`, `cartão de custo do último mês`, `cartões de julho a setembro`, `cartões de todo o período`, `remover cartão de O.S. abertas`, `restaurar cartões`.
 - Os cartões respeitam o filtro escolhido no painel.
 
 ## Custo ou número?

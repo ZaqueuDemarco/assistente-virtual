@@ -136,10 +136,10 @@
 
   /* ---------- KPIs ---------- */
   .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
-  .kpi { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
-  .kpi .lbl { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
-  .kpi .val { font-size: 22px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .kpi .delta { font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+  .kpi { padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .kpi .lbl { color: var(--text-2); font-size: 13px; line-height: 1.3; }
+  .kpi .val { font-size: 26px; font-weight: 650; letter-spacing: -.01em; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi .delta { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
   .delta .up { color: var(--good); }
   .delta .down { color: var(--bad); }
   .kpi .spark { margin-top: 6px; height: 32px; position: relative; }
@@ -377,7 +377,8 @@
   .kpi-tools { position: absolute; top: 6px; right: 6px; display: flex; gap: 2px; opacity: 0; transition: opacity .12s; }
   .kpi:hover .kpi-tools, .kpi:focus-within .kpi-tools { opacity: 1; }
   @media (hover: none) { .kpi-tools { opacity: .7; } }
-  .kpi .lbl { padding-right: 52px; }
+  .kpi .lbl { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .kpi-tools { background: var(--surface); border-radius: 6px; }
   .kpi-add { align-items: center; justify-content: center; flex-direction: row; gap: 8px; cursor: pointer; color: var(--muted); border-style: dashed; background: transparent; font: inherit; min-height: 96px; }
   .kpi-add:hover { color: var(--text); border-color: var(--accent); }
   .kpi-add svg { width: 16px; height: 16px; }
@@ -400,6 +401,15 @@
   .bpreview { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 8px; background: var(--accent-soft); border: 1px solid rgba(91,157,255,.3); }
   .bpreview span { font-size: 12px; color: var(--muted); }
   .bpreview small { color: var(--text-2); font-size: 12px; }
+  .bfield .ctl.free { width: 100%; padding: 9px 12px; font-size: 14.5px; }
+  .bfield .ctl.free:focus { outline: none; border-color: var(--accent); }
+  .bfield label .opt { text-transform: none; letter-spacing: 0; }
+  .understood { font-size: 12.5px; min-height: 1em; }
+  .understood.ok { color: var(--text-2); }
+  .understood.ok::before { content: "✓ "; color: var(--good); }
+  .understood.warn { color: var(--warn); }
+  .understood.warn::before { content: "⚠ "; }
+  .understood b { color: var(--text); font-weight: 600; }
 
   /* ---------- Importação ---------- */
   dialog.imp {
@@ -877,67 +887,109 @@
         ${d.editing ? `<div class="bfield"><label>Posição</label><div class="row"><button type="button" class="btn" data-cact="left" ${pos <= 0 ? "disabled" : ""}>◀ Para a esquerda</button><button type="button" class="btn" data-cact="right" ${pos >= cards.length - 1 ? "disabled" : ""}>Para a direita ▶</button></div></div>` : ""}`;
       return;
     }
-    const measures = [["-1|count", `Quantidade de ${countLabel(sh) === "O.S." ? "O.S." : "registros"}`], ...nc.flatMap(c => ["sum", "avg", "max", "min"].map(a => [`${c}|${a}`, `${AGG_LABEL[a]} de ${sh.columns[c]}`]))];
-    const cur = `${d.col}|${d.col < 0 ? "count" : d.agg}`;
-    const filterCols = sh.columns.map((_, i) => i).filter(i => !nc.includes(i) && !isIdCol(sh, i) && !isDateCol(sh, i));
-    const wc = d.where?.col;
-    const vals = wc != null ? [...new Set(sh.rows.map(r => r[wc]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "pt-BR")).slice(0, 200) : [];
-    const preview = { ...d }; const all = filteredRows(sh);
+    // Todos os campos são texto livre; sugestões aparecem enquanto digita, e cada campo mostra o que foi entendido.
+    const cl = countLabel(sh) === "O.S." ? "O.S." : "registros";
+    const P = periodInfo(sh), ks = P?.keys || [];
+    const catVals = sh.columns.map((_, i) => i).filter(i => effType(sh, i) === "categoria" && i !== periodCol(sh))
+      .flatMap(i => [...new Set(sh.rows.map(r => r[i]).filter(Boolean))].slice(0, 30));
+    const list = (id, items) => `<datalist id="${id}">${[...new Set(items)].slice(0, 120).map(v => `<option value="${esc(v)}"></option>`).join("")}</datalist>`;
+    const txt = d.txt ||= cardTexts(sh, d);
     $("#cardDlgBody").innerHTML = `
       <div class="bfield"><label for="cMeasure">O que mostrar</label>
-        <select class="ctl" id="cMeasure">${measures.map(([v, l]) => `<option value="${v}" ${v === cur ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></div>
-      <div class="bfield"><label for="cWhereCol">Considerar só quando (opcional)</label>
-        <div class="row nowrap"><select class="ctl" id="cWhereCol" style="flex:1"><option value="">Todos os registros</option>${filterCols.map(i => `<option value="${i}" ${i === wc ? "selected" : ""}>${esc(sh.columns[i])}</option>`).join("")}</select>
-        ${wc != null ? `<span>=</span><select class="ctl" id="cWhereVal" style="flex:1">${vals.map(v => `<option value="${esc(v)}" ${norm(v) === norm(d.where?.val) ? "selected" : ""}>${esc(v)}</option>`).join("")}</select>` : ""}</div></div>
-      <div class="bfield"><label for="cTitle">Título</label><input class="ctl" id="cTitle" value="${esc(d.title || "")}" placeholder="${esc(cardTitle(sh, { ...d, title: "" }))}"></div>
-      ${(() => {
-        const P = periodInfo(sh);
-        if (!P) return `<div class="bfield"><label>Período</label><small style="color:var(--muted)">Esta planilha não tem coluna de data ou mês; o cartão usa todos os registros.</small></div>`;
-        const ks = P.keys, last = ks[ks.length - 1]?.key;
-        const mode = d.rangeMode || (!d.range ? "all" : d.range === "last" ? "last" : d.range.from && d.range.from === d.range.to ? "month" : "range");
-        const opt = (list, sel) => list.map(k => `<option value="${esc(k.key)}" ${k.key === sel ? "selected" : ""}>${esc(k.key)}</option>`).join("");
-        return `<div class="bfield"><label for="cRange">Valor do período</label>
-          <select class="ctl" id="cRange">
-            <option value="all" ${mode === "all" ? "selected" : ""}>Todo o período (${esc(ks[0].key)}–${esc(last)})</option>
-            <option value="last" ${mode === "last" ? "selected" : ""}>Último mês (hoje: ${esc(last)}; muda sozinho com dados novos)</option>
-            <option value="month" ${mode === "month" ? "selected" : ""}>Um mês específico</option>
-            <option value="range" ${mode === "range" ? "selected" : ""}>Intervalo de meses</option>
-          </select>
-          ${mode === "month" ? `<select class="ctl" id="cMonth">${opt(ks, d.range.from)}</select>` : ""}
-          ${mode === "range" ? `<div class="row nowrap"><span>De</span><select class="ctl" id="cFrom" style="flex:1">${opt(ks, d.range.from)}</select><span>até</span><select class="ctl" id="cTo" style="flex:1">${opt(ks, d.range.to)}</select></div>` : ""}
-        </div>
-        <div class="bfield"><label for="cCmp">Comparar com</label>
-          <select class="ctl" id="cCmp">
-            <option value="auto" ${d.cmp === "auto" ? "selected" : ""}>Período anterior (automático)</option>
-            ${ks.map(k => `<option value="${esc(k.key)}" ${d.cmp === k.key ? "selected" : ""}>${esc(k.key)}</option>`).join("")}
-            <option value="none" ${d.cmp === "none" ? "selected" : ""}>Não comparar (sem variação e minigráfico)</option>
-          </select></div>`;
-      })()}
+        <input class="ctl free" id="cMeasure" list="dlMeasure" value="${esc(txt.measure)}" placeholder="ex.: quantidade de ${esc(cl)}, custo total, tempo médio" autocomplete="off">
+        ${list("dlMeasure", [`Quantidade de ${cl}`, ...nc.flatMap(c => [`Soma de ${sh.columns[c]}`, `Média de ${sh.columns[c]}`, `Maior ${sh.columns[c]}`])])}
+        <small class="understood" id="hMeasure"></small></div>
+      <div class="bfield"><label for="cFilter">Considerar só <span class="opt">(opcional)</span></label>
+        <input class="ctl free" id="cFilter" list="dlFilter" value="${esc(txt.filter)}" placeholder="ex.: abertas, corretivas da UTI Adulto" autocomplete="off">
+        ${list("dlFilter", catVals)}
+        <small class="understood" id="hFilter"></small></div>
+      <div class="bfield"><label for="cPeriod">Período</label>
+        <input class="ctl free" id="cPeriod" list="dlPeriod" value="${esc(txt.period)}" placeholder="ex.: todo o período, último mês, agosto, julho a setembro" autocomplete="off" ${P ? "" : "disabled"}>
+        ${list("dlPeriod", ["todo o período", "último mês", ...ks.map(k => k.key)])}
+        <small class="understood" id="hPeriod"></small></div>
+      <div class="bfield"><label for="cCmp">Comparar com</label>
+        <input class="ctl free" id="cCmp" list="dlCmp" value="${esc(txt.cmp)}" placeholder="ex.: mês anterior, julho, não comparar" autocomplete="off" ${P ? "" : "disabled"}>
+        ${list("dlCmp", ["período anterior", "não comparar", ...ks.map(k => k.key)])}
+        <small class="understood" id="hCmp"></small></div>
+      <div class="bfield"><label for="cTitle">Título <span class="opt">(opcional)</span></label><input class="ctl free" id="cTitle" value="${esc(d.title || "")}" placeholder="" autocomplete="off"></div>
       ${d.editing ? `<div class="bfield"><label>Posição</label><div class="row"><button type="button" class="btn" data-cact="left" ${pos <= 0 ? "disabled" : ""}>◀ Para a esquerda</button><button type="button" class="btn" data-cact="right" ${pos >= cards.length - 1 ? "disabled" : ""}>Para a direita ▶</button></div></div>` : ""}
-      <div class="bpreview"><span>Vai mostrar</span><b>${esc(cardTitle(sh, preview))}: ${esc(cardFormat(sh, preview, cardValue(sh, preview, all)))}</b><small>${[state.filter.val ? `com o filtro do painel (${esc(state.filter.val)})` : "", (() => { const dl = cardDelta(sh, preview, all); return dl ? `comparação: ${dl.label}` : ""; })()].filter(Boolean).join(" · ") || "com todos os registros da planilha"}</small></div>`;
+      <div class="bpreview" id="cPreview"></div>`;
+    applyCardTexts();
   }
-  document.addEventListener("change", e => {
+  // Texto inicial dos campos a partir de um cartão existente.
+  function cardTexts(sh, d) {
+    const cl = countLabel(sh) === "O.S." ? "O.S." : "registros";
+    const conds = d.where ? [d.where, ...(d.where.more || [])] : [];
+    return {
+      measure: d.col < 0 || d.agg === "count" ? `Quantidade de ${cl}` : `${AGG_LABEL[d.agg] === "Maior" || AGG_LABEL[d.agg] === "Menor" ? AGG_LABEL[d.agg] : AGG_LABEL[d.agg] + " de"} ${sh.columns[d.col]}`,
+      filter: conds.map(w => w.vals ? w.vals.join(" e ") : w.val).join(" e "),
+      period: !d.range ? "todo o período" : d.range === "last" ? "último mês" : d.range.from === d.range.to ? d.range.from : `${d.range.from} a ${d.range.to}`,
+      cmp: !d.cmp || d.cmp === "auto" ? "período anterior" : d.cmp === "none" ? "não comparar" : d.cmp,
+    };
+  }
+  // Interpreta os quatro campos livres e atualiza o rascunho, as dicas "entendi" e a prévia.
+  function applyCardTexts() {
+    const sh = sheet(), d = cdraft; if (!d || d.kind === "tasks") return;
+    const t = d.txt, nc = numericCols(sh), cl = countLabel(sh) === "O.S." ? "O.S." : "registros";
+    const hint = (id, ok, html) => { const el = $("#" + id); if (el) { el.className = "understood " + (ok ? "ok" : "warn"); el.innerHTML = html; } };
+    // O que mostrar
+    const m = norm(t.measure), col = m ? chartColsIn(sh, m).find(c => nc.includes(c)) : null;
+    if (col != null) {
+      d.col = col;
+      d.agg = /\bmedi[ao]s?\b/.test(m) ? "avg" : /\b(maior|maximo|max|pior)\b/.test(m) ? "max" : /\b(menor|minimo|min)\b/.test(m) ? "min" : /\b(soma|total|somar|somado)\b/.test(m) ? "sum" : isAvgCol(sh, col) ? "avg" : "sum";
+      hint("hMeasure", true, `Entendi: <b>${esc(AGG_LABEL[d.agg])}</b> de <b>${esc(sh.columns[col])}</b>`);
+    } else {
+      d.col = -1; d.agg = "count";
+      const known = !m || /\b(quant|numero|contagem|conta|qtd|quantas|quantos|registros?|o\.?s\.?|os|ordens?|total)\b/.test(m);
+      hint("hMeasure", known, known ? `Entendi: <b>quantidade de ${esc(cl)}</b>` : `Não achei uma coluna de número em “${esc(t.measure)}”; vou mostrar a quantidade de ${esc(cl)} Colunas de número: ${nc.map(c => esc(sh.columns[c])).join(", ") || "nenhuma"}.`);
+    }
+    // Considerar só
+    const f = norm(t.filter);
+    if (!f || /^(todos?|todas?|tudo|nenhum|sem filtro)$/.test(f)) { d.where = null; hint("hFilter", true, "Todos os registros"); }
+    else {
+      const hits = valuesIn(sh, f);
+      if (!hits.length) { d.where = null; hint("hFilter", false, `Não encontrei “${esc(t.filter)}” nos dados; o cartão vai usar todos os registros.`); }
+      else {
+        const cond = h => h.vals.length > 1 ? { col: h.col, vals: h.vals } : { col: h.col, val: h.vals[0] };
+        d.where = { ...cond(hits[0]), ...(hits.length > 1 ? { more: hits.slice(1).map(cond) } : {}) };
+        const vStems = new Set(hits.flatMap(h => h.vals.flatMap(v => stemPhrase(v).split(" "))));
+        const left = f.split(/\s+/).filter(w => w.length > 2 && !/^(com|das|dos|que|sem|para|pela|pelo|so|apenas|somente|ou)$/.test(w) && !vStems.has(sing(w.replace(/[^\w]/g, ""))));
+        hint("hFilter", !left.length, `Entendi: ${hits.map(h => `<b>${esc(sh.columns[h.col])}</b> = ${h.vals.map(v => `<b>${esc(v)}</b>`).join(" ou ")}`).join(" e ")}${left.length ? ` · não reconheci: ${esc(left.join(", "))}` : ""}`);
+      }
+    }
+    // Período e comparação
+    const P = periodInfo(sh), ks = P?.keys || [];
+    if (!P) { d.range = null; d.cmp = "none"; hint("hPeriod", true, "Esta planilha não tem coluna de data ou mês; o cartão usa todos os registros."); hint("hCmp", true, ""); }
+    else {
+      const p = norm(t.period);
+      if (!p || /\b(todo|toda|tudo|geral|sempre|total|todos os meses)\b/.test(p)) { d.range = null; hint("hPeriod", true, `Entendi: <b>todo o período</b> (${esc(ks[0].key)} a ${esc(ks[ks.length - 1].key)})`); }
+      else {
+        const r = monthRangeIn(sh, p) || monthRangeIn(sh, p.replace(/\s+a\s+/, " e "));
+        if (r) { d.range = r; hint("hPeriod", true, r === "last" ? `Entendi: <b>último mês com dados</b> (hoje ${esc(ks[ks.length - 1].key)}; muda sozinho)` : `Entendi: <b>${esc(r.from === r.to ? r.from : `${r.from} a ${r.to}`)}</b>`); }
+        else { d.range = null; hint("hPeriod", false, `Não reconheci “${esc(t.period)}”; usando todo o período. Meses com dados: ${ks.map(k => esc(k.key)).join(", ")}.`); }
+      }
+      const c = norm(t.cmp);
+      if (/\b(nao|sem|nenhum|nada)\b/.test(c)) { d.cmp = "none"; hint("hCmp", true, "Entendi: <b>sem comparação</b>"); }
+      else if (!c || /anterior|automatic|passado|antes/.test(c)) { d.cmp = "auto"; hint("hCmp", true, "Entendi: <b>período anterior</b> (mesmo tamanho)"); }
+      else {
+        const r = monthRangeIn(sh, c);
+        if (r && r !== "last") { d.cmp = r.from; hint("hCmp", true, `Entendi: comparar com <b>${esc(r.from)}</b>`); }
+        else { d.cmp = "auto"; hint("hCmp", false, `Não reconheci “${esc(t.cmp)}”; comparando com o período anterior.`); }
+      }
+    }
+    const tt = $("#cTitle"); if (tt) tt.placeholder = cardTitle(sh, { ...d, title: "" });
+    const all = filteredRows(sh), dl = cardDelta(sh, d, all), pv = $("#cPreview");
+    if (pv) pv.innerHTML = `<span>Vai mostrar</span><b>${esc(cardTitle(sh, d))}: ${esc(cardFormat(sh, d, cardValue(sh, d, all)))}</b><small>${[state.filter.val ? `com o filtro do painel (${esc(state.filter.val)})` : "", dl ? `comparação: ${esc(dl.label)}` : ""].filter(Boolean).join(" · ") || "com todos os registros da planilha"}</small>`;
+  }
+  const CARD_FIELDS = { cMeasure: "measure", cFilter: "filter", cPeriod: "period", cCmp: "cmp" };
+  let cardTimer = null;
+  document.addEventListener("input", e => {
     if (!cdraft) return;
-    const sh = sheet(), t = e.target;
-    if (t.id === "cMeasure") { const [c, a] = t.value.split("|"); cdraft.col = +c; cdraft.agg = a; renderCardEditor(); }
-    if (t.id === "cWhereCol") { if (t.value === "") cdraft.where = null; else { const c = +t.value; const first = sh.rows.map(r => r[c]).find(Boolean) || ""; cdraft.where = { col: c, val: first }; } renderCardEditor(); }
-    if (t.id === "cWhereVal") { cdraft.where.val = t.value; renderCardEditor(); }
-    if (t.id === "cRange") {
-      const ks = periodInfo(sh)?.keys || [], last = ks[ks.length - 1]?.key;
-      cdraft.rangeMode = t.value; // mantém o modo escolhido mesmo se início e fim coincidirem
-      cdraft.range = t.value === "all" ? null : t.value === "last" ? "last" : t.value === "month" ? { from: last, to: last } : { from: ks[Math.max(0, ks.length - 3)]?.key, to: last };
-      renderCardEditor();
-    }
-    if (t.id === "cMonth") { cdraft.range = { from: t.value, to: t.value }; renderCardEditor(); }
-    if (t.id === "cFrom" || t.id === "cTo") {
-      const ks = periodInfo(sh).keys, o = k => ks.find(x => x.key === k).order;
-      let from = $("#cFrom").value, to = $("#cTo").value;
-      if (o(from) > o(to)) [from, to] = [to, from];
-      cdraft.range = { from, to }; renderCardEditor();
-    }
-    if (t.id === "cCmp") { cdraft.cmp = t.value; renderCardEditor(); }
+    if (e.target.id === "cTitle") { cdraft.title = e.target.value; return; }
+    const k = CARD_FIELDS[e.target.id]; if (!k || !cdraft.txt) return;
+    cdraft.txt[k] = e.target.value;
+    clearTimeout(cardTimer); cardTimer = setTimeout(applyCardTexts, 180); // interpreta enquanto digita
   });
-  document.addEventListener("input", e => { if (cdraft && e.target.id === "cTitle") cdraft.title = e.target.value; });
   function cardAct(a) {
     const sh = sheet(), d = $("#cardDlg");
     if (a === "left" || a === "right") {
@@ -950,6 +1002,7 @@
       render(); renderCardEditor(); return;
     }
     if (a === "save" && cdraft) {
+      clearTimeout(cardTimer); applyCardTexts(); // garante o último texto digitado
       const list = ownCards(sh);
       const auto = cdraft.editing && !list.some(c => c.id === cdraft.editing) ? defaultCards(sh).findIndex(c => c.id === cdraft.editing) : -1;
       const card = { id: uid(), kind: cdraft.kind || "data", col: cdraft.col, agg: cdraft.col < 0 ? "count" : cdraft.agg, where: cdraft.where, range: cdraft.range || null, cmp: cdraft.cmp || "auto", title: (cdraft.title || "").trim() };
@@ -1598,12 +1651,17 @@
     return P.keys.filter(k => k.order >= (from ?? -Infinity) && k.order <= (to ?? Infinity));
   }
   function inSet(sh, rows, set) { const P = periodInfo(sh), ok = new Set(set.map(k => k.order)); return rows.filter(r => ok.has(P.of[r]?.order)); }
+  // Filtro: {col, val} ou {col, vals:[...]} (um OU outro), com condições extras em "more" (todas precisam valer).
   function whereRows(sh, cd, rows) {
     if (!cd.where || cd.where.col == null || cd.where.col >= sh.columns.length) return rows;
-    if (cd.where.vals) { const ok = new Set(cd.where.vals.map(norm)); return rows.filter(r => ok.has(norm(sh.rows[r][cd.where.col]))); }
-    const v = norm(cd.where.val);
-    return rows.filter(r => norm(sh.rows[r][cd.where.col]) === v);
+    for (const w of [cd.where, ...(cd.where.more || [])]) {
+      if (w.col == null || w.col >= sh.columns.length) continue;
+      const ok = new Set((w.vals || [w.val]).map(norm));
+      rows = rows.filter(r => ok.has(norm(sh.rows[r][w.col])));
+    }
+    return rows;
   }
+  const whereText = w => !w ? "" : [w, ...(w.more || [])].map(x => x.vals ? x.vals.join(" ou ") : x.val).join(" · ");
   function cardRows(sh, cd, rows) {
     const base = whereRows(sh, cd, rows), set = cardPeriodSet(sh, cd, base);
     return set ? inSet(sh, base, set) : base;
@@ -1643,7 +1701,7 @@
     if (cd.title) return cd.title;
     const base = cd.col < 0 || cd.agg === "count" ? (countLabel(sh) === "O.S." ? "Total de O.S." : "Registros")
       : cd.agg === "sum" ? sh.columns[cd.col] : `${sh.columns[cd.col]} (${AGG_LABEL[cd.agg].toLowerCase()})`;
-    return (cd.where ? `${base} · ${cd.where.val}` : base) + periodSuffix(sh, cd);
+    return (cd.where ? `${base} · ${whereText(cd.where)}` : base) + periodSuffix(sh, cd);
   }
   function periodSuffix(sh, cd) {
     if (!cd.range) return "";
@@ -1669,30 +1727,29 @@
     const tools = `<span class="kpi-tools"><button class="icon-btn" data-editcard="${cd.id}" title="Editar cartão" aria-label="Editar cartão">${ICONS.edit}</button><button class="icon-btn" data-delcard="${cd.id}" title="Remover cartão" aria-label="Remover cartão">${ICONS.x}</button></span>`;
     if (cd.kind === "tasks") {
       const pend = state.tasks.filter(t => !t.done);
-      return `<div class="panel kpi">${tools}<span class="lbl">${esc(cardTitle(sh, cd))}</span><span class="val">${pend.length}</span><div class="delta">${pend.filter(t => dueClass(t.due) === "late").length} atrasada(s)</div></div>`;
+      const late = pend.filter(t => dueClass(t.due) === "late").length;
+      return `<div class="panel kpi">${tools}<span class="lbl">${esc(cardTitle(sh, cd))}</span><span class="val">${pend.length}</span>${late ? `<div class="delta"><span class="down">${late} atrasada(s)</span></div>` : ""}</div>`;
     }
+    // Cartão simples: título, valor e (quando houver) a variação contra o período anterior.
     const v = cardValue(sh, cd, rows);
     let delta = "";
-    const ser = cardSeries(sh, cd, rows);
     const dl = cd.col >= 0 && isPct(sh, cd.col) ? null : cardDelta(sh, cd, rows);
-    if (dl) {
+    if (dl && dl.a != null) {
       const { a, b } = dl;
-      if (!a) delta = `<div class="delta">${esc(dl.label)}</div>`;
+      if (!a) delta = "";
       else {
         const pct = (b - a) / Math.abs(a) * 100;
         // Custo, despesa, tempo e chamados abertos/atrasados: cair é bom. Para o resto, subir é bom.
         const lowerIsBetter = (cd.col >= 0 && (/custo|despesa|tempo|duracao|atraso|falha|parada|mttr/.test(norm(sh.columns[cd.col])) || isDur(sh, cd.col)))
-          || /abert|atras|pendent|falha|parad/.test(norm(cd.where?.val || ""));
+          || /abert|atras|pendent|falha|parad/.test(norm(whereText(cd.where)));
         const good = lowerIsBetter ? pct <= 0 : pct >= 0;
-        delta = `<div class="delta"><span class="${good ? "up" : "down"}">${pct >= 0 ? "▲" : "▼"} ${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: Math.abs(pct) >= 10 ? 0 : 1 }).format(Math.abs(pct))}%</span> ${esc(dl.label)}</div>`;
+        delta = `<div class="delta"><span class="${good ? "up" : "down"}">${pct >= 0 ? "▲" : "▼"} ${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: Math.abs(pct) >= 10 ? 0 : 1 }).format(Math.abs(pct))}%</span> vs ${esc(dl.label.split(" vs ")[1] || "")}</div>`;
       }
-    } else if (cd.col < 0 || cd.agg === "count") {
-      delta = `<div class="delta">${state.filter.val ? `filtro: ${esc(state.filter.val)}` : cd.where ? `de ${nfNum.format(rows.length)} no total` : `${sh.columns.length} colunas`}</div>`;
     }
     const huge = cd.col >= 0 && Math.abs(v) >= 1e8 && !isMoney(sh, cd.col);
-    return `<div class="panel kpi">${tools}<span class="lbl">${esc(cardTitle(sh, cd))}</span><span class="val" title="${esc(cd.col >= 0 && cd.agg !== "count" ? fmtCol(sh, cd.col, v) : nfNum.format(v))}">${cardFormat(sh, cd, v)}</span>`
+    return `<div class="panel kpi">${tools}<span class="lbl" title="${esc(cardTitle(sh, cd))}">${esc(cardTitle(sh, cd))}</span><span class="val" title="${esc(cd.col >= 0 && cd.agg !== "count" ? fmtCol(sh, cd.col, v) : nfNum.format(v))}">${cardFormat(sh, cd, v)}</span>`
       + (huge ? `<div class="delta" style="margin-top:2px"><span class="down">⚠ Valor muito alto. É um código?</span></div><button class="btn" style="margin-top:6px;align-self:flex-start" data-suggest="${esc(sh.columns[cd.col].toLowerCase())} é código">Marcar como código</button>` : "")
-      + `${delta}${ser ? `<div class="spark"><canvas id="spark_${i}" aria-hidden="true"></canvas></div>` : ""}</div>`;
+      + `${delta}</div>`;
   }
 
   function drawChart(sh, c, rows, tok, series) {
@@ -3586,7 +3643,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
       mine.forEach(ch => { ch.label = map(ch.label); ch.values = ch.values.map(map); if (ch.where) { ch.where.col = map(ch.where.col); if (ch.where.col == null) ch.label = null; } if (ch.split) { ch.split.col = map(ch.split.col); if (ch.split.col == null) ch.label = null; } });
       const lost = mine.filter(ch => ch.label === null || ch.values.includes(null));
       state.charts = state.charts.filter(ch => !lost.includes(ch));
-      if (sh.cards) sh.cards = sh.cards.filter(cd => { if (cd.kind !== "data") return true; cd.col = map(cd.col); if (cd.where) cd.where.col = map(cd.where.col); return cd.col !== null && cd.where?.col !== null; });
+      if (sh.cards) sh.cards = sh.cards.filter(cd => { if (cd.kind !== "data") return true; cd.col = map(cd.col); if (cd.where) { cd.where.col = map(cd.where.col); (cd.where.more || []).forEach(w => w.col = map(w.col)); } return cd.col !== null && cd.where?.col !== null && !(cd.where?.more || []).some(w => w.col === null); });
       if (sh.hiddenKpis) sh.hiddenKpis = sh.hiddenKpis.map(map).filter(c => c != null);
       if (sh.userSet) sh.userSet = Object.fromEntries(Object.keys(sh.userSet).map(k => [map(+k), true]).filter(([k]) => k != null));
       if (state.activeSheet === sh.id && state.filter.col != null) { state.filter.col = map(state.filter.col); if (state.filter.col == null) state.filter = { col: null, val: "" }; }
