@@ -248,49 +248,83 @@
     background: var(--surface); border-left: 1px solid var(--border);
     display: flex; flex-direction: column; min-height: 0; height: 100%;
   }
+  /* Conversa no estilo WhatsApp (tema escuro) */
+  .assist { --wa-bg: #0b141a; --wa-in: #202c33; --wa-out: #005c4b; --wa-green: #00a884; --wa-meta: #8696a0; }
   .assist-head {
-    padding: 14px 16px; border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--wa-in);
+    display: flex; align-items: center; gap: 12px;
   }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px rgba(63,185,122,.18); }
-  .assist-head b { font-size: 14px; }
-  .assist-head small { color: var(--muted); display: block; font-size: 12px; }
-  .assist-head .icon-btn { margin-left: auto; }
-  .log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-  .msg { max-width: 92%; padding: 9px 12px; border-radius: 10px; font-size: 13px; line-height: 1.5; }
-  .msg.user {
-    align-self: flex-end; background: var(--accent-soft); border: 1px solid rgba(91,157,255,.3);
-    font-family: var(--mono); font-size: 12.5px;
+  .avatar {
+    position: relative; flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
+    background: linear-gradient(135deg, #00a884, #2a6fdb); color: #fff; font-weight: 700; font-size: 13px; letter-spacing: .02em;
   }
-  .msg.bot { align-self: flex-start; background: var(--raised); border: 1px solid var(--border); }
-  .msg.bot.err { border-color: rgba(229,83,75,.45); }
-  .msg.bot.ai .thinking { color: var(--muted); animation: pulse 1.4s ease-in-out infinite; }
-  .msg.bot.ai .ai-stop { padding: 2px 8px; font-size: 12px; margin-left: 6px; }
+  .avatar i { position: absolute; right: -1px; bottom: -1px; width: 11px; height: 11px; border-radius: 50%; background: #25d366; border: 2px solid var(--wa-in); }
+  .assist-head .who { min-width: 0; }
+  .assist-head b { font-size: 14.5px; display: block; }
+  .assist-head small { color: var(--wa-meta); display: block; font-size: 12.5px; }
+  .assist-head .icon-btn { margin-left: auto; }
+  .log {
+    flex: 1; overflow-y: auto; padding: 14px 5%; display: flex; flex-direction: column; gap: 4px;
+    background-color: var(--wa-bg);
+    background-image: radial-gradient(rgba(255,255,255,.035) 1px, transparent 1.4px), radial-gradient(rgba(255,255,255,.02) 1px, transparent 1.4px);
+    background-size: 22px 22px, 22px 22px; background-position: 0 0, 11px 11px;
+  }
+  .day { align-self: center; margin: 8px 0; font-size: 12px; color: var(--wa-meta); background: #182229; padding: 5px 12px; border-radius: 8px; box-shadow: 0 1px .5px rgba(0,0,0,.3); }
+  .msg {
+    position: relative; max-width: 85%; padding: 6px 9px 7px; border-radius: 8px; font-size: 14px; line-height: 1.45;
+    display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0 10px; box-shadow: 0 1px .5px rgba(0,0,0,.35); overflow-wrap: anywhere;
+  }
+  .msg[hidden] { display: none; }
+  .msg + .msg { margin-top: 6px; }
+  .msg .txt { flex: 1 1 auto; min-width: 0; }
+  .msg .meta { margin-left: auto; font-size: 11px; color: var(--wa-meta); white-space: nowrap; display: inline-flex; align-items: center; gap: 3px; transform: translateY(3px); }
+  .msg .ticks { width: 16px; height: 11px; color: #53bdeb; }
+  .msg.user { align-self: flex-end; background: var(--wa-out); color: #e9edef; border-top-right-radius: 0; }
+  .msg.user .meta { color: rgba(233,237,239,.6); }
+  .msg.bot { align-self: flex-start; background: var(--wa-in); color: #e9edef; border-top-left-radius: 0; }
+  .msg.user::before, .msg.bot::before { content: ""; position: absolute; top: 0; width: 8px; height: 13px; }
+  .msg.user::before { right: -8px; background: var(--wa-out); clip-path: polygon(0 0, 100% 0, 0 100%); }
+  .msg.bot::before { left: -8px; background: var(--wa-in); clip-path: polygon(0 0, 100% 0, 100% 100%); }
+  .msg.bot.err { box-shadow: inset 3px 0 0 var(--bad), 0 1px .5px rgba(0,0,0,.35); }
+  .msg.typing { padding: 12px 14px; gap: 4px; }
+  .msg.typing i, .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--wa-meta); display: inline-block; animation: blink 1.2s infinite ease-in-out; }
+  .msg.typing i:nth-child(2), .dots i:nth-child(2) { animation-delay: .15s; }
+  .msg.typing i:nth-child(3), .dots i:nth-child(3) { animation-delay: .3s; }
+  .dots { display: inline-flex; gap: 4px; margin-right: 6px; vertical-align: middle; }
+  @keyframes blink { 0%, 60%, 100% { opacity: .3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+  .msg.bot.ai .thinking { color: var(--wa-meta); font-size: 12.5px; }
+  .msg.bot.ai .ai-stop { padding: 2px 10px; font-size: 12px; margin-left: 6px; border-radius: 999px; }
   .msg.bot.ai ul { margin: 4px 0; padding-left: 18px; }
-  @keyframes pulse { 50% { opacity: .45; } }
-  @media (prefers-reduced-motion: reduce) { .msg.bot.ai .thinking { animation: none; } }
-  .msg code { font-family: var(--mono); font-size: 12px; color: #9cc3ff; background: rgba(91,157,255,.1); padding: 1px 4px; border-radius: 4px; }
+  @media (prefers-reduced-motion: reduce) { .msg.typing i, .dots i { animation: none; opacity: .7; } }
+  .msg code { font-family: var(--mono); font-size: 12.5px; color: #9fe3cf; background: rgba(0,168,132,.14); padding: 1px 5px; border-radius: 4px; }
   .msg ul { margin: 6px 0 0; padding-left: 18px; }
   .msg li { margin: 2px 0; }
   .msg .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-  .suggest { padding: 0 16px 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .suggest { padding: 8px 12px; display: flex; gap: 6px; flex-wrap: wrap; background: var(--wa-bg); }
+  .suggest:empty { display: none; }
   .suggest button {
-    background: var(--raised); border: 1px solid var(--border-strong); border-radius: 999px;
-    padding: 4px 10px; font-size: 12px; cursor: pointer; color: var(--text-2); font-family: var(--mono);
+    background: var(--wa-in); border: 1px solid rgba(0,168,132,.35); border-radius: 999px;
+    padding: 5px 12px; font-size: 12.5px; cursor: pointer; color: #9fe3cf;
   }
-  .suggest button:hover { color: var(--text); border-color: var(--accent); }
+  .suggest button:hover { background: rgba(0,168,132,.14); color: #e9edef; }
   .cmd {
-    border-top: 1px solid var(--border); padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+    padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--wa-in);
     position: relative;
   }
-  .cmd form {
-    display: flex; align-items: center; gap: 8px; background: var(--bg);
-    border: 1px solid var(--border-strong); border-radius: 8px; padding: 4px 4px 4px 12px;
+  .cmd form { display: flex; align-items: center; gap: 8px; }
+  .cmd input {
+    flex: 1; min-width: 0; background: #2a3942; border: 0; border-radius: 22px; padding: 11px 16px;
+    font-size: 14.5px; color: #e9edef;
   }
-  .cmd form:focus-within { border-color: var(--accent); }
-  .cmd .prompt { color: var(--accent); font-family: var(--mono); }
-  .cmd input { flex: 1; background: none; border: 0; padding: 7px 0; font-family: var(--mono); font-size: 13px; min-width: 0; }
-  .cmd input:focus { outline: none; }
+  .cmd input::placeholder { color: var(--wa-meta); }
+  .cmd input:focus { outline: 2px solid rgba(0,168,132,.5); outline-offset: 0; }
+  .cmd .send {
+    flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer;
+    background: var(--wa-green); color: #0b141a; display: grid; place-items: center;
+  }
+  .cmd .send:hover { filter: brightness(1.1); }
+  .cmd .send svg { width: 20px; height: 20px; margin-left: 2px; }
   .ac {
     position: absolute; left: 16px; right: 16px; bottom: calc(100% - 6px);
     background: var(--raised); border: 1px solid var(--border-strong); border-radius: 8px;
@@ -519,8 +553,8 @@
 
   <section class="assist" id="assist" aria-label="Assistente">
     <div class="assist-head">
-      <span class="dot" aria-hidden="true"></span>
-      <div><b>Assistente</b><small>Aceita comandos em português</small></div>
+      <span class="avatar" aria-hidden="true">AG<i></i></span>
+      <div class="who"><b>Assistente de Gestão</b><small id="assistStatus">online</small></div>
       <button class="icon-btn" id="closeAssist" title="Fechar assistente" aria-label="Fechar assistente">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
@@ -530,11 +564,9 @@
     <div class="cmd">
       <div class="ac" id="ac" role="listbox" hidden></div>
       <form id="cmdForm" autocomplete="off">
-        <span class="prompt" aria-hidden="true">›</span>
-        <input id="cmdInput" placeholder="Ex.: quantidade por setor, top 10 equipamentos" aria-label="Comando para o assistente">
-        <button class="btn primary" type="submit">Enviar</button>
+        <input id="cmdInput" placeholder="Mensagem" aria-label="Mensagem para o assistente">
+        <button class="send" type="submit" aria-label="Enviar" title="Enviar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4l17.5-7.5a1 1 0 0 0 0-1.8L3.4 3.6a1 1 0 0 0-1.4 1.1L4 11l9 1-9 1-2 6.3a1 1 0 0 0 1.4 1.1z"/></svg></button>
       </form>
-      <div class="hint"><kbd>↑</kbd> repete o último comando · <kbd>Tab</kbd> completa</div>
     </div>
   </section>
 
@@ -1815,12 +1847,59 @@
 
   const log = $("#log");
   let sayCapture = null; // quando a IA executa um comando, guarda as respostas para devolver a ela
-  function say(html, who = "bot", extra = "") {
+  /* Conversa estilo WhatsApp: balões com hora, separador de dia, "digitando…" e histórico salvo. */
+  const NO_DELAY = navigator.webdriver || matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const hhmm = t => new Date(t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  function dayLabel(t) {
+    const d = new Date(t).toDateString(), today = new Date(), y = new Date(); y.setDate(today.getDate() - 1);
+    return d === today.toDateString() ? "Hoje" : d === y.toDateString() ? "Ontem" : new Date(t).toLocaleDateString("pt-BR");
+  }
+  let lastDay = "";
+  function daySep(t) {
+    const k = new Date(t).toDateString(); if (k === lastDay) return;
+    lastDay = k;
+    const s = document.createElement("div"); s.className = "day"; s.textContent = dayLabel(t); log.appendChild(s);
+  }
+  const TICKS = `<svg class="ticks" viewBox="0 0 16 11" fill="none" stroke="currentColor" stroke-width="1.6" aria-label="lida"><path d="M1 6l3 3 6-7M6.5 8.5l1 1 6-7"/></svg>`;
+  function bubble(html, who, extra, t) {
     const el = document.createElement("div");
     el.className = `msg ${who} ${extra}`;
-    el.innerHTML = html;
+    el.innerHTML = `<div class="txt">${html}</div><span class="meta">${hhmm(t)}${who === "user" ? TICKS : ""}</span>`;
+    return el;
+  }
+  function remember(who, extra, html, t) {
+    if (!state) return;
+    (state.chat ||= []).push({ w: who, x: extra, h: html, t });
+    if (state.chat.length > 80) state.chat.splice(0, state.chat.length - 80);
+    save();
+  }
+  const setStatus = s => { const el = $("#assistStatus"); if (el) el.textContent = s; };
+  const typing = document.createElement("div");
+  typing.className = "msg bot typing"; typing.setAttribute("aria-label", "digitando"); typing.innerHTML = "<i></i><i></i><i></i>";
+  let revealAt = 0, pendingMsgs = 0, chatReady = false;
+  function say(html, who = "bot", extra = "") {
     if (sayCapture && who === "bot") return sayCapture.push(html); // a IA resume o resultado na resposta dela
+    const t = Date.now();
+    daySep(t);
+    const el = bubble(html, who, extra, t);
     log.appendChild(el);
+    remember(who, extra, html, t);
+    // A resposta aparece depois de um instante "digitando…", como numa conversa.
+    if (who === "bot" && chatReady && !NO_DELAY) {
+      const now = performance.now();
+      revealAt = Math.max(revealAt, now) + Math.min(1100, 350 + el.textContent.length * 4);
+      el.hidden = true; pendingMsgs++;
+      log.appendChild(typing); setStatus("digitando…");
+      setTimeout(() => {
+        el.hidden = false;
+        if (--pendingMsgs === 0) { typing.remove(); setStatus("online"); } else log.appendChild(typing);
+        log.scrollTop = log.scrollHeight;
+      }, revealAt - now);
+    }
+    log.scrollTop = log.scrollHeight;
+  }
+  function restoreChat() {
+    (state.chat || []).forEach(m => { daySep(m.t); log.appendChild(bubble(m.h, m.w, m.x || "", m.t)); });
     log.scrollTop = log.scrollHeight;
   }
   const code = s => `<code>${esc(s)}</code>`;
@@ -1849,7 +1928,17 @@
     let m;
 
     if (/^(ajuda|help|\?|comandos|o que (voce )?(faz|sabe))/.test(n)) return say(helpText());
-    if (/^limpar (conversa|chat|historico)/.test(n)) { log.innerHTML = ""; aiTurns = []; return say("Conversa limpa."); }
+    if (/^limpar (conversa|chat|historico)/.test(n)) { log.innerHTML = ""; lastDay = ""; aiTurns = []; state.chat = []; return say("Conversa limpa."); }
+    // Conversa: cumprimentos, agradecimentos e despedidas
+    const hour = new Date().getHours(), hello = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+    if (/^((oi+e?|ola|opa|e ?ai|eae|hey|salve|bom dia|boa tarde|boa noite|tudo (bem|bom|certo|joia)|como (vai|voce esta|vc esta|vc ta|esta)|blz|beleza)[\s,!.?]*)+$/.test(n)) {
+      const sh0 = sheet();
+      return say(`${hello}! 😊 Tudo certo por aqui. ${sh0 ? `Estou com a planilha <b>${esc(sh0.name)}</b> aberta (${nfNum.format(sh0.rows.length)} linhas). Quer um ${code("resumo")}, um gráfico ou tem alguma pergunta sobre os dados?` : `Para começar, me mande um arquivo do seu sistema (arraste aqui na tela) ou digite ${code("importar dados")}.`}`);
+    }
+    if (/^(muito )?(obrigad[oa]|brigad[oa]|obg|valeu|vlw|agradeco|show|perfeito|otimo|top)[\s,!.]*( ?(pela ajuda|mesmo|demais))?[\s!.]*$/.test(n)) return say("Por nada! Se precisar de mais alguma coisa, é só mandar mensagem. 👍");
+    if (/^(tchau|ate mais|ate logo|ate amanha|falou|flw|fui)[\s!.]*$/.test(n)) return say("Até mais! Seus dados ficam salvos aqui. 👋");
+    // "ok"/"sim" logo depois de uma resposta da IA pode ser a resposta a uma pergunta dela: deixa a IA tratar.
+    if (!aiTurns.length && /^(ok|okay|certo|entendi|combinado|ta bom|ta|sim)[\s!.]*$/.test(n)) return say("👍");
     if (!nested && AI_FIRST.test(n) && await askAI(raw)) return;
     if (/^(importar|colar|carregar|enviar|jogar)(\s+(os\s+)?(dados|arquivo|planilha))?$/.test(n)) { openImport(); return say("Abri a importação. Cole os dados, arraste um arquivo .xlsx/.csv ou teste com o exemplo."); }
     if (/^(conectar|ligar|integrar|configurar)(\s+(a|com|na|uma))?\s+(api|sistema|integracao)$|^(nova\s+)?(conexao|integracao)( com)?( a)? api$|^api$/.test(n)) { openApi(null); return say("Abri a conexão com API. Informe o endereço e, se precisar, o token de acesso."); }
@@ -2301,7 +2390,7 @@
     lines.push(`Tarefas: ${state.tasks.filter(t => !t.done).length} pendente(s).`);
     return lines.join("\n").slice(0, 20000);
   }
-  const AI_RULES = `Você é o assistente de gestão de manutenção dentro de um painel (planilhas, cartões, gráficos, tarefas). Responda SEMPRE em português do Brasil, de forma curta e direta (até ~8 linhas), sem jargão técnico.
+  const AI_RULES = `Você é o assistente de gestão de manutenção dentro de um painel (planilhas, cartões, gráficos, tarefas). O usuário conversa com você como num chat de WhatsApp: responda SEMPRE em português do Brasil, em tom cordial e próximo, como um colega prestativo — frases curtas, direto ao ponto (até ~8 linhas), sem jargão técnico e sem formalidade excessiva. Pode usar no máximo um emoji quando fizer sentido.
 Regras:
 - Nunca invente números: use consultar_dados ou listar_registros para qualquer valor. Use os nomes EXATOS das colunas e valores listados abaixo.
 - Se o pedido for para ver algo no painel (gráfico, cartão, filtro), faça com as ferramentas e diga em uma frase o que foi feito.
@@ -2329,18 +2418,18 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
     if (!caps?.tools) return false;
     if (aiCtl) aiCtl.abort();
     const ctl = aiCtl = new AbortController();
-    const el = document.createElement("div");
-    el.className = "msg bot ai";
-    el.innerHTML = `<span class="thinking">Pensando…</span> <button class="btn ghost ai-stop" type="button">Parar</button>`;
+    const t0 = Date.now(); daySep(t0);
+    const el = bubble(`<span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="thinking">pensando…</span> <button class="btn ghost ai-stop" type="button">Parar</button>`, "bot", "ai", t0);
+    const txt = el.querySelector(".txt");
     el.querySelector(".ai-stop").onclick = () => ctl.abort();
-    log.appendChild(el); log.scrollTop = log.scrollHeight;
+    log.appendChild(el); log.scrollTop = log.scrollHeight; setStatus("digitando…");
     const status = t => { const s = el.querySelector(".thinking"); if (s) s.textContent = t; };
-    const tools = aiTools().map(t => ({ ...t, execute: async (inp, cx) => { status(t.name === "consultar_dados" || t.name === "listar_registros" ? "Consultando os dados…" : "Atualizando o painel…"); const r = await t.execute(inp || {}, cx); return r; } }));
+    const tools = aiTools().map(t => ({ ...t, execute: async (inp, cx) => { status(t.name === "consultar_dados" || t.name === "listar_registros" ? "consultando os dados…" : "atualizando o painel…"); const r = await t.execute(inp || {}, cx); return r; } }));
     const turns = [{ role: "user", content: `${AI_RULES}\n\nDADOS ATUAIS:\n${aiContext()}` }, ...aiTurns.slice(-8), { role: "user", content: raw }];
     aiChanged = false;
     try {
-      const { text, truncated } = await sample(turns, { tools, signal: ctl.signal, modelTier: "default", onText: ({ text }) => { el.innerHTML = aiFormat(text); log.scrollTop = log.scrollHeight; } });
-      el.innerHTML = aiFormat(text) + (truncated ? `<br><small style="color:var(--muted)">(resposta cortada; peça algo mais específico)</small>` : "");
+      const { text, truncated } = await sample(turns, { tools, signal: ctl.signal, modelTier: "default", onText: ({ text }) => { txt.innerHTML = aiFormat(text); log.scrollTop = log.scrollHeight; } });
+      txt.innerHTML = aiFormat(text) + (truncated ? `<br><small style="color:var(--muted)">(resposta cortada; peça algo mais específico)</small>` : "");
       aiTurns.push({ role: "user", content: raw }, { role: "assistant", content: text.slice(0, 2000) });
       aiTurns = aiTurns.slice(-8);
     } catch (e) {
@@ -2356,9 +2445,11 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
       }[e?.code] || "Não consegui responder agora (falha de conexão com o Claude). Tente de novo.";
       if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed", "tools_unavailable"].includes(e?.code)) aiOff = e.code;
       el.classList.toggle("err", e?.code !== "cancelled");
-      el.innerHTML = (e?.code === "refused" ? "" : partial) + msg;
+      txt.innerHTML = (e?.code === "refused" ? "" : partial) + msg;
     } finally {
       if (aiCtl === ctl) aiCtl = null;
+      setStatus("online");
+      remember("bot", el.classList.contains("err") ? "ai err" : "ai", txt.innerHTML, t0);
       if (aiChanged) { render(); save(); }
     }
     return true;
@@ -3672,6 +3763,9 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   state = await loadState();
   state.history = state.history || [];
   migrateTypes();
+  const hadChat = !!state.chat?.length;
+  restoreChat();
+  chatReady = true;
   render();
   updateStoreInfo();
   if (movedFromLocal) { saveNow(); say(`Mudei seus dados para o armazenamento de maior capacidade do navegador. Antes o limite era de cerca de 5 MB; agora cabem relatórios bem maiores. Nada foi perdido.`); }
@@ -3679,8 +3773,9 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   if (storeMode === "memory") say(`Este navegador não está permitindo salvar dados (janela anônima ou bloqueio). Tudo funciona agora, mas some ao fechar. Use ${code("backup")} para guardar um arquivo.`, "bot", "err");
   if (fixedCols.length) say(`Encontrei colunas que estavam sendo <b>somadas por engano</b> (era daí que vinham valores como “500 mi” e “1 bi”):<ul>${fixedCols.map(([sh, c, k]) => `<li>${code(sh.columns[c])} em ${esc(sh.name)}: é ${k === "data" ? "uma <b>data</b> que o Excel gravou como número; converti para dd/mm/aaaa" : "um <b>código</b>; não entra mais em somas"}</li>`).join("")}</ul>Os gráficos que usavam essas colunas foram refeitos. Digite ${code("verificar")} para ver como cada coluna é calculada.`);
   if (migrated.length) say(`Revisei suas planilhas: ${migrated.map(x => code(x)).join(", ")} ${migrated.length > 1 ? "estavam sendo tratadas" : "estava sendo tratada"} como dinheiro sem motivo claro e ${migrated.length > 1 ? "voltaram" : "voltou"} a ser número. Se for mesmo custo, diga ${code(`${migrated[0].split(" › ")[1].toLowerCase()} é custo`)}.`);
-  if (hasSamples()) say(`Olá! Sou seu assistente de gestão. O painel mostra <b>dados de exemplo</b>. Para usar os seus, digite ${code("apagar exemplos")} e depois ${code("importar dados")} (ou arraste o arquivo exportado do seu sistema para esta página).`);
-  else say(`Olá! ${state.sheets.length ? `Suas planilhas estão carregadas. Digite ${code("resumo")} ou ${code("importar dados")}.` : `Para começar, digite ${code("importar dados")} ou arraste um arquivo .xlsx/.csv para a página.`}`);
+  if (hadChat) return; // conversa já existente: não repete as boas-vindas
+  if (hasSamples()) say(`Oi! 👋 Sou seu assistente de gestão. Pode falar comigo como no WhatsApp. O painel mostra <b>dados de exemplo</b>. Para usar os seus, digite ${code("apagar exemplos")} e depois ${code("importar dados")} (ou arraste o arquivo exportado do seu sistema para esta página).`);
+  else say(`Oi! 👋 Sou seu assistente de gestão. Pode falar comigo como no WhatsApp: pergunte, peça gráficos, cartões ou tarefas. ${state.sheets.length ? `Suas planilhas estão carregadas. Digite ${code("resumo")} ou ${code("importar dados")}.` : `Para começar, digite ${code("importar dados")} ou arraste um arquivo .xlsx/.csv para a página.`}`);
   if (hasSamples()) say(`Com o exemplo, experimente:<ul><li>${code("resumo")}</li><li>${code("criar gráfico de receita por categoria")}</li><li>${code("nova planilha Clientes com colunas Nome, Cidade, Valor")}</li><li>${code("nova tarefa Revisar orçamento até 30/10")}</li></ul>Digite ${code("ajuda")} para ver tudo.`);
   }
 })();
