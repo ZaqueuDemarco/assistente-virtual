@@ -1,0 +1,16 @@
+// Gera assistente-offline.html: o mesmo index.html com as bibliotecas dentro do arquivo,
+// para abrir sem internet e sem o Claude. Uso: node tools/build-offline.js
+const fs = require("fs"), path = require("path");
+const root = path.join(__dirname, ".."), vendor = f => fs.readFileSync(path.join(root, "vendor", f));
+let html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+const inline = f => `<script>${vendor(f).toString("utf8").replace(/<\/script/gi, "<\\/script")}</script>`;
+const swap = (from, to) => { if (!html.includes(from)) throw new Error("não achei: " + from); html = html.replace(from, () => to); };
+swap('<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>', inline("chart.umd.min.js"));
+swap('<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>', inline("xlsx.full.min.js"));
+// Fontes do Google: sem internet o navegador usa as fontes do sistema.
+html = html.replace(/<link rel="(preconnect|stylesheet)" href="https:\/\/fonts\.(googleapis|gstatic)\.com[^>]*>\n?/g, "");
+// pdf.js só é carregado quando um PDF é importado; fica guardado em base64 até lá.
+const b64 = (id, f) => `<script type="text/plain" id="${id}">${vendor(f).toString("base64")}</script>\n`;
+html = html.trimEnd() + "\n" + b64("lib-pdf", "pdf.min.js") + b64("lib-pdf-worker", "pdf.worker.min.js");
+fs.writeFileSync(path.join(root, "assistente-offline.html"), html);
+console.log("assistente-offline.html:", (Buffer.byteLength(html) / 1e6).toFixed(2), "MB");

@@ -862,7 +862,9 @@
       const label0 = storeMode === "idb" ? `Salvo neste navegador · ${fmtBytes(used)}${quota ? ` de ${fmtBytes(quota)} disponíveis` : ""}`
         : storeMode === "local" ? `Salvo neste navegador · ${fmtBytes(used)} de ~5 MB (armazenamento limitado)`
         : cloudOk ? "Salvo só na nuvem do assistente" : "Não está salvando: use Fazer backup";
-      const label = label0 + cloudTxt;
+      const age = backupAge();
+      const bkTxt = !realSheets().length ? "" : age === null ? " · nenhum backup ainda" : ` · último backup ${age === 0 ? "hoje" : age === 1 ? "ontem" : `há ${age} dias`}`;
+      const label = label0 + cloudTxt + bkTxt;
       const warn = !lastSaveOk || (storeMode === "memory" && !cloudOk) || (storeMode === "local" && used > 4e6);
       const pct = storeMode === "idb" && quota ? Math.min(100, used / quota * 100) : storeMode === "local" ? Math.min(100, used / 5e6 * 100) : 0;
       el.innerHTML = `<div class="store-line ${warn ? "warn" : ""}">${esc(lastSaveOk ? label : "Última gravação falhou. Faça um backup.")}</div>${pct ? `<div class="store-bar"><i style="width:${Math.max(1, pct)}%"></i></div>` : ""}`;
@@ -2080,6 +2082,7 @@
     ["verificar", "Mostra como cada coluna é calculada"],
     ["backup", "Baixa um arquivo com todos os seus dados"],
     ["restaurar backup", "Carrega um backup salvo"],
+    ["baixar versão reserva", "Baixa o assistente num arquivo que abre sem internet e sem o Claude"],
     ["armazenamento", "Mostra quanto espaço os dados ocupam"],
     ["tempo não é custo", "Corrige uma coluna tratada como dinheiro"],
     ["custo é custo", "Marca uma coluna como dinheiro (R$)"],
@@ -2240,6 +2243,7 @@
       return say(`Certo: ${code(sh.columns[c])} agora é <b>${esc(TYPE_LABEL[t])}</b>. Painel e gráficos atualizados.`);
     }
     if (/^(fazer |salvar |criar |gerar )?(um )?backup$|^exportar tudo$|^(baixar|salvar) (todos os |meus )?dados$/.test(n)) return makeBackup();
+    if (/^(baixar |salvar |gerar )?(a )?(vers[aã]o )?(reserva|offline|sem internet)$|^baixar (o )?assistente$/.test(n)) return downloadOffline();
     if (/^restaurar( um| o)? backup$|^(abrir|carregar) backup$/.test(n)) { $("#backupFile").click(); return say("Escolha o arquivo de backup (.json)."); }
     if (/^(armazenamento|espaco|quanto (espaco|ocupa)|onde (ficam|estao) (os )?(meus )?dados)/.test(n)) {
       const used = new Blob([JSON.stringify(state)]).size;
@@ -2771,26 +2775,57 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
     if (downloads) {
       try {
         await downloads.save({ filename, data: blob });
-        return say(okMsg || `Arquivo <b>${esc(filename)}</b> salvo.`);
+        say(okMsg || `Arquivo <b>${esc(filename)}</b> salvo.`); return true;
       } catch (e) {
-        if (e?.code === "declined") return say("Download cancelado.");
-        return say("Não foi possível salvar o arquivo aqui. Abra o <code>index.html</code> direto no navegador para baixar.", "bot", "err");
+        if (e?.code === "declined") { say("Download cancelado."); return false; }
+        say("Não foi possível salvar o arquivo aqui. Abra o <code>index.html</code> direto no navegador para baixar.", "bot", "err"); return false;
       }
     }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = filename; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    say(okMsg || `Arquivo <b>${esc(filename)}</b> gerado.`);
+    say(okMsg || `Arquivo <b>${esc(filename)}</b> gerado.`); return true;
   }
 
   /* ---------- Backup ---------- */
-  function makeBackup() {
+  async function makeBackup() {
     const d = new Date(), stamp = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
     const payload = { app: "assistente-gestao", backupVersion: 1, createdAt: d.toISOString(), state: { sheets: state.sheets.map(s => s.api ? { ...s, api: { ...s.api, headers: "", body: s.api.body, lastError: "" } } : s), charts: state.charts, tasks: state.tasks, activeSheet: state.activeSheet } };
     const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
     const rows = state.sheets.reduce((n, s) => n + s.rows.length, 0);
-    return saveFile(`assistente-backup-${stamp}.json`, blob, `Backup salvo: <b>assistente-backup-${stamp}.json</b> (${state.sheets.length} planilha(s), ${nfNum.format(rows)} linhas, ${state.tasks.length} tarefa(s), ${fmtBytes(blob.size)}). Guarde esse arquivo; para voltar, use <b>Restaurar</b> na barra lateral.`);
+    const ok = await saveFile(`assistente-backup-${stamp}.json`, blob, `Backup salvo: <b>assistente-backup-${stamp}.json</b> (${state.sheets.length} planilha(s), ${nfNum.format(rows)} linhas, ${state.tasks.length} tarefa(s), ${fmtBytes(blob.size)}). Guarde esse arquivo (no iCloud ou no computador); para voltar, use <b>Restaurar</b> na barra lateral.${isOfflineBuild() ? "" : ` Para ter o assistente mesmo sem o Claude, digite ${code("baixar versão reserva")}.`}`);
+    if (ok) { state.lastBackupAt = Date.now(); save(); updateStoreInfo(); }
+    return ok;
+  }
+  /* Lembrete semanal de backup: conta a partir do último backup (ou de quando os dados começaram a ser guardados). */
+  const BACKUP_DAYS = 7, DAY = 864e5;
+  const realSheets = () => state.sheets.filter(s => !isSampleSheet(s));
+  function backupAge() { return state.lastBackupAt ? Math.floor((Date.now() - state.lastBackupAt) / DAY) : null; }
+  function backupReminder() {
+    if (!realSheets().length) return;
+    const now = Date.now();
+    if (!state.lastBackupAt && !state.backupSince) { state.backupSince = now; save(); return; }
+    const since = state.lastBackupAt || state.backupSince;
+    if (now - since < BACKUP_DAYS * DAY) return;
+    if (state.backupRemindedAt && now - state.backupRemindedAt < DAY) return; // no máximo um aviso por dia
+    state.backupRemindedAt = now; save();
+    const days = Math.floor((now - since) / DAY);
+    say(`🗂️ ${state.lastBackupAt ? `Seu último backup foi há <b>${days} dias</b>` : `Você ainda não fez nenhum backup (seus dados estão aqui há ${days} dias)`}. É a sua garantia caso o Claude fique fora do ar ou algo se perca. <button type="button" class="btn" data-run="fazer backup">Fazer backup agora</button>`);
+  }
+  // Versão reserva: o mesmo assistente num arquivo só, que abre sem internet e sem o Claude.
+  const isOfflineBuild = () => !!document.getElementById("lib-pdf"); // blocos ficam no fim do arquivo: checar só na hora do uso
+  async function downloadOffline() {
+    if (isOfflineBuild()) return say("Você já está usando a <b>versão reserva</b> (funciona sem internet e sem o Claude).");
+    say("Preparando a versão reserva…");
+    let blob;
+    try {
+      const r = await fetch("assistente-offline.html", { cache: "no-store" });
+      if (!r.ok) throw 0;
+      blob = await r.blob();
+      if (blob.size < 1e6) throw 0;
+    } catch { return say("Não consegui buscar a versão reserva agora. Peça ao Claude o arquivo <b>assistente-offline.html</b>.", "bot", "err"); }
+    return saveFile("assistente-offline.html", new Blob([blob], { type: "text/html" }), `Versão reserva salva: <b>assistente-offline.html</b> (${fmtBytes(blob.size)}). Guarde no computador e abra com dois cliques no navegador (Chrome, Edge ou Safari). Funciona sem internet e sem o Claude; para trazer seus dados, use <b>Restaurar</b> com um backup. Fora do Claude ficam de fora só os pedidos livres (IA) e a cópia na nuvem.`);
   }
   let pendingRestore = null;
   async function readBackup(file) {
@@ -2890,7 +2925,17 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
       document.head.appendChild(s);
     });
   }
+  // Na versão reserva (sem internet) o leitor de PDF vem dentro do próprio arquivo.
+  function loadInline(id) {
+    const el = document.getElementById(id), bin = atob(el.textContent.trim()), u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return loadScript(URL.createObjectURL(new Blob([u8], { type: "text/javascript" })));
+  }
   async function ensurePdfJs() {
+    if (!window.pdfjsLib && document.getElementById("lib-pdf")) {
+      try { await loadInline("lib-pdf"); await loadInline("lib-pdf-worker"); } catch {}
+      if (window.pdfjsLib && window.pdfjsWorker) return window.pdfjsLib;
+    }
     for (const base of PDFJS) {
       try {
         if (!window.pdfjsLib) await loadScript(base + "pdf.min.js");
@@ -4078,6 +4123,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   if (storeMode === "memory" && !cloudOk) say(`Este navegador não está permitindo salvar dados (janela anônima ou bloqueio). Tudo funciona agora, mas some ao fechar. Use ${code("backup")} para guardar um arquivo.`, "bot", "err");
   if (fixedCols.length) say(`Encontrei colunas que estavam sendo <b>somadas por engano</b> (era daí que vinham valores como “500 mi” e “1 bi”):<ul>${fixedCols.map(([sh, c, k]) => `<li>${code(sh.columns[c])} em ${esc(sh.name)}: é ${k === "data" ? "uma <b>data</b> que o Excel gravou como número; converti para dd/mm/aaaa" : "um <b>código</b>; não entra mais em somas"}</li>`).join("")}</ul>Os gráficos que usavam essas colunas foram refeitos. Digite ${code("verificar")} para ver como cada coluna é calculada.`);
   if (migrated.length) say(`Revisei suas planilhas: ${migrated.map(x => code(x)).join(", ")} ${migrated.length > 1 ? "estavam sendo tratadas" : "estava sendo tratada"} como dinheiro sem motivo claro e ${migrated.length > 1 ? "voltaram" : "voltou"} a ser número. Se for mesmo custo, diga ${code(`${migrated[0].split(" › ")[1].toLowerCase()} é custo`)}.`);
+  backupReminder();
   if (hadChat) return; // conversa já existente: não repete as boas-vindas
   if (fromCloud && !hadChat) say(`Carreguei suas ${state.sheets.length} planilha(s) salvas.`);
   if (hasSamples()) say(`Oi! 👋 Sou seu assistente de gestão. Pode falar comigo como no WhatsApp. O painel mostra <b>dados de exemplo</b>. Para usar os seus, digite ${code("apagar exemplos")} e depois ${code("importar dados")} (ou arraste o arquivo exportado do seu sistema para esta página).`);

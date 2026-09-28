@@ -12,7 +12,17 @@ Abra o arquivo `index.html` no navegador. Não precisa instalar nada; os gráfic
 - As planilhas ficam salvas no navegador **e**, quando aberto pelo link do Claude, numa cópia na nuvem do próprio assistente (o banco do artifact, que só o dono lê e grava). Ao abrir em qualquer aparelho (iPad, computador), ele carrega a versão mais recente. Isso resolve o iPad apagar os dados da página.
 - Tokens de API não vão para a nuvem; ficam só no aparelho.
 - **Minhas planilhas**: abas no topo do painel e da planilha para trocar com um toque; **Nova** importa outra.
-- **Fazer backup** continua disponível para guardar um arquivo.
+- **Fazer backup** continua disponível para guardar um arquivo. A barra lateral mostra quando foi o último backup, e o assistente lembra no chat quando passa de 7 dias (no máximo um aviso por dia).
+
+## Versão reserva (sem Claude e sem internet)
+
+`assistente-offline.html` é o mesmo assistente num arquivo só, com as bibliotecas (gráficos, Excel e PDF) dentro dele. Abre com dois cliques no navegador do computador, sem internet e sem o Claude.
+
+- Para baixar pelo assistente: `baixar versão reserva`.
+- Para levar os dados: `fazer backup` no link do Claude e **Restaurar** na versão reserva.
+- Fora do Claude ficam de fora só os pedidos livres (IA) e a cópia na nuvem. A conexão com API funciona (fora do Claude a página pode acessar o sistema direto).
+- Depois de mudar o `index.html`, gere de novo com `node tools/build-offline.js` (usa as bibliotecas da pasta `vendor/`).
+
 ## O que já funciona
 
 - **Importar e organizar dados**: cole dados (do Excel, Google Sheets, CSV, e-mail) ou arraste um arquivo `.xlsx`, `.xls`, `.csv`, `.txt` ou `.pdf`. O assistente:
