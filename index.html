@@ -421,6 +421,9 @@
     border-radius: 12px; box-shadow: 0 30px 80px rgba(0,0,0,.6);
   }
   dialog.imp::backdrop { background: rgba(5, 8, 12, .72); }
+  dialog:not([open]) { display: none; }
+  dialog.imp[open] { position: fixed; inset: 0; margin: auto; z-index: 1000; overflow: auto; height: fit-content; }
+  dialog.imp.nomodal { box-shadow: 0 0 0 100vmax rgba(5, 8, 12, .72), 0 30px 80px rgba(0,0,0,.6); }
   .imp-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 2; }
   .imp-head h2 { margin: 0; font-size: 16px; font-weight: 600; }
   .imp-head .steps { color: var(--muted); font-size: 12px; margin-left: auto; }
@@ -624,6 +627,13 @@
 <script>
 (() => {
   "use strict";
+  // Safari antigo (iPad com iOS < 15.4) não tem <dialog>.showModal: imita o básico.
+  document.querySelectorAll("dialog").forEach(d => {
+    if (typeof d.showModal === "function") return;
+    Object.defineProperty(d, "open", { get: () => d.hasAttribute("open"), configurable: true });
+    d.showModal = d.show = () => { d.setAttribute("open", ""); d.classList.add("nomodal"); };
+    d.close = () => { if (!d.hasAttribute("open")) return; d.removeAttribute("open"); d.dispatchEvent(new Event("close")); };
+  });
 
   /* =====================================================================
      Utilidades
@@ -897,7 +907,8 @@
     const catVals = sh.columns.map((_, i) => i).filter(i => effType(sh, i) === "categoria" && i !== periodCol(sh))
       .flatMap(i => [...new Set(sh.rows.map(r => r[i]).filter(Boolean))].slice(0, 30));
     const list = (id, items) => `<datalist id="${id}">${[...new Set(items)].slice(0, 120).map(v => `<option value="${esc(v)}"></option>`).join("")}</datalist>`;
-    const txt = d.txt ||= cardTexts(sh, d);
+    if (!d.txt) d.txt = cardTexts(sh, d);
+    const txt = d.txt;
     $("#cardDlgBody").innerHTML = `
       <div class="bfield"><label for="cMeasure">O que mostrar</label>
         <input class="ctl free" id="cMeasure" list="dlMeasure" value="${esc(txt.measure)}" placeholder="ex.: quantidade de ${esc(cl)}, custo total, tempo médio" autocomplete="off">
@@ -1157,7 +1168,7 @@
     let js = expr.toUpperCase().replace(/(\d),(\d)/g, "$1.$2").replace(/;/g, ",");
     js = js.replace(/\b([A-ZÉ]+)\s*\(/g, (m, f) => { const n = fnAlias[f] || f; if (!F[n]) throw 0; return `F.${n}(`; });
     js = js.replace(/\b([A-Z]+\d+):([A-Z]+\d+)\b/g, (m, a, b) => `R("${a}","${b}")`);
-    js = js.replace(/(?<![".A-Z])\b([A-Z]{1,2})(\d+)\b/g, (m, c, r) => `N(${+r - 2},${colIndex(c)})`);
+    js = js.replace(/(^|[^".A-Za-z0-9_])([A-Z]{1,2})(\d+)\b/g, (m, pre, c, r) => `${pre}N(${+r - 2},${colIndex(c)})`); // sem lookbehind: Safari antigo não aceita
     const check = js.replace(/F\.[A-Z]+|R\("[A-Z]+\d+","[A-Z]+\d+"\)|N\(-?\d+,\d+\)/g, "");
     if (!/^[\d\s+\-*/().,]*$/.test(check)) throw 0;
     return Function("F", "R", "N", `"use strict";return (${js});`)(F, range, num);
@@ -1267,7 +1278,7 @@
   // (criado sob demanda: MES_NOMES é definido mais abaixo no arquivo)
   let monthRe = null;
   const MONTH_RE_SRC = () => `\\b(?:(?:em|de|do|no|durante|entre|a|ate|e)\\s+)?(${MES_FULL.join("|")}|(?:${MES_NOMES.join("|")})\\/\\d{2,4})(?:\\s*(?:de|\\/)\\s*\\d{2,4})?\\b`;
-  const MONTH_RE = () => (monthRe ||= new RegExp(MONTH_RE_SRC(), "g"));
+  const MONTH_RE = () => monthRe || (monthRe = new RegExp(MONTH_RE_SRC(), "g"));
   // Meses citados por extenso ("em agosto", "de julho a setembro", "ago/26") -> intervalo da planilha.
   function monthRangeIn(sh, n) {
     if (/\b(ultimo mes|mes passado|este mes|mes atual)\b/.test(n)) return periodInfo(sh) ? "last" : null;
@@ -2065,7 +2076,8 @@
   }
   function remember(who, extra, html, t) {
     if (!state) return;
-    (state.chat ||= []).push({ w: who, x: extra, h: html, t });
+    if (!state.chat) state.chat = [];
+    state.chat.push({ w: who, x: extra, h: html, t });
     if (state.chat.length > 80) state.chat.splice(0, state.chat.length - 80);
     save();
   }
@@ -2978,7 +2990,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
         const target = k < run.split ? run.a : run.b;
         fr.skip = true;
         if (!target || target.isHdr && target.li !== headerIdx) return; // sobra do cabeçalho repetido: descarta
-        (target.parts ||= []).push(fr);
+        (target.parts || (target.parts = [])).push(fr);
       });
     });
     // O cabeçalho principal já absorveu suas quebras; os repetidos recebem o mesmo texto para serem reconhecidos e removidos.
