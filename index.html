@@ -817,7 +817,10 @@
   const dbReady = !DEMO && window.claude?.use ? window.claude.use("db").catch(() => null) : Promise.resolve(null);
   let cloudDb = null, cloudChunks = [], cloudLast = "", cloudTimer = null, cloudBusy = false, cloudDirty = false, cloudOk = null;
   // Tokens de API não vão para a nuvem; ficam só no aparelho.
-  const cloudText = () => JSON.stringify({ ...state, savedAt: undefined, sheets: state.sheets.map(sh => sh.api ? { ...sh, api: { ...sh.api, headers: "", lastError: "" } } : sh) });
+  // Token no endereço (?token=...) também é segredo: sai da cópia na nuvem e do backup, como os cabeçalhos.
+  const stripUrlSecret = u => String(u || "").replace(/([?&](?:token|apikey|api_key|api-key|key|access_token|auth)=)[^&#]*/gi, "$1");
+  const publicApi = api => ({ ...api, url: stripUrlSecret(api.url), headers: "", lastError: "" });
+  const cloudText = () => JSON.stringify({ ...state, savedAt: undefined, sheets: state.sheets.map(sh => sh.api ? { ...sh, api: publicApi(sh.api) } : sh) });
   function scheduleCloud() { if (!cloudDb) return; clearTimeout(cloudTimer); cloudTimer = setTimeout(cloudSave, 2500); }
   async function cloudSave() {
     if (!cloudDb || !state) return;
@@ -1393,7 +1396,9 @@
     }
     // Medida
     const avg = /\bmedi[ao]s?\b/.test(measureText), sum = /\b(soma|somar|total de|valor total)\b/.test(measureText);
-    const nums = chartColsIn(sh, measureText).filter(c => numericCols(sh).includes(c) && c !== out.label);
+    let nums = chartColsIn(sh, measureText).filter(c => numericCols(sh).includes(c) && c !== out.label);
+    // "variação %": entre colunas parecidas, prefere a que é percentual.
+    if (/%|percent/.test(measureText)) { const pc = numericCols(sh).find(c => /%|percent/i.test(sh.columns[c]) && nums.some(x => stemPhrase(sh.columns[x]).split(" ")[0] === stemPhrase(sh.columns[c]).split(" ")[0])); if (pc != null) { const st = stemPhrase(sh.columns[pc]).split(" ")[0]; nums = [pc, ...nums.filter(x => x !== pc && stemPhrase(sh.columns[x]).split(" ")[0] !== st)]; } }
     // Citou uma coluna numérica (custo, tempo, peças...) -> mede essa coluna; senão, conta registros.
     out.values = nums.length ? nums.slice(0, 3) : [-1];
     out.agg = avg ? "avg" : sum ? "sum" : "auto";
@@ -2808,7 +2813,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   /* ---------- Backup ---------- */
   async function makeBackup() {
     const d = new Date(), stamp = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-    const payload = { app: "assistente-gestao", backupVersion: 1, createdAt: d.toISOString(), state: { sheets: state.sheets.map(s => s.api ? { ...s, api: { ...s.api, headers: "", body: s.api.body, lastError: "" } } : s), charts: state.charts, tasks: state.tasks, activeSheet: state.activeSheet } };
+    const payload = { app: "assistente-gestao", backupVersion: 1, createdAt: d.toISOString(), state: { sheets: state.sheets.map(s => s.api ? { ...s, api: publicApi(s.api) } : s), charts: state.charts, tasks: state.tasks, activeSheet: state.activeSheet } };
     const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
     const rows = state.sheets.reduce((n, s) => n + s.rows.length, 0);
     const ok = await saveFile(`assistente-backup-${stamp}.json`, blob, `Backup salvo: <b>assistente-backup-${stamp}.json</b> (${state.sheets.length} planilha(s), ${nfNum.format(rows)} linhas, ${state.tasks.length} tarefa(s), ${fmtBytes(blob.size)}). Guarde esse arquivo (no iCloud ou no computador); para voltar, use <b>Restaurar</b> na barra lateral.${isOfflineBuild() ? "" : ` Para ter o assistente mesmo sem o Claude, digite ${code("baixar versão reserva")}.`}`);
@@ -3234,7 +3239,8 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
     if (numKind === "serial") return { type: "data", order: "serial", hasTime: vals.some(v => /[.,]\d{3,}$/.test(v)) };
     if (share(v => /^\d{1,5}:\d{2}(:\d{2})?$/.test(v)) >= .8 || (/tempo|duracao|horas|hh|mttr|mtbf/.test(nn) && share(v => !isNaN(parseDuration(v))) >= .8 && share(v => isNaN(parseNum(v))) > .3)) return { type: "duracao" };
     // Códigos e identificadores (OS, patrimônio, série, TAG...) são texto mesmo quando só têm dígitos.
-    if (ID_HINT.test(nn) || share(v => /^0\d+$/.test(v)) > .3 || share(v => /^\d{7,}$/.test(v)) >= .8 || looksIdValues(vals, name)) return { type: "texto", id: true };
+    const qtyName = /volume|quant|qtd|valor|total|saldo|preco|custo|receita|negocios/.test(nn); // números grandes que são quantidades, não códigos
+    if (ID_HINT.test(nn) || share(v => /^0\d+$/.test(v)) > .3 || (!qtyName && share(v => /^\d{7,}$/.test(v)) >= .8) || looksIdValues(vals, name)) return { type: "texto", id: true };
     if (share(v => /%\s*$/.test(v) && !isNaN(parseNum(v))) >= .6) return { type: "percentual" };
     if (share(v => !isNaN(parseNum(v))) >= .8) {
       const hasSymbol = share(v => /R\$/.test(v)) >= .3;
@@ -3659,6 +3665,12 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
       $("#apiMethod").value = "GET"; $("#apiPath").value = ""; $("#apiHeaders").value = "Authorization: Bearer TOKEN-DE-TESTE";
       $("#apiTestNote").hidden = false;
     }
+    else if (a === "apiBolsa") {
+      // brapi.dev: cotações da B3. PETR4, VALE3, ITUB4 e MGLU3 funcionam sem token; outros ativos (ex.: FIIs) pedem token gratuito.
+      $("#apiUrl").value = "https://brapi.dev/api/quote/PETR4,VALE3,ITUB4,MGLU3";
+      $("#apiMethod").value = "GET"; $("#apiPath").value = "results"; $("#apiHeaders").value = "";
+      $("#apiBolsaNote").hidden = false;
+    }
     else if (a === "apiDisconnect") { const sh = state.sheets.find(s => s.id === imp.apiSheet); closeImport(); if (sh) { delete sh.api; render(); say(`Desconectei <b>${esc(sh.name)}</b> da API. Os dados atuais continuam na planilha.`); } }
     else if (a === "analyze") {
       const text = $("#impText").value;
@@ -3743,12 +3755,23 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
     }
     return best;
   }
+  // Campos comuns de APIs de cotação (ex.: brapi.dev) com nome em português.
+  const FIELD_PT = { symbol: "Ativo", ticker: "Ativo", shortname: "Nome", longname: "Nome completo", currency: "Moeda", regularmarketprice: "Preço", regularmarketchange: "Variação (R$)", regularmarketchangepercent: "Variação (%)", regularmarkettime: "Atualizado em", regularmarketdayhigh: "Máxima do dia", regularmarketdaylow: "Mínima do dia", regularmarketdayrange: "Faixa do dia", regularmarketopen: "Abertura", regularmarketpreviousclose: "Fechamento anterior", regularmarketvolume: "Volume", marketcap: "Valor de mercado", fiftytwoweekhigh: "Máxima 52 semanas", fiftytwoweeklow: "Mínima 52 semanas", fiftytwoweekrange: "Faixa 52 semanas", fiftytwoweekhighchange: "Distância da máxima 52 sem.", fiftytwoweeklowchange: "Distância da mínima 52 sem.", pricearnings: "P/L", priceearnings: "P/L", earningspershare: "LPA", logourl: "Logo", date: "Data", open: "Abertura", high: "Máxima", low: "Mínima", close: "Fechamento", adjustedclose: "Fechamento ajustado", volume: "Volume", paymentdate: "Data de pagamento", rate: "Valor por cota", label: "Tipo", lastdateprior: "Data com" };
+  const fieldName = k => FIELD_PT[String(k).split(".").pop().toLowerCase()] || humanKey(k);
   function recordsToMatrix(list) {
     if (list.every(Array.isArray)) return list.map(r => r.map(jsonCell));
     const flat = list.map(x => flatRecord(x)), keys = [];
     const seen = new Set();
     flat.forEach(o => Object.keys(o).forEach(k => { if (!seen.has(k)) { seen.add(k); keys.push(k); } }));
-    return [keys.map(humanKey), ...flat.map(o => keys.map(k => jsonCell(o[k])))];
+    // Datas em "timestamp" (segundos ou milissegundos desde 1970) em campos de data/hora viram dd/mm/aaaa.
+    const isTimeKey = k => /(^|[._])(date|data|time|timestamp|datetime|hora)$|date$|time$/i.test(k);
+    const cell = (k, v) => {
+      if (typeof v === "number" && isTimeKey(k) && v > 1e9 && v < 1e13) { const d = new Date(v < 1e11 ? v * 1000 : v); return d.getHours() || d.getMinutes() ? `${fmtDMY(d)} ${fmtTime(d)}` : fmtDMY(d); }
+      return jsonCell(v);
+    };
+    const names = new Map(); // dois campos com o mesmo nome em português ganham número
+    const heads = keys.map(k => { let n = fieldName(k); const c = (names.get(n) || 0) + 1; names.set(n, c); return c > 1 ? `${n} ${c}` : n; });
+    return [heads, ...flat.map(o => keys.map(k => cell(k, o[k])))];
   }
   const parseHeaders = text => {
     const h = {};
@@ -3830,6 +3853,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
         <label class="fld"><span>Cabeçalhos <small>(token, chave de acesso; um por linha)</small></span><textarea class="ctl mono" id="apiHeaders" rows="3" spellcheck="false" placeholder="Authorization: Bearer SEU_TOKEN&#10;X-Api-Key: SUA_CHAVE">${esc(c.headers || "")}</textarea></label>
         <label class="fld" id="apiBodyWrap" ${c.method === "POST" ? "" : "hidden"}><span>Corpo da requisição (JSON)</span><textarea class="ctl mono" id="apiBody" rows="3" spellcheck="false" placeholder='{"dataInicio": "2026-01-01"}'>${esc(c.body || "")}</textarea></label>
         ${/^https?:/.test(location.protocol) ? `<div class="row"><button type="button" class="btn ghost" data-imp="apiTest">${ICONS.link}Usar a API de teste (dados fictícios)</button><span class="hint" id="apiTestNote" hidden style="margin:0">Preenchi com a API de teste: 90 ordens de serviço inventadas, em 3 páginas. O token é de mentira; a API de teste aceita qualquer um. Toque em <b>Conectar e buscar dados</b>.</span></div>` : ""}
+        <div class="row"><button type="button" class="btn ghost" data-imp="apiBolsa">${ICONS.link}Exemplo: cotações da bolsa (brapi.dev)</button><span class="hint" id="apiBolsaNote" hidden style="margin:0">Preenchi com 4 ações que a brapi libera sem cadastro. Para FIIs e outros ativos, crie um token grátis em brapi.dev e coloque em Cabeçalhos: <code>Authorization: Bearer SEU_TOKEN</code>.${inClaude ? " Dentro do Claude a página não acessa sites externos: teste na versão reserva, no computador." : ""}</span></div>
         <p class="hint">Se a API divide os resultados em páginas, coloque <code>{pagina}</code> no endereço (ex.: <code>...?page={pagina}</code>) e eu busco todas. O token fica salvo só neste navegador e <b>não</b> vai no arquivo de backup.${inClaude ? ` <span style="color:var(--warn)">Aviso: dentro do Claude, a página não consegue acessar sistemas externos (a API de teste funciona). Para conectar ao seu sistema, use a versão reserva no navegador do computador (digite <code>baixar versão reserva</code>).</span>` : ""}</p>
         ${err ? `<div class="imp-err" role="alert">${err}</div>` : ""}
       </div>
@@ -3860,7 +3884,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
     impContent.innerHTML = `<div class="imp-body"><p class="lead">Conectando a <b>${esc(conn.url)}</b>…</p></div>`;
     try {
       const out = await fetchApiMatrix(conn);
-      let name = "Dados da API"; try { const seg = decodeURIComponent(new URL(conn.url).pathname).split("/").map(s => s.replace(/\.(json|csv|txt)$/i, "").replace(/[-_]?\{(pagina|page)\}/gi, "")).filter(s => s && !/^v\d+$|^api$/i.test(s)).pop(); if (seg) name = humanKey(seg); } catch {}
+      let name = "Dados da API"; try { const seg = decodeURIComponent(new URL(conn.url).pathname).split("/").map(s => s.replace(/\.(json|csv|txt)$/i, "").replace(/[-_]?\{(pagina|page)\}/gi, "")).filter(s => s && !/^v\d+$|^api$/i.test(s)).pop(); if (seg) name = /,/.test(seg) || /\/quote\//i.test(conn.url) && /^[A-Z0-9]{4,6}(,[A-Z0-9]{4,6})*$/i.test(seg) ? (seg.includes(",") ? "Cotações" : seg.toUpperCase()) : humanKey(seg); } catch {}
       loadMatrix(out.matrix, name, { note: out.note });
       if (imp) imp.api = { ...conn, path: conn.path || out.path || "" };
     } catch (e) {
@@ -4159,9 +4183,9 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   let fromCloud = false;
   if (cloud?.state && cloud.savedAt > (state.savedAt || 0)) {
     // Mantém os tokens de API deste aparelho (não vão para a nuvem).
-    const localApi = new Map(state.sheets.filter(s => s.api?.headers).map(s => [s.id, s.api.headers]));
+    const localApi = new Map(state.sheets.filter(s => s.api).map(s => [s.id, { headers: s.api.headers, url: s.api.url }]));
     state = cloud.state; state.savedAt = cloud.savedAt; fromCloud = true;
-    state.sheets.forEach(s => { if (s.api && localApi.has(s.id)) s.api.headers = localApi.get(s.id); });
+    state.sheets.forEach(s => { const l = localApi.get(s.id); if (s.api && l) { s.api.headers = l.headers; if (stripUrlSecret(l.url) === s.api.url) s.api.url = l.url; } });
     saveNow();
   } else if (cloud) scheduleCloud();
   state.history = state.history || [];
