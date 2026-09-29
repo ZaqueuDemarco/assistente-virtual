@@ -223,7 +223,7 @@
       <div>
         <p class="eyebrow">Conversa</p>
         <h2 style="margin-top:10px">Você escreve o que quer ver.</h2>
-        <p class="lead" style="margin-top:14px">O chat entende variações, plural, meses por extenso e valores da própria planilha. Quando aberto pelo Claude, pedidos mais livres também passam por um modelo de linguagem, que consulta os dados antes de responder.</p>
+        <p class="lead" style="margin-top:14px">O chat entende variações, plural, meses por extenso e valores da própria planilha. Quando aberto pelo Claude, pedidos mais livres passam pelo próprio Claude, que consulta os dados antes de responder.</p>
         <ul class="asks">
           <li><span class="q">gráfico de O.S. abertas x fechadas por mês</span><span class="a">Barras lado a lado, uma cor para cada situação.</span></li>
           <li><span class="q">cartão de pedidos cancelados</span><span class="a">Novo cartão com o filtro Status = Cancelado.</span></li>
@@ -257,14 +257,15 @@
       <div>
         <p class="eyebrow">Construção</p>
         <h2 style="margin-top:10px">Um arquivo, sem servidor.</h2>
-        <p class="lead" style="margin-top:14px">O assistente inteiro é uma página HTML com JavaScript puro, que abre no computador, no iPad e no celular. Os dados desta demonstração são gerados por um script, sempre os mesmos, para que qualquer pessoa veja o mesmo painel.</p>
+        <p class="lead" style="margin-top:14px">O assistente foi desenvolvido com o Claude, da Anthropic, como parceiro de programação: eu defini o que ele precisava fazer, testei no dia a dia e pedi os ajustes. O resultado é uma página HTML com JavaScript puro, que abre no computador, no iPad e no celular. Os dados desta demonstração são gerados por um script, sempre os mesmos, para que qualquer pessoa veja o mesmo painel.</p>
       </div>
       <ul class="stack">
+        <li><b>Desenvolvimento</b><span>Feito com o Claude (Claude Code), a partir de conversas em português</span></li>
         <li><b>Interface</b><span>HTML, CSS e JavaScript, sem framework; tema escuro e layout para iPad e celular</span></li>
         <li><b>Gráficos</b><span>Chart.js, com rótulos de valor, séries comparativas e ranking</span></li>
         <li><b>Excel e PDF</b><span>SheetJS para planilhas; pdf.js para remontar tabelas de PDF pela posição do texto</span></li>
         <li><b>Dados</b><span>IndexedDB no navegador, backup em arquivo e cópia em nuvem quando aberto pelo Claude</span></li>
-        <li><b>Linguagem natural</b><span>Interpretador próprio para pedidos em português; modelo de linguagem com ferramentas para os pedidos livres</span></li>
+        <li><b>Linguagem natural</b><span>Interpretador próprio para pedidos em português; o Claude, com ferramentas que consultam a planilha, para os pedidos livres</span></li>
         <li><b>Testes</b><span>Roteiros automatizados com Playwright, incluindo iPad e uso sem internet</span></li>
       </ul>
     </div>
@@ -280,7 +281,7 @@
 </main>
 
 <footer>
-  <div class="wrap">Assistente de Gestão · projeto pessoal. Todos os nomes, valores e registros da demonstração são fictícios.</div>
+  <div class="wrap">Assistente de Gestão · projeto pessoal, desenvolvido com o Claude. Todos os nomes, valores e registros da demonstração são fictícios.</div>
 </footer>
 
 <script>
