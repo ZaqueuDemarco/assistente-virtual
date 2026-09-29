@@ -724,12 +724,12 @@
       sheets: [
         { id: vendasId, sample: true, name: "Vendas 2026", columns: ["Mês", "Categoria", "Receita", "Custo", "Lucro"], rows: sampleSales() },
         { id: estoqueId, sample: true, name: "Estoque", columns: ["Item", "Fornecedor", "Quantidade", "Preço unitário", "Valor total"], rows: [
-          ["Papel A4 (cx)", "Distrib. Sul", "38", "189.90", "=C2*D2"],
-          ["Toner HP 85A", "InfoParts", "12", "329.00", "=C3*D3"],
-          ["Cadeira ergonômica", "Móveis Lima", "6", "1240.00", "=C4*D4"],
-          ["Monitor 24\"", "InfoParts", "9", "899.00", "=C5*D5"],
-          ["Café em grãos (kg)", "Torra Viva", "24", "72.50", "=C6*D6"],
-          ["Headset USB", "InfoParts", "15", "214.00", "=C7*D7"],
+          ["Papel A4 (cx)", "Fornecedor A", "38", "189.90", "=C2*D2"],
+          ["Toner HP 85A", "Fornecedor B", "12", "329.00", "=C3*D3"],
+          ["Cadeira ergonômica", "Fornecedor C", "6", "1240.00", "=C4*D4"],
+          ["Monitor 24\"", "Fornecedor B", "9", "899.00", "=C5*D5"],
+          ["Café em grãos (kg)", "Fornecedor D", "24", "72.50", "=C6*D6"],
+          ["Headset USB", "Fornecedor B", "15", "214.00", "=C7*D7"],
         ] },
       ],
       charts: [
@@ -740,7 +740,7 @@
       ],
       tasks: [
         { id: uid(), sample: true, text: "Fechar relatório de setembro", due: "2026-09-30", done: false },
-        { id: uid(), sample: true, text: "Renegociar contrato com InfoParts", due: "2026-09-24", done: false },
+        { id: uid(), sample: true, text: "Renegociar contrato com Fornecedor B", due: "2026-09-24", done: false },
         { id: uid(), sample: true, text: "Revisar metas do 4º trimestre", due: "2026-10-10", done: false },
         { id: uid(), sample: true, text: "Enviar planilha de estoque ao financeiro", due: "2026-09-20", done: true },
       ],
@@ -877,7 +877,7 @@
 
   const sheet = () => state.sheets.find(s => s.id === state.activeSheet) || state.sheets[0];
   // Versões anteriores não marcavam os exemplos; reconhece pelo conteúdo original.
-  const SAMPLE_TASKS = ["Fechar relatório de setembro", "Renegociar contrato com InfoParts", "Revisar metas do 4º trimestre", "Enviar planilha de estoque ao financeiro"];
+  const SAMPLE_TASKS = ["Fechar relatório de setembro", "Renegociar contrato com InfoParts", "Renegociar contrato com Fornecedor B", "Revisar metas do 4º trimestre", "Enviar planilha de estoque ao financeiro"];
   const isSampleSheet = s => s.sample || (!s.types && ((s.name === "Vendas 2026" && s.columns.join() === "Mês,Categoria,Receita,Custo,Lucro") || (s.name === "Estoque" && /^Item,Fornecedor,Quantidade,Preço unitário,(Valor total|Total)$/.test(s.columns.join()))));
   const isSampleTask = t => t.sample || SAMPLE_TASKS.includes(t.text);
   const hasSamples = () => state.sheets.some(isSampleSheet) || state.tasks.some(isSampleTask);
@@ -1902,7 +1902,7 @@
         const pct = (b - a) / Math.abs(a) * 100;
         // Custo, despesa, tempo e chamados abertos/atrasados: cair é bom. Para o resto, subir é bom.
         const lowerIsBetter = (cd.col >= 0 && (/custo|despesa|tempo|duracao|atraso|falha|parada|mttr/.test(norm(sh.columns[cd.col])) || isDur(sh, cd.col)))
-          || /abert|atras|pendent|falha|parad/.test(norm(whereText(cd.where)));
+          || /abert|atras|pendent|falha|parad|cancel|vencid|devol|reclama/.test(norm(whereText(cd.where)));
         const good = lowerIsBetter ? pct <= 0 : pct >= 0;
         delta = `<div class="delta"><span class="${good ? "up" : "down"}">${pct >= 0 ? "▲" : "▼"} ${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: Math.abs(pct) >= 10 ? 0 : 1 }).format(Math.abs(pct))}%</span> vs ${esc(dl.label.split(" vs ")[1] || "")}</div>`;
       }
@@ -3615,8 +3615,9 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
 
   // Exemplo propositalmente desorganizado para demonstrar a identificação.
   function messySample() {
-    const clientes = [["ana souza", "ANA.SOUZA@GMAIL.COM", "11987654321"], ["Bruno Lima", "bruno@lima.com.br", "(19) 99876-5432"], ["CARLA MENDES", "carla.m@outlook.com", "+55 21 98888-1234"],
-      ["Diego Rocha", "diego.rocha@empresa.com", "11 91234 5678"], ["elaine prado", "Elaine.Prado@gmail.com", "(31)97777-0000"], ["Fábio Nunes", "fabio@nunes.net", "41 98765-1111"]];
+    // Pessoas, e-mails e telefones propositalmente fictícios.
+    const clientes = [["fulano de tal", "FULANO@EXEMPLO.COM", "00900000001"], ["Ciclano da Silva", "ciclano@exemplo.com.br", "(00) 90000-0002"], ["BELTRANO SOUZA", "beltrano@exemplo.com", "+55 00 90000-0003"],
+      ["Fulana de Tal", "fulana@exemplo.com", "00 90000 0004"], ["beltrana costa", "Beltrana.Costa@exemplo.com", "(00)90000-0005"], ["Ciclana Pereira", "ciclana@exemplo.net", "00 90000-0006"]];
     const cidades = ["São Paulo", "sao paulo", "SÃO PAULO", "Campinas", "campinas ", "Rio de Janeiro", "Belo Horizonte", "Curitiba"];
     const prods = ["Consultoria", "consultoria", "Treinamento", "TREINAMENTO", "Suporte mensal", "suporte mensal"];
     const status = ["Pago", "pago", "PAGO", "Pendente", "pendente", "Atrasado"];
@@ -3627,8 +3628,8 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
       const day = 1 + rnd(28), mon = 1 + Math.floor(i / 9);
       const date = [`${pad2(day)}/${pad2(mon)}/2026`, `2026-${pad2(mon)}-${pad2(day)}`, `${day}/${mon}/26`, `${day} ${MES_NOMES[mon - 1]} 2026`][rnd(4)];
       const prod = prods[rnd(prods.length)];
-      const base = norm(prod).startsWith("cons") ? 2400 : norm(prod).startsWith("trei") ? 1350 : 690;
-      const val = base + rnd(9) * 50;
+      const base = norm(prod).startsWith("cons") ? 2500 : norm(prod).startsWith("trei") ? 1500 : 700;
+      const val = base + rnd(9) * 100;
       const vfmt = [`R$ ${nfNum.format(val)},00`.replace(",00,00", ",00"), String(val), `${val},00`, `R$${val}`][rnd(4)];
       lines.push([date, cli, mail, tel, cidades[rnd(cidades.length)], prod, vfmt, status[rnd(status.length)]].join("\t"));
       if (i === 5 || i === 17) lines.push(lines[lines.length - 1]);

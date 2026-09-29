@@ -18,11 +18,12 @@ const csv = (head, rows) => [head, ...rows].map(r => r.join(";")).join("\n");
 const MONTHS = 9; // jan a set/2026
 
 function vendas() {
-  const clientes = ["Padaria Bom Grão", "Clínica Vida Plena", "Mercado Serra Azul", "Construtora Alicerce", "Auto Peças Rota 40", "Escola Pequeno Saber", "Hotel Mirante", "Farmácia Bem Estar", "Restaurante Sabor da Terra", "Academia Ritmo", "Papelaria Traço", "Transportadora Via Sul", "Contabilidade Exata", "Pet Shop Amigo Fiel"];
-  const vendedores = [["Ana Ribeiro", 1.25], ["Bruno Costa", 1], ["Carla Nunes", 1.1], ["Diego Alves", .8], ["Elisa Moraes", .9]];
+  // Nomes e valores propositalmente fictícios (Fulano de Tal, Empresa Alfa, Fornecedor A, valores redondos).
+  const clientes = ["Alfa", "Beta", "Gama", "Delta", "Épsilon", "Zeta", "Teta", "Iota", "Kappa", "Lambda", "Sigma", "Tau", "Ômega", "Ômicron"].map(x => "Empresa " + x);
+  const vendedores = [["Fulano de Tal", 1.25], ["Ciclano da Silva", 1], ["Beltrano Souza", 1.1], ["Fulana de Tal", .8], ["Beltrana Costa", .9]];
   const regioes = [["Sudeste", 4], ["Sul", 2.5], ["Nordeste", 2], ["Centro-Oeste", 1.2]];
-  const produtos = [["Notebook 14\"", "Informática", 3890], ["Monitor 24\"", "Informática", 899], ["Impressora laser", "Informática", 1450], ["Cadeira ergonômica", "Mobiliário", 1240], ["Mesa de escritório", "Mobiliário", 980], ["Papel A4 (caixa)", "Suprimentos", 189.9], ["Toner", "Suprimentos", 329], ["Headset USB", "Acessórios", 214], ["Teclado sem fio", "Acessórios", 159]];
-  const rows = []; let n = 10230;
+  const produtos = [["Notebook", "Informática", 4000], ["Monitor", "Informática", 1000], ["Impressora", "Informática", 1500], ["Cadeira", "Mobiliário", 1200], ["Mesa", "Mobiliário", 1000], ["Papel (caixa)", "Suprimentos", 200], ["Toner", "Suprimentos", 300], ["Fone de ouvido", "Acessórios", 200], ["Teclado", "Acessórios", 150]];
+  const rows = []; let n = 1;
   for (let m = 0; m < MONTHS; m++) {
     const count = 34 + m * 3 + Math.floor(rnd() * 8);
     for (let i = 0; i < count; i++) {
@@ -30,7 +31,7 @@ function vendas() {
       const qtd = cat === "Suprimentos" ? 5 + Math.floor(rnd() * 30) : 1 + Math.floor(rnd() * (cat === "Informática" ? 6 : 10));
       const desc = qtd >= 10 ? .92 : 1;
       const trend = 1 + m * .025; // leve crescimento ao longo do ano
-      rows.push([dmy(dayIn(m)), `PV-${n++}`, pick(clientes), weighted(vendedores), weighted(regioes), prod, cat, qtd, brl(Math.round(price * qtd * desc * trend * 100) / 100), weighted([["Pago", 75], ["Pendente", 18], ["Cancelado", 7]])]);
+      rows.push([dmy(dayIn(m)), `PV-${String(n++).padStart(4, "0")}`, pick(clientes), weighted(vendedores), weighted(regioes), prod, cat, qtd, brl(Math.round(price * qtd * desc * trend / 10) * 10), weighted([["Pago", 75], ["Pendente", 18], ["Cancelado", 7]])]);
     }
   }
   return csv(["Data", "Pedido", "Cliente", "Vendedor", "Região", "Produto", "Categoria", "Quantidade", "Valor (R$)", "Status"], rows);
@@ -38,17 +39,17 @@ function vendas() {
 
 function estoque() {
   const itens = [
-    ["Papel A4 (caixa)", "Suprimentos", "Distribuidora Sul", 189.9], ["Toner HP 85A", "Suprimentos", "InfoParts", 329], ["Caneta azul (cx 50)", "Suprimentos", "Distribuidora Sul", 42.5], ["Grampeador", "Suprimentos", "Papelaria Central", 38.9], ["Pasta suspensa (cx)", "Suprimentos", "Papelaria Central", 64],
-    ["Monitor 24\"", "Informática", "InfoParts", 899], ["Teclado sem fio", "Informática", "InfoParts", 159], ["Mouse óptico", "Informática", "TecnoMais", 49.9], ["Cabo HDMI 2 m", "Informática", "TecnoMais", 29.9], ["Nobreak 1200 VA", "Informática", "Energia Forte", 780], ["SSD 480 GB", "Informática", "TecnoMais", 259],
-    ["Cadeira ergonômica", "Mobiliário", "Móveis Lima", 1240], ["Mesa de escritório", "Mobiliário", "Móveis Lima", 980], ["Armário de aço", "Mobiliário", "Aço Forte", 1350], ["Gaveteiro", "Mobiliário", "Móveis Lima", 540],
-    ["Café em grãos (kg)", "Copa", "Torra Viva", 72.5], ["Açúcar (5 kg)", "Copa", "Atacado Bom Preço", 24.9], ["Copo descartável (pct)", "Copa", "Atacado Bom Preço", 9.8], ["Filtro de água (refil)", "Copa", "Água Pura", 89],
-    ["Detergente (5 L)", "Limpeza", "Limpa Tudo", 32], ["Papel toalha (fardo)", "Limpeza", "Limpa Tudo", 58], ["Álcool 70% (5 L)", "Limpeza", "Limpa Tudo", 46], ["Saco de lixo 100 L", "Limpeza", "Atacado Bom Preço", 36],
-    ["Lâmpada LED 18 W", "Manutenção predial", "Elétrica Luz", 22.9], ["Disjuntor 20 A", "Manutenção predial", "Elétrica Luz", 31.5], ["Fita isolante", "Manutenção predial", "Elétrica Luz", 7.9], ["Filtro de ar-condicionado", "Manutenção predial", "Clima Certo", 64], ["Tinta branca (18 L)", "Manutenção predial", "Casa das Tintas", 289],
+    ["Papel A4 (caixa)", "Suprimentos", "Fornecedor A", 190], ["Toner", "Suprimentos", "Fornecedor B", 330], ["Caneta azul (cx 50)", "Suprimentos", "Fornecedor A", 40], ["Grampeador", "Suprimentos", "Fornecedor C", 40], ["Pasta suspensa (cx)", "Suprimentos", "Fornecedor C", 60],
+    ["Monitor 24\"", "Informática", "Fornecedor B", 900], ["Teclado sem fio", "Informática", "Fornecedor B", 160], ["Mouse óptico", "Informática", "Fornecedor D", 50], ["Cabo HDMI 2 m", "Informática", "Fornecedor D", 30], ["Nobreak 1200 VA", "Informática", "Fornecedor E", 800], ["SSD 480 GB", "Informática", "Fornecedor D", 260],
+    ["Cadeira ergonômica", "Mobiliário", "Fornecedor F", 1200], ["Mesa de escritório", "Mobiliário", "Fornecedor F", 1000], ["Armário de aço", "Mobiliário", "Fornecedor G", 1400], ["Gaveteiro", "Mobiliário", "Fornecedor F", 500],
+    ["Café em grãos (kg)", "Copa", "Fornecedor H", 70], ["Açúcar (5 kg)", "Copa", "Fornecedor I", 20], ["Copo descartável (pct)", "Copa", "Fornecedor I", 10], ["Filtro de água (refil)", "Copa", "Fornecedor J", 90],
+    ["Detergente (5 L)", "Limpeza", "Fornecedor K", 30], ["Papel toalha (fardo)", "Limpeza", "Fornecedor K", 60], ["Álcool 70% (5 L)", "Limpeza", "Fornecedor K", 50], ["Saco de lixo 100 L", "Limpeza", "Fornecedor I", 40],
+    ["Lâmpada LED 18 W", "Manutenção predial", "Fornecedor L", 20], ["Disjuntor 20 A", "Manutenção predial", "Fornecedor L", 30], ["Fita isolante", "Manutenção predial", "Fornecedor L", 10], ["Filtro de ar-condicionado", "Manutenção predial", "Fornecedor M", 60], ["Tinta branca (18 L)", "Manutenção predial", "Fornecedor N", 290],
   ];
   const rows = itens.map(([item, cat, forn, preco], i) => {
     const min = [5, 10, 20, 30][Math.floor(rnd() * 4)];
     const qtd = rnd() < .25 ? Math.floor(rnd() * min) : min + Math.floor(rnd() * min * 3);
-    return [`EST-${String(101 + i)}`, item, cat, forn, qtd, min, brl(preco), brl(Math.round(qtd * preco * 100) / 100), dmy(new Date(2026, 5 + Math.floor(rnd() * 4), 1 + Math.floor(rnd() * 28))), qtd < min ? "Abaixo do mínimo" : "OK"];
+    return [`EST-${String(1 + i).padStart(3, "0")}`, item, cat, forn, qtd, min, brl(preco), brl(qtd * preco), dmy(new Date(2026, 5 + Math.floor(rnd() * 4), 1 + Math.floor(rnd() * 28))), qtd < min ? "Abaixo do mínimo" : "OK"];
   });
   return csv(["Código", "Item", "Categoria", "Fornecedor", "Quantidade", "Estoque mínimo", "Preço unitário (R$)", "Valor em estoque (R$)", "Última entrada", "Situação"], rows);
 }
@@ -56,8 +57,8 @@ function estoque() {
 function manutencao() {
   const equip = [["Monitor multiparâmetro", 1], ["Ventilador pulmonar", 1.4], ["Bomba de infusão", .6], ["Autoclave", 1.8], ["Desfibrilador", 1], ["Ar-condicionado", 1.2], ["Gerador", 2.4], ["Elevador", 2.2], ["Centrífuga", .9], ["Raio-X móvel", 2.6]];
   const setores = [["UTI Adulto", 3], ["Centro Cirúrgico", 2.5], ["Pronto Atendimento", 2.5], ["Radiologia", 1.5], ["Laboratório", 1.5], ["Internação", 2]];
-  const tecnicos = ["Rafael Lima", "Juliana Prado", "Marcos Teixeira", "Patrícia Souza"];
-  const rows = []; let n = 4810;
+  const tecnicos = ["Técnico A", "Técnico B", "Técnico C", "Técnico D"];
+  const rows = []; let n = 1;
   for (let m = 0; m < MONTHS; m++) {
     const count = 30 + Math.floor(rnd() * 12);
     for (let i = 0; i < count; i++) {
@@ -69,25 +70,25 @@ function manutencao() {
       const sit = rnd() < late ? weighted([["Aberta", 1], ["Em andamento", 1]]) : "Fechada";
       const horas = tipo === "Corretiva" ? 1 + rnd() * 7 * peso : .5 + rnd() * 2.5;
       const close = sit === "Fechada" ? new Date(open.getTime() + (1 + Math.floor(rnd() * (tipo === "Corretiva" ? 6 : 2))) * 864e5) : null;
-      const custo = tipo === "Corretiva" ? Math.round((120 + rnd() * 1400) * peso) : tipo === "Calibração" ? 180 + Math.round(rnd() * 120) : Math.round(rnd() * 260);
+      const custo = Math.round((tipo === "Corretiva" ? (120 + rnd() * 1400) * peso : tipo === "Calibração" ? 180 + rnd() * 120 : rnd() * 260) / 10) * 10;
       const t = Math.round(horas * 4) / 4;
-      rows.push([`OS-${n++}`, dmy(open), close ? dmy(close) : "", eq, weighted(setores), tipo, sit, pick(tecnicos), `${pad2(Math.floor(t))}:${pad2(Math.round((t % 1) * 60))}`, brl(custo)]);
+      rows.push([`OS-${String(n++).padStart(4, "0")}`, dmy(open), close ? dmy(close) : "", eq, weighted(setores), tipo, sit, pick(tecnicos), `${pad2(Math.floor(t))}:${pad2(Math.round((t % 1) * 60))}`, brl(custo)]);
     }
   }
   return csv(["Nº OS", "Data Abertura", "Data Fechamento", "Equipamento", "Setor", "Tipo de Manutenção", "Situação", "Técnico", "Tempo Atendimento", "Custo (R$)"], rows);
 }
 
 function financeiro() {
-  const fixas = [["Aluguel da sede", "Imobiliária Centro", "Administrativo", "Aluguel", 12500], ["Energia elétrica", "Companhia de Energia", "Operações", "Energia", 4200], ["Internet e telefonia", "Conecta Telecom", "TI", "Telecom", 1890], ["Licenças de software", "SoftNuvem", "TI", "Software", 3400], ["Limpeza e conservação", "Limpa Tudo Serviços", "Administrativo", "Serviços terceirizados", 5600]];
-  const variaveis = [["Material de escritório", "Papelaria Central", "Administrativo", "Materiais", 300, 1800], ["Campanha de marketing", "Agência Faísca", "Comercial", "Marketing", 1500, 9000], ["Viagem a cliente", "Viaje Bem", "Comercial", "Viagens", 600, 4200], ["Manutenção de equipamentos", "Técnica Rápida", "Operações", "Manutenção", 400, 5200], ["Frete de mercadorias", "Transportadora Via Sul", "Operações", "Frete", 250, 3100], ["Treinamento da equipe", "Escola de Gestão", "Administrativo", "Treinamento", 800, 4800], ["Equipamentos de TI", "InfoParts", "TI", "Equipamentos", 700, 7800]];
+  const fixas = [["Aluguel da sede", "Fornecedor A", "Administrativo", "Aluguel", 10000], ["Energia elétrica", "Fornecedor B", "Operações", "Energia", 4000], ["Internet e telefonia", "Fornecedor C", "TI", "Telecom", 2000], ["Licenças de software", "Fornecedor D", "TI", "Software", 3000], ["Limpeza e conservação", "Fornecedor E", "Administrativo", "Serviços terceirizados", 5000]];
+  const variaveis = [["Material de escritório", "Fornecedor F", "Administrativo", "Materiais", 300, 1800], ["Campanha de marketing", "Fornecedor G", "Comercial", "Marketing", 1500, 9000], ["Viagem a cliente", "Fornecedor H", "Comercial", "Viagens", 600, 4000], ["Manutenção de equipamentos", "Fornecedor I", "Operações", "Manutenção", 400, 5200], ["Frete de mercadorias", "Fornecedor J", "Operações", "Frete", 250, 3100], ["Treinamento da equipe", "Fornecedor K", "Administrativo", "Treinamento", 800, 4800], ["Equipamentos de TI", "Fornecedor L", "TI", "Equipamentos", 700, 7800]];
   const rows = [];
   for (let m = 0; m < MONTHS; m++) {
     const status = d => m === MONTHS - 1 ? weighted([["A vencer", 6], ["Paga", 3], ["Vencida", 1]]) : m === MONTHS - 2 ? weighted([["Paga", 8], ["Vencida", 1]]) : "Paga";
-    fixas.forEach(([desc, forn, cc, cat, v]) => rows.push([dmy(new Date(2026, m, 5 + Math.floor(rnd() * 5))), desc, forn, cc, cat, brl(Math.round(v * (.95 + rnd() * .12) * 100) / 100), weighted([["Boleto", 3], ["Pix", 2], ["Débito automático", 2]]), status()]));
+    fixas.forEach(([desc, forn, cc, cat, v]) => rows.push([dmy(new Date(2026, m, 5 + Math.floor(rnd() * 5))), desc, forn, cc, cat, brl(Math.round(v * (.95 + rnd() * .12) / 50) * 50), weighted([["Boleto", 3], ["Pix", 2], ["Débito automático", 2]]), status()]));
     const count = 16 + Math.floor(rnd() * 8);
     for (let i = 0; i < count; i++) {
       const [desc, forn, cc, cat, a, b] = pick(variaveis);
-      rows.push([dmy(dayIn(m)), desc, forn, cc, cat, brl(Math.round((a + rnd() * (b - a)) * 100) / 100), weighted([["Pix", 4], ["Boleto", 3], ["Cartão corporativo", 3]]), status()]);
+      rows.push([dmy(dayIn(m)), desc, forn, cc, cat, brl(Math.round((a + rnd() * (b - a)) / 50) * 50), weighted([["Pix", 4], ["Boleto", 3], ["Cartão corporativo", 3]]), status()]);
     }
   }
   return csv(["Data", "Descrição", "Fornecedor", "Centro de custo", "Categoria", "Valor (R$)", "Forma de pagamento", "Situação"], rows);
