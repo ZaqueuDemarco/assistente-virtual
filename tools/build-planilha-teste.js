@@ -5,8 +5,8 @@ const path = require("path"), XLSX = require(path.join(__dirname, "..", "vendor"
 let seed = 11; const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
 const pick = a => a[Math.floor(rnd() * a.length)];
 const pad2 = n => String(n).padStart(2, "0");
-const setores = ["UTI Adulto", "uti adulto", "Centro Cirúrgico", "CENTRO CIRURGICO", "Pronto Atendimento", "Radiologia", "Laboratório", "laboratorio"];
-const equip = ["Monitor multiparâmetro", "Ventilador pulmonar", "Bomba de infusão", "Autoclave", "Desfibrilador", "Ar-condicionado", "Gerador"];
+const setores = ["Produção", "produção", "Expedição", "EXPEDICAO", "Almoxarifado", "Administrativo", "Refeitório", "refeitorio"];
+const equip = ["Compressor de ar", "Empilhadeira", "Bomba d'água", "Caldeira", "Esteira transportadora", "Ar-condicionado", "Gerador"];
 const tecnicos = ["FULANO DE TAL", "Ciclano da Silva", "beltrano souza", "Fulana de Tal"];
 const tipos = ["Corretiva", "corretiva", "Preventiva", "PREVENTIVA", "Calibração"];
 const rows = [["Relatório de Ordens de Serviço — Empresa Exemplo"], ["Período: 01/07/2026 a 30/09/2026"], ["Emitido por: Sistema de Gestão (fictício)"], [],

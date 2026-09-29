@@ -1018,7 +1018,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         ${list("cMeasure", [`Quantidade de ${cl}`, ...nc.flatMap(c => [`Soma de ${sh.columns[c]}`, `Média de ${sh.columns[c]}`, `Maior ${sh.columns[c]}`])])}
         <small class="understood" id="hMeasure"></small></div>
       <div class="bfield"><label for="cFilter">Considerar só <span class="opt">(opcional)</span></label>
-        <input class="ctl free" id="cFilter" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(txt.filter)}" placeholder="ex.: abertas, corretivas da UTI Adulto" autocomplete="off">
+        <input class="ctl free" id="cFilter" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(txt.filter)}" placeholder="ex.: abertas, corretivas da Produção" autocomplete="off">
         ${list("cFilter", catVals)}
         <small class="understood" id="hFilter"></small></div>
       <div class="bfield"><label for="cPeriod">Período</label>
@@ -1151,7 +1151,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     if (i >= 0) list.splice(i, 1);
   }
   $("#cardDlg").addEventListener("close", () => { cdraft = null; });
-  // "cartão de O.S. abertas", "cartão de tempo médio da UTI", "cartão com soma de custo"
+  // "cartão de O.S. abertas", "cartão de tempo médio da Produção", "cartão com soma de custo"
   // Acha meses citados num texto ("setembro", "jul/26", "de julho a setembro", "último mês").
   function monthsIn(sh, text) {
     const P = periodInfo(sh); if (!P) return null;
@@ -1178,7 +1178,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       card.col = num;
       card.agg = /\bmedi[ao]s?\b/.test(text) ? "avg" : /\b(maior|maximo)\b/.test(text) ? "max" : /\b(menor|minimo)\b/.test(text) ? "min" : /\b(soma|total)\b/.test(text) ? "sum" : isAvgCol(sh, num) ? "avg" : "sum";
     }
-    // Filtro: procura um valor de categoria citado no texto ("abertas" -> Situação = Aberta; "uti" -> Setor = UTI).
+    // Filtro: procura um valor de categoria citado no texto ("abertas" -> Situação = Aberta; "producao" -> Setor = Produção).
     const words = text.split(/\s+/).filter(w => w.length >= 2 && !/^(de|do|da|dos|das|com|em|no|na|os|as|o|a|e|ate|por|para|total|soma|media|medio|maior|menor|quantidade|numero|registros|o\.s\.?|os|ultimo|mes|janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)$/.test(w));
     const cats = sh.columns.map((_, i) => i).filter(i => !nc.includes(i) && !isIdCol(sh, i) && !isDateCol(sh, i));
     const variants = w => [w, w.replace(/(oes)$/, "ao"), w.replace(/(as|os|es|s)$/, ""), w.replace(/(as)$/, "a"), w.replace(/(os)$/, "o")];
@@ -2234,7 +2234,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   function goto(view) { state.view = view; render(); }
 
   function helpText() {
-    return `Posso criar e editar planilhas, montar gráficos e organizar tarefas. Alguns comandos:<ul>${COMMANDS.slice(0, -1).map(([c, d]) => `<li>${code(c)} · ${esc(d)}</li>`).join("")}</ul>Também entendo variações, como “cria uma planilha chamada Metas”.${aiOff ? "" : " No link do Claude, pode perguntar ou pedir do seu jeito: “quantas corretivas o CTI teve em agosto?”, “faça um gráfico das O.S. abertas por técnico”."}`;
+    return `Posso criar e editar planilhas, montar gráficos e organizar tarefas. Alguns comandos:<ul>${COMMANDS.slice(0, -1).map(([c, d]) => `<li>${code(c)} · ${esc(d)}</li>`).join("")}</ul>Também entendo variações, como “cria uma planilha chamada Metas”.${aiOff ? "" : " No link do Claude, pode perguntar ou pedir do seu jeito: “quantas corretivas a Produção teve em agosto?”, “faça um gráfico das O.S. abertas por técnico”."}`;
   }
 
   function run(input) {
@@ -2738,7 +2738,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 Regras:
 - Nunca invente números: use consultar_dados ou listar_registros para qualquer valor. Use os nomes EXATOS das colunas e valores listados abaixo.
 - Se o pedido for para ver algo no painel (gráfico, cartão, filtro), faça com as ferramentas e diga em uma frase o que foi feito.
-- Palavras como "abertas", "fechadas", "corretivas", "UTI" costumam ser VALORES de uma coluna (veja a lista de valores abaixo), não nomes de coluna. "O.S. abertas x fechadas" = gráfico agrupado pela coluna da situação com filtro.valores [Aberta, Fechada]; "abertas x fechadas por mês" = agrupar_por o mês com separar_por essa coluna. Pedidos com várias partes (ex.: "um gráfico por setor e outro por mês") = várias chamadas.
+- Palavras como "abertas", "fechadas", "corretivas", "Produção" costumam ser VALORES de uma coluna (veja a lista de valores abaixo), não nomes de coluna. "O.S. abertas x fechadas" = gráfico agrupado pela coluna da situação com filtro.valores [Aberta, Fechada]; "abertas x fechadas por mês" = agrupar_por o mês com separar_por essa coluna. Pedidos com várias partes (ex.: "um gráfico por setor e outro por mês") = várias chamadas.
 - Para outras ações, use executar_comando com um comando da lista. Comandos que apagam dados não são permitidos: diga ao usuário qual comando digitar.
 - Se o pedido for ambíguo, escolha a interpretação mais útil e diga qual escolheu. Se faltar dado (ex.: coluna inexistente), explique o que existe.
 - Formatação: texto simples; pode usar **negrito** e listas com "- ". Valores em R$ no padrão brasileiro.
@@ -3308,7 +3308,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   }
   function cleanHeader(h) {
     h = h.replace(/[:_]+$/g, "").replace(/_/g, " ").trim();
-    // Tudo maiúsculo: mantém siglas curtas (OS, TAG, UTI) e ajusta o resto; tudo minúsculo: só a primeira letra.
+    // Tudo maiúsculo: mantém siglas curtas (OS, TAG, TI) e ajusta o resto; tudo minúsculo: só a primeira letra.
     if (h === h.toUpperCase() && /[A-ZÀ-Ý]{4,}/.test(h)) h = h.split(" ").map((w, i) => w.replace(/[^A-Za-zÀ-ÿ]/g, "").length <= 3 && i > 0 && !SMALL.has(w.toLowerCase()) ? w : i > 0 && SMALL.has(w.toLowerCase()) ? w.toLowerCase() : w.charAt(0) + w.slice(1).toLowerCase()).join(" ");
     else if (h === h.toLowerCase()) h = h.charAt(0).toUpperCase() + h.slice(1);
     return h.replace(/\(r\$\)/i, "(R$)");

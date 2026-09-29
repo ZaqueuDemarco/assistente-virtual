@@ -55,8 +55,8 @@ function estoque() {
 }
 
 function manutencao() {
-  const equip = [["Monitor multiparâmetro", 1], ["Ventilador pulmonar", 1.4], ["Bomba de infusão", .6], ["Autoclave", 1.8], ["Desfibrilador", 1], ["Ar-condicionado", 1.2], ["Gerador", 2.4], ["Elevador", 2.2], ["Centrífuga", .9], ["Raio-X móvel", 2.6]];
-  const setores = [["UTI Adulto", 3], ["Centro Cirúrgico", 2.5], ["Pronto Atendimento", 2.5], ["Radiologia", 1.5], ["Laboratório", 1.5], ["Internação", 2]];
+  const equip = [["Compressor de ar", 1], ["Empilhadeira", 1.4], ["Bomba d'água", .6], ["Caldeira", 1.8], ["Esteira transportadora", 1], ["Ar-condicionado", 1.2], ["Gerador", 2.4], ["Elevador", 2.2], ["Nobreak", .9], ["Torno CNC", 2.6]];
+  const setores = [["Produção", 3], ["Expedição", 2.5], ["Almoxarifado", 2.5], ["Administrativo", 1.5], ["Oficina", 1.5], ["Refeitório", 2]];
   const tecnicos = ["Técnico A", "Técnico B", "Técnico C", "Técnico D"];
   const rows = []; let n = 1;
   for (let m = 0; m < MONTHS; m++) {
@@ -105,7 +105,7 @@ const demo = {
     { name: "Financeiro", csv: financeiro(), charts: ["valor por mês", "valor por centro de custo", "pizza de valor por categoria"],
       cards: [{ titulo: "Despesas", coluna: "Valor (R$)", medida: "soma" }, { titulo: "Lançamentos" }, { titulo: "Contas a vencer (R$)", coluna: "Valor (R$)", medida: "soma", filtro: ["Situação", "A vencer"] }, { titulo: "Contas vencidas", filtro: ["Situação", "Vencida"] }] },
   ],
-  tasks: [["Revisar metas de vendas do 4º trimestre", 6], ["Repor itens abaixo do mínimo no estoque", 2], ["Fechar as O.S. abertas da UTI Adulto", -1], ["Conferir contas a vencer do mês", 3], ["Enviar relatório mensal à diretoria", 9, true]],
+  tasks: [["Revisar metas de vendas do 4º trimestre", 6], ["Repor itens abaixo do mínimo no estoque", 2], ["Fechar as O.S. abertas da Produção", -1], ["Conferir contas a vencer do mês", 3], ["Enviar relatório mensal à diretoria", 9, true]],
   tips: ["resumo", "gráfico de valor por região", "top 10 cliente", "cartão de pedidos pendentes", "nova tarefa Ligar para fornecedor até 15/10"],
 };
 

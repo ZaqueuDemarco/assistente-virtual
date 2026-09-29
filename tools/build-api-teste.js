@@ -6,7 +6,7 @@ const fs = require("fs"), path = require("path");
 let seed = 23; const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
 const pick = a => a[Math.floor(rnd() * a.length)];
 const pad2 = n => String(n).padStart(2, "0");
-const equip = [["Monitor multiparâmetro", "UTI Adulto"], ["Ventilador pulmonar", "UTI Adulto"], ["Bomba de infusão", "Internação"], ["Autoclave", "Centro Cirúrgico"], ["Desfibrilador", "Pronto Atendimento"], ["Ar-condicionado", "Radiologia"], ["Centrífuga", "Laboratório"], ["Gerador", "Utilidades"]];
+const equip = [["Compressor de ar", "Produção"], ["Caldeira", "Produção"], ["Empilhadeira", "Expedição"], ["Esteira transportadora", "Expedição"], ["Bomba d'água", "Utilidades"], ["Ar-condicionado", "Administrativo"], ["Nobreak", "TI"], ["Gerador", "Utilidades"]];
 const tecnicos = ["Técnico A", "Técnico B", "Técnico C", "Técnico D"];
 const all = [];
 for (let i = 0; i < 90; i++) {

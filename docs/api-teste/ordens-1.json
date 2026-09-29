@@ -9,9 +9,9 @@
         "numero": "OS-0001",
         "abertura": "2026-07-23T13:15:00",
         "equipamento": {
-          "nome": "Ventilador pulmonar",
+          "nome": "Caldeira",
           "patrimonio": "PAT-945",
-          "setor": "UTI Adulto"
+          "setor": "Produção"
         },
         "tipo": "Corretiva",
         "situacao": "Fechada",
@@ -25,9 +25,9 @@
         "numero": "OS-0002",
         "abertura": "2026-07-06T08:45:00",
         "equipamento": {
-          "nome": "Monitor multiparâmetro",
+          "nome": "Compressor de ar",
           "patrimonio": "PAT-464",
-          "setor": "UTI Adulto"
+          "setor": "Produção"
         },
         "tipo": "Corretiva",
         "situacao": "Fechada",
@@ -41,9 +41,9 @@
         "numero": "OS-0003",
         "abertura": "2026-07-21T14:45:00",
         "equipamento": {
-          "nome": "Monitor multiparâmetro",
+          "nome": "Compressor de ar",
           "patrimonio": "PAT-992",
-          "setor": "UTI Adulto"
+          "setor": "Produção"
         },
         "tipo": "Preventiva",
         "situacao": "Fechada",
@@ -59,7 +59,7 @@
         "equipamento": {
           "nome": "Ar-condicionado",
           "patrimonio": "PAT-658",
-          "setor": "Radiologia"
+          "setor": "Administrativo"
         },
         "tipo": "Preventiva",
         "situacao": "Fechada",
@@ -89,9 +89,9 @@
         "numero": "OS-0006",
         "abertura": "2026-07-12T14:00:00",
         "equipamento": {
-          "nome": "Bomba de infusão",
+          "nome": "Empilhadeira",
           "patrimonio": "PAT-411",
-          "setor": "Internação"
+          "setor": "Expedição"
         },
         "tipo": "Preventiva",
         "situacao": "Fechada",
@@ -105,9 +105,9 @@
         "numero": "OS-0007",
         "abertura": "2026-07-02T09:30:00",
         "equipamento": {
-          "nome": "Desfibrilador",
+          "nome": "Bomba d'água",
           "patrimonio": "PAT-825",
-          "setor": "Pronto Atendimento"
+          "setor": "Utilidades"
         },
         "tipo": "Corretiva",
         "situacao": "Fechada",
@@ -123,7 +123,7 @@
         "equipamento": {
           "nome": "Ar-condicionado",
           "patrimonio": "PAT-729",
-          "setor": "Radiologia"
+          "setor": "Administrativo"
         },
         "tipo": "Preventiva",
         "situacao": "Fechada",
@@ -137,9 +137,9 @@
         "numero": "OS-0009",
         "abertura": "2026-07-17T14:30:00",
         "equipamento": {
-          "nome": "Autoclave",
+          "nome": "Esteira transportadora",
           "patrimonio": "PAT-830",
-          "setor": "Centro Cirúrgico"
+          "setor": "Expedição"
         },
         "tipo": "Preventiva",
         "situacao": "Fechada",
@@ -153,9 +153,9 @@
         "numero": "OS-0010",
         "abertura": "2026-07-05T17:30:00",
         "equipamento": {
-          "nome": "Bomba de infusão",
+          "nome": "Empilhadeira",
           "patrimonio": "PAT-338",
-          "setor": "Internação"
+          "setor": "Expedição"
         },
         "tipo": "Corretiva",
         "situacao": "Fechada",
@@ -169,9 +169,9 @@
         "numero": "OS-0011",
         "abertura": "2026-07-06T15:15:00",
         "equipamento": {
-          "nome": "Desfibrilador",
+          "nome": "Bomba d'água",
           "patrimonio": "PAT-572",
-          "setor": "Pronto Atendimento"
+          "setor": "Utilidades"
         },
         "tipo": "Corretiva",
         "situacao": "Fechada",
@@ -201,9 +201,9 @@
         "numero": "OS-0013",
         "abertura": "2026-07-21T15:00:00",
         "equipamento": {
-          "nome": "Centrífuga",
+          "nome": "Nobreak",
           "patrimonio": "PAT-673",
-          "setor": "Laboratório"
+          "setor": "TI"
         },
         "tipo": "Preventiva",
         "situacao": "Fechada",
@@ -219,7 +219,7 @@
         "equipamento": {
           "nome": "Ar-condicionado",
           "patrimonio": "PAT-412",
-          "setor": "Radiologia"
+          "setor": "Administrativo"
         },
         "tipo": "Corretiva",
         "situacao": "Fechada",
@@ -233,9 +233,9 @@
         "numero": "OS-0015",
         "abertura": "2026-07-15T11:30:00",
         "equipamento": {
-          "nome": "Desfibrilador",
+          "nome": "Bomba d'água",
           "patrimonio": "PAT-724",
-          "setor": "Pronto Atendimento"
+          "setor": "Utilidades"
         },
         "tipo": "Corretiva",
         "situacao": "Fechada",
@@ -249,9 +249,9 @@
         "numero": "OS-0016",
         "abertura": "2026-07-13T11:45:00",
         "equipamento": {
-          "nome": "Ventilador pulmonar",
+          "nome": "Caldeira",
           "patrimonio": "PAT-371",
-          "setor": "UTI Adulto"
+          "setor": "Produção"
         },
         "tipo": "Corretiva",
         "situacao": "Fechada",
@@ -297,9 +297,9 @@
         "numero": "OS-0019",
         "abertura": "2026-07-04T13:30:00",
         "equipamento": {
-          "nome": "Bomba de infusão",
+          "nome": "Empilhadeira",
           "patrimonio": "PAT-843",
-          "setor": "Internação"
+          "setor": "Expedição"
         },
         "tipo": "Preventiva",
         "situacao": "Fechada",
@@ -313,9 +313,9 @@
         "numero": "OS-0020",
         "abertura": "2026-07-18T12:00:00",
         "equipamento": {
-          "nome": "Monitor multiparâmetro",
+          "nome": "Compressor de ar",
           "patrimonio": "PAT-852",
-          "setor": "UTI Adulto"
+          "setor": "Produção"
         },
         "tipo": "Corretiva",
         "situacao": "Fechada",
@@ -329,9 +329,9 @@
         "numero": "OS-0021",
         "abertura": "2026-07-03T13:45:00",
         "equipamento": {
-          "nome": "Monitor multiparâmetro",
+          "nome": "Compressor de ar",
           "patrimonio": "PAT-450",
-          "setor": "UTI Adulto"
+          "setor": "Produção"
         },
         "tipo": "Corretiva",
         "situacao": "Fechada",
@@ -345,9 +345,9 @@
         "numero": "OS-0022",
         "abertura": "2026-07-20T09:15:00",
         "equipamento": {
-          "nome": "Ventilador pulmonar",
+          "nome": "Caldeira",
           "patrimonio": "PAT-531",
-          "setor": "UTI Adulto"
+          "setor": "Produção"
         },
         "tipo": "Preventiva",
         "situacao": "Fechada",
@@ -361,9 +361,9 @@
         "numero": "OS-0023",
         "abertura": "2026-07-10T15:00:00",
         "equipamento": {
-          "nome": "Monitor multiparâmetro",
+          "nome": "Compressor de ar",
           "patrimonio": "PAT-831",
-          "setor": "UTI Adulto"
+          "setor": "Produção"
         },
         "tipo": "Corretiva",
         "situacao": "Fechada",
@@ -393,9 +393,9 @@
         "numero": "OS-0025",
         "abertura": "2026-07-07T16:15:00",
         "equipamento": {
-          "nome": "Autoclave",
+          "nome": "Esteira transportadora",
           "patrimonio": "PAT-668",
-          "setor": "Centro Cirúrgico"
+          "setor": "Expedição"
         },
         "tipo": "Corretiva",
         "situacao": "Fechada",
@@ -409,9 +409,9 @@
         "numero": "OS-0026",
         "abertura": "2026-07-21T15:30:00",
         "equipamento": {
-          "nome": "Ventilador pulmonar",
+          "nome": "Caldeira",
           "patrimonio": "PAT-572",
-          "setor": "UTI Adulto"
+          "setor": "Produção"
         },
         "tipo": "Corretiva",
         "situacao": "Fechada",
@@ -425,9 +425,9 @@
         "numero": "OS-0027",
         "abertura": "2026-07-07T15:00:00",
         "equipamento": {
-          "nome": "Monitor multiparâmetro",
+          "nome": "Compressor de ar",
           "patrimonio": "PAT-607",
-          "setor": "UTI Adulto"
+          "setor": "Produção"
         },
         "tipo": "Preventiva",
         "situacao": "Fechada",
@@ -441,9 +441,9 @@
         "numero": "OS-0028",
         "abertura": "2026-07-27T07:45:00",
         "equipamento": {
-          "nome": "Autoclave",
+          "nome": "Esteira transportadora",
           "patrimonio": "PAT-614",
-          "setor": "Centro Cirúrgico"
+          "setor": "Expedição"
         },
         "tipo": "Corretiva",
         "situacao": "Fechada",
@@ -457,9 +457,9 @@
         "numero": "OS-0029",
         "abertura": "2026-07-25T10:15:00",
         "equipamento": {
-          "nome": "Ventilador pulmonar",
+          "nome": "Caldeira",
           "patrimonio": "PAT-445",
-          "setor": "UTI Adulto"
+          "setor": "Produção"
         },
         "tipo": "Preventiva",
         "situacao": "Fechada",
@@ -473,9 +473,9 @@
         "numero": "OS-0030",
         "abertura": "2026-07-04T13:00:00",
         "equipamento": {
-          "nome": "Ventilador pulmonar",
+          "nome": "Caldeira",
           "patrimonio": "PAT-442",
-          "setor": "UTI Adulto"
+          "setor": "Produção"
         },
         "tipo": "Corretiva",
         "situacao": "Fechada",
