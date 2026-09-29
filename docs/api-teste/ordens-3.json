@@ -1,0 +1,490 @@
+{
+  "pagina": 3,
+  "por_pagina": 30,
+  "total_registros": 90,
+  "total_paginas": 3,
+  "dados": {
+    "ordens": [
+      {
+        "numero": "OS-0061",
+        "abertura": "2026-09-22T10:30:00",
+        "equipamento": {
+          "nome": "Ventilador pulmonar",
+          "patrimonio": "PAT-183",
+          "setor": "UTI Adulto"
+        },
+        "tipo": "Preventiva",
+        "situacao": "Fechada",
+        "prioridade": "Baixa",
+        "tecnico": "Técnico C",
+        "horas": 1.75,
+        "custo": 110,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0062",
+        "abertura": "2026-09-25T07:45:00",
+        "equipamento": {
+          "nome": "Bomba de infusão",
+          "patrimonio": "PAT-572",
+          "setor": "Internação"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Fechada",
+        "prioridade": "Alta",
+        "tecnico": "Técnico A",
+        "horas": 3.5,
+        "custo": 1910,
+        "urgente": true
+      },
+      {
+        "numero": "OS-0063",
+        "abertura": "2026-09-01T11:45:00",
+        "equipamento": {
+          "nome": "Ar-condicionado",
+          "patrimonio": "PAT-594",
+          "setor": "Radiologia"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Aberta",
+        "prioridade": "Média",
+        "tecnico": "Técnico B",
+        "horas": 7.25,
+        "custo": 900,
+        "urgente": true
+      },
+      {
+        "numero": "OS-0064",
+        "abertura": "2026-09-15T13:00:00",
+        "equipamento": {
+          "nome": "Ar-condicionado",
+          "patrimonio": "PAT-309",
+          "setor": "Radiologia"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Fechada",
+        "prioridade": "Alta",
+        "tecnico": "Técnico B",
+        "horas": 2.5,
+        "custo": 360,
+        "urgente": true
+      },
+      {
+        "numero": "OS-0065",
+        "abertura": "2026-09-20T14:00:00",
+        "equipamento": {
+          "nome": "Ar-condicionado",
+          "patrimonio": "PAT-330",
+          "setor": "Radiologia"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Em andamento",
+        "prioridade": "Média",
+        "tecnico": "Técnico D",
+        "horas": 3.25,
+        "custo": 440,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0066",
+        "abertura": "2026-09-06T11:00:00",
+        "equipamento": {
+          "nome": "Gerador",
+          "patrimonio": "PAT-905",
+          "setor": "Utilidades"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Fechada",
+        "prioridade": "Média",
+        "tecnico": "Técnico C",
+        "horas": 7.75,
+        "custo": 480,
+        "urgente": true
+      },
+      {
+        "numero": "OS-0067",
+        "abertura": "2026-09-11T07:30:00",
+        "equipamento": {
+          "nome": "Centrífuga",
+          "patrimonio": "PAT-817",
+          "setor": "Laboratório"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Em andamento",
+        "prioridade": "Baixa",
+        "tecnico": "Técnico B",
+        "horas": 5.25,
+        "custo": 580,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0068",
+        "abertura": "2026-09-27T16:15:00",
+        "equipamento": {
+          "nome": "Ar-condicionado",
+          "patrimonio": "PAT-262",
+          "setor": "Radiologia"
+        },
+        "tipo": "Preventiva",
+        "situacao": "Aberta",
+        "prioridade": "Baixa",
+        "tecnico": "Técnico B",
+        "horas": 1.5,
+        "custo": 160,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0069",
+        "abertura": "2026-09-24T17:15:00",
+        "equipamento": {
+          "nome": "Centrífuga",
+          "patrimonio": "PAT-778",
+          "setor": "Laboratório"
+        },
+        "tipo": "Calibração",
+        "situacao": "Fechada",
+        "prioridade": "Baixa",
+        "tecnico": "Técnico C",
+        "horas": 1.5,
+        "custo": 370,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0070",
+        "abertura": "2026-09-27T15:15:00",
+        "equipamento": {
+          "nome": "Ar-condicionado",
+          "patrimonio": "PAT-774",
+          "setor": "Radiologia"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Aberta",
+        "prioridade": "Alta",
+        "tecnico": "Técnico A",
+        "horas": 3.25,
+        "custo": 1700,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0071",
+        "abertura": "2026-09-18T09:15:00",
+        "equipamento": {
+          "nome": "Autoclave",
+          "patrimonio": "PAT-878",
+          "setor": "Centro Cirúrgico"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Aberta",
+        "prioridade": "Baixa",
+        "tecnico": "Técnico A",
+        "horas": 5.25,
+        "custo": 1340,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0072",
+        "abertura": "2026-09-08T15:00:00",
+        "equipamento": {
+          "nome": "Gerador",
+          "patrimonio": "PAT-657",
+          "setor": "Utilidades"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Fechada",
+        "prioridade": "Média",
+        "tecnico": "Técnico C",
+        "horas": 3.25,
+        "custo": 1010,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0073",
+        "abertura": "2026-09-10T10:15:00",
+        "equipamento": {
+          "nome": "Monitor multiparâmetro",
+          "patrimonio": "PAT-141",
+          "setor": "UTI Adulto"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Fechada",
+        "prioridade": "Alta",
+        "tecnico": "Técnico B",
+        "horas": 3.5,
+        "custo": 1010,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0074",
+        "abertura": "2026-09-06T07:15:00",
+        "equipamento": {
+          "nome": "Gerador",
+          "patrimonio": "PAT-744",
+          "setor": "Utilidades"
+        },
+        "tipo": "Preventiva",
+        "situacao": "Fechada",
+        "prioridade": "Baixa",
+        "tecnico": "Técnico D",
+        "horas": 0.75,
+        "custo": 250,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0075",
+        "abertura": "2026-09-18T16:00:00",
+        "equipamento": {
+          "nome": "Gerador",
+          "patrimonio": "PAT-825",
+          "setor": "Utilidades"
+        },
+        "tipo": "Preventiva",
+        "situacao": "Fechada",
+        "prioridade": "Baixa",
+        "tecnico": "Técnico A",
+        "horas": 2.5,
+        "custo": 390,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0076",
+        "abertura": "2026-09-21T15:15:00",
+        "equipamento": {
+          "nome": "Autoclave",
+          "patrimonio": "PAT-201",
+          "setor": "Centro Cirúrgico"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Em andamento",
+        "prioridade": "Alta",
+        "tecnico": "Técnico C",
+        "horas": 6.75,
+        "custo": 1200,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0077",
+        "abertura": "2026-09-18T16:45:00",
+        "equipamento": {
+          "nome": "Gerador",
+          "patrimonio": "PAT-461",
+          "setor": "Utilidades"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Em andamento",
+        "prioridade": "Baixa",
+        "tecnico": "Técnico A",
+        "horas": 2.75,
+        "custo": 1960,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0078",
+        "abertura": "2026-09-11T07:00:00",
+        "equipamento": {
+          "nome": "Autoclave",
+          "patrimonio": "PAT-429",
+          "setor": "Centro Cirúrgico"
+        },
+        "tipo": "Calibração",
+        "situacao": "Fechada",
+        "prioridade": "Baixa",
+        "tecnico": "Técnico B",
+        "horas": 1.5,
+        "custo": 300,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0079",
+        "abertura": "2026-09-22T16:00:00",
+        "equipamento": {
+          "nome": "Autoclave",
+          "patrimonio": "PAT-595",
+          "setor": "Centro Cirúrgico"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Aberta",
+        "prioridade": "Alta",
+        "tecnico": "Técnico B",
+        "horas": 2.5,
+        "custo": 1090,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0080",
+        "abertura": "2026-09-18T08:45:00",
+        "equipamento": {
+          "nome": "Monitor multiparâmetro",
+          "patrimonio": "PAT-673",
+          "setor": "UTI Adulto"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Fechada",
+        "prioridade": "Baixa",
+        "tecnico": "Técnico B",
+        "horas": 3.25,
+        "custo": 230,
+        "urgente": true
+      },
+      {
+        "numero": "OS-0081",
+        "abertura": "2026-09-18T12:45:00",
+        "equipamento": {
+          "nome": "Desfibrilador",
+          "patrimonio": "PAT-303",
+          "setor": "Pronto Atendimento"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Aberta",
+        "prioridade": "Média",
+        "tecnico": "Técnico C",
+        "horas": 1.25,
+        "custo": 1710,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0082",
+        "abertura": "2026-09-18T11:00:00",
+        "equipamento": {
+          "nome": "Autoclave",
+          "patrimonio": "PAT-818",
+          "setor": "Centro Cirúrgico"
+        },
+        "tipo": "Preventiva",
+        "situacao": "Em andamento",
+        "prioridade": "Baixa",
+        "tecnico": "Técnico C",
+        "horas": 1.5,
+        "custo": 280,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0083",
+        "abertura": "2026-09-25T10:00:00",
+        "equipamento": {
+          "nome": "Centrífuga",
+          "patrimonio": "PAT-413",
+          "setor": "Laboratório"
+        },
+        "tipo": "Preventiva",
+        "situacao": "Fechada",
+        "prioridade": "Baixa",
+        "tecnico": "Técnico B",
+        "horas": 2.25,
+        "custo": 300,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0084",
+        "abertura": "2026-09-11T09:45:00",
+        "equipamento": {
+          "nome": "Ar-condicionado",
+          "patrimonio": "PAT-358",
+          "setor": "Radiologia"
+        },
+        "tipo": "Preventiva",
+        "situacao": "Em andamento",
+        "prioridade": "Baixa",
+        "tecnico": "Técnico C",
+        "horas": 1.5,
+        "custo": 260,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0085",
+        "abertura": "2026-09-17T14:15:00",
+        "equipamento": {
+          "nome": "Ventilador pulmonar",
+          "patrimonio": "PAT-201",
+          "setor": "UTI Adulto"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Fechada",
+        "prioridade": "Média",
+        "tecnico": "Técnico B",
+        "horas": 3,
+        "custo": 350,
+        "urgente": true
+      },
+      {
+        "numero": "OS-0086",
+        "abertura": "2026-09-09T10:00:00",
+        "equipamento": {
+          "nome": "Ar-condicionado",
+          "patrimonio": "PAT-630",
+          "setor": "Radiologia"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Fechada",
+        "prioridade": "Média",
+        "tecnico": "Técnico C",
+        "horas": 4.75,
+        "custo": 240,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0087",
+        "abertura": "2026-09-23T12:00:00",
+        "equipamento": {
+          "nome": "Ventilador pulmonar",
+          "patrimonio": "PAT-624",
+          "setor": "UTI Adulto"
+        },
+        "tipo": "Preventiva",
+        "situacao": "Fechada",
+        "prioridade": "Baixa",
+        "tecnico": "Técnico D",
+        "horas": 0.75,
+        "custo": 300,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0088",
+        "abertura": "2026-09-20T16:15:00",
+        "equipamento": {
+          "nome": "Gerador",
+          "patrimonio": "PAT-150",
+          "setor": "Utilidades"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Em andamento",
+        "prioridade": "Baixa",
+        "tecnico": "Técnico D",
+        "horas": 4.5,
+        "custo": 650,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0089",
+        "abertura": "2026-09-17T12:00:00",
+        "equipamento": {
+          "nome": "Autoclave",
+          "patrimonio": "PAT-405",
+          "setor": "Centro Cirúrgico"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Em andamento",
+        "prioridade": "Baixa",
+        "tecnico": "Técnico C",
+        "horas": 7.5,
+        "custo": 1740,
+        "urgente": false
+      },
+      {
+        "numero": "OS-0090",
+        "abertura": "2026-09-03T15:30:00",
+        "equipamento": {
+          "nome": "Centrífuga",
+          "patrimonio": "PAT-487",
+          "setor": "Laboratório"
+        },
+        "tipo": "Corretiva",
+        "situacao": "Em andamento",
+        "prioridade": "Alta",
+        "tecnico": "Técnico A",
+        "horas": 2.75,
+        "custo": 940,
+        "urgente": false
+      }
+    ]
+  }
+}

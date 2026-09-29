@@ -88,6 +88,11 @@ Depois, o botão **Atualizar** no painel (ou `atualizar`) traz os dados novos e 
 
 Requisitos: o sistema precisa permitir acesso pelo navegador (CORS) e usar `https://`. Dentro do Claude a página não acessa sistemas externos; para usar a API, abra o `index.html` no navegador do computador.
 
+
+### API de teste
+
+Para experimentar sem um sistema real: em **Conectar a uma API**, toque em **Usar a API de teste (dados fictícios)** e depois em **Conectar e buscar dados**. São 90 ordens de serviço inventadas, em 3 páginas JSON (`api-teste/ordens-{pagina}.json`), com campos aninhados como numa API de verdade. Os arquivos são gerados por `node tools/build-api-teste.js` e publicados junto com o assistente, por isso funcionam também dentro do Claude.
+
 ## Apagar dados
 
 - Botão **Apagar dados** no painel e na planilha: apagar a planilha atual, esvaziar as linhas (mantendo as colunas), apagar só os exemplos ou apagar tudo.

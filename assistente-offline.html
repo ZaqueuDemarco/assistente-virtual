@@ -3688,6 +3688,12 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
     else if (a === "sample") { $("#impText").value = messySample(); }
     else if (a === "api") { imp.apiSheet = null; renderApiForm(); }
     else if (a === "apiGo") apiGo();
+    else if (a === "apiTest") {
+      // API de teste publicada junto com o assistente (dados fictícios, 3 páginas).
+      $("#apiUrl").value = new URL("api-teste/", location.href).href + "ordens-{pagina}.json";
+      $("#apiMethod").value = "GET"; $("#apiPath").value = ""; $("#apiHeaders").value = "Authorization: Bearer TOKEN-DE-TESTE";
+      $("#apiTestNote").hidden = false;
+    }
     else if (a === "apiDisconnect") { const sh = state.sheets.find(s => s.id === imp.apiSheet); closeImport(); if (sh) { delete sh.api; render(); say(`Desconectei <b>${esc(sh.name)}</b> da API. Os dados atuais continuam na planilha.`); } }
     else if (a === "analyze") {
       const text = $("#impText").value;
@@ -3722,7 +3728,12 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   /* ---------- Conexão com API (JSON ou CSV) ---------- */
   // A conexão fica guardada na planilha (sh.api) para atualizar depois com um clique ou sozinha.
   const inClaude = !!window.claude?.use;
-  const humanKey = k => { const s = String(k).split(".").map(p => p.replace(/([a-zà-ÿ])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").trim()).join(" › "); return s.charAt(0).toUpperCase() + s.slice(1); };
+  // Nomes de campos de API sem acento ("situacao", "tecnico") ganham a grafia em português.
+  const KEY_PT = { numero: "número", situacao: "situação", tecnico: "técnico", patrimonio: "patrimônio", descricao: "descrição", codigo: "código", servico: "serviço", manutencao: "manutenção", solicitacao: "solicitação", responsavel: "responsável", previsao: "previsão", conclusao: "conclusão", orcamento: "orçamento", preco: "preço", endereco: "endereço", observacao: "observação", criacao: "criação", ultima: "última", periodo: "período", funcionario: "funcionário", usuario: "usuário" };
+  const humanKey = k => String(k).split(".").map(p => {
+    const s = p.replace(/([a-zà-ÿ])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").trim().split(" ").map(w => KEY_PT[w.toLowerCase()] || w).join(" ");
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }).join(" › ");
   function jsonCell(v) {
     if (v == null) return "";
     if (typeof v === "boolean") return v ? "Sim" : "Não";
@@ -3853,7 +3864,8 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
         </div>
         <label class="fld"><span>Cabeçalhos <small>(token, chave de acesso; um por linha)</small></span><textarea class="ctl mono" id="apiHeaders" rows="3" spellcheck="false" placeholder="Authorization: Bearer SEU_TOKEN&#10;X-Api-Key: SUA_CHAVE">${esc(c.headers || "")}</textarea></label>
         <label class="fld" id="apiBodyWrap" ${c.method === "POST" ? "" : "hidden"}><span>Corpo da requisição (JSON)</span><textarea class="ctl mono" id="apiBody" rows="3" spellcheck="false" placeholder='{"dataInicio": "2026-01-01"}'>${esc(c.body || "")}</textarea></label>
-        <p class="hint">Se a API divide os resultados em páginas, coloque <code>{pagina}</code> no endereço (ex.: <code>...?page={pagina}</code>) e eu busco todas. O token fica salvo só neste navegador e <b>não</b> vai no arquivo de backup.${inClaude ? ` <span style="color:var(--warn)">Aviso: dentro do Claude, a página não consegue acessar sistemas externos; para conectar, abra o <code>index.html</code> baixado no navegador do computador.</span>` : ""}</p>
+        ${/^https?:/.test(location.protocol) ? `<div class="row"><button type="button" class="btn ghost" data-imp="apiTest">${ICONS.link}Usar a API de teste (dados fictícios)</button><span class="hint" id="apiTestNote" hidden style="margin:0">Preenchi com a API de teste: 90 ordens de serviço inventadas, em 3 páginas. O token é de mentira; a API de teste aceita qualquer um. Toque em <b>Conectar e buscar dados</b>.</span></div>` : ""}
+        <p class="hint">Se a API divide os resultados em páginas, coloque <code>{pagina}</code> no endereço (ex.: <code>...?page={pagina}</code>) e eu busco todas. O token fica salvo só neste navegador e <b>não</b> vai no arquivo de backup.${inClaude ? ` <span style="color:var(--warn)">Aviso: dentro do Claude, a página não consegue acessar sistemas externos (a API de teste funciona). Para conectar ao seu sistema, use a versão reserva no navegador do computador (digite <code>baixar versão reserva</code>).</span>` : ""}</p>
         ${err ? `<div class="imp-err" role="alert">${err}</div>` : ""}
       </div>
       <div class="imp-foot">
@@ -3883,7 +3895,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
     impContent.innerHTML = `<div class="imp-body"><p class="lead">Conectando a <b>${esc(conn.url)}</b>…</p></div>`;
     try {
       const out = await fetchApiMatrix(conn);
-      let name = "Dados da API"; try { const seg = new URL(conn.url).pathname.split("/").filter(s => s && !/^v\d+$|^api$/i.test(s)).pop(); if (seg) name = humanKey(decodeURIComponent(seg)); } catch {}
+      let name = "Dados da API"; try { const seg = decodeURIComponent(new URL(conn.url).pathname).split("/").map(s => s.replace(/\.(json|csv|txt)$/i, "").replace(/[-_]?\{(pagina|page)\}/gi, "")).filter(s => s && !/^v\d+$|^api$/i.test(s)).pop(); if (seg) name = humanKey(seg); } catch {}
       loadMatrix(out.matrix, name, { note: out.note });
       if (imp) imp.api = { ...conn, path: conn.path || out.path || "" };
     } catch (e) {
