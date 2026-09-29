@@ -23,6 +23,18 @@ Abra o arquivo `index.html` no navegador. Não precisa instalar nada; os gráfic
 - Fora do Claude ficam de fora só os pedidos livres (IA) e a cópia na nuvem. A conexão com API funciona (fora do Claude a página pode acessar o sistema direto).
 - Depois de mudar o `index.html`, gere de novo com `node tools/build-offline.js` (usa as bibliotecas da pasta `vendor/`).
 
+## Demonstração para portfólio
+
+A pasta `docs/` tem a versão pública, com dados fictícios:
+
+- `docs/index.html`: página de apresentação (fonte em `site/landing.html`).
+- `docs/app.html`: o assistente abrindo com 4 áreas de exemplo (Vendas, Manutenção, Estoque, Financeiro). Não usa a nuvem; o que o visitante muda fica só no navegador dele. `reiniciar demonstração` volta ao início.
+- `docs/img/`: telas usadas na apresentação.
+
+Para gerar de novo depois de mudar o `index.html` ou a página: `node tools/build-demo.js`. Os dados são inventados pelo script, sempre os mesmos (semente fixa).
+
+Para publicar no GitHub Pages: Settings → Pages → "Deploy from a branch", escolha o branch e a pasta `/docs`. Em repositório privado, o Pages exige plano pago do GitHub.
+
 ## O que já funciona
 
 - **Importar e organizar dados**: cole dados (do Excel, Google Sheets, CSV, e-mail) ou arraste um arquivo `.xlsx`, `.xls`, `.csv`, `.txt` ou `.pdf`. O assistente:

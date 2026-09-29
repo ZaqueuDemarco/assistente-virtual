@@ -1,0 +1,301 @@
+<title>Assistente de Gestão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Layout: página de produto que conta a transformação "planilha bagunçada → painel",
+     com a tabela antes/depois como peça central e as telas reais do app como prova. */
+  :root {
+    --bg: #f4f6fa;
+    --surface: #ffffff;
+    --ink: #101828;
+    --muted: #566175;
+    --line: #dce2ec;
+    --accent: #2c64d8;
+    --accent-soft: #e6eefc;
+    --violet: #6c4fe0;
+    --good: #1c8a55;
+    --warn: #b4610e;
+    --shot-ring: rgba(16, 24, 40, .12);
+    --display: "Bricolage Grotesque", "IBM Plex Sans", system-ui, sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    --wrap: 1120px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1117; --surface: #161b22; --ink: #e6eaf0; --muted: #9aa6b8; --line: #2b3441;
+      --accent: #6aa6ff; --accent-soft: rgba(91, 157, 255, .14); --violet: #a08bff; --good: #4cc98a; --warn: #e6a650;
+      --shot-ring: rgba(0, 0, 0, .5); color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1117; --surface: #161b22; --ink: #e6eaf0; --muted: #9aa6b8; --line: #2b3441;
+    --accent: #6aa6ff; --accent-soft: rgba(91, 157, 255, .14); --violet: #a08bff; --good: #4cc98a; --warn: #e6a650;
+    --shot-ring: rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--body); -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: var(--wrap); margin: 0 auto; padding-inline: 20px; }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  h1, h2, h3 { font-family: var(--display); line-height: 1.12; text-wrap: balance; margin: 0; letter-spacing: -.01em; }
+  h2 { font-size: clamp(26px, 3.4vw, 36px); }
+  h3 { font-size: 19px; }
+  p { margin: 0; }
+  code, .mono { font-family: var(--mono); font-size: .9em; }
+  .eyebrow { font: 500 12.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  section { padding-block: 72px; }
+  .lead { color: var(--muted); font-size: 18px; max-width: 60ch; }
+
+  /* Cabeçalho */
+  header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 12px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; color: var(--ink); text-decoration: none; }
+  .mark { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font: 600 12px var(--mono); color: #fff; background: linear-gradient(135deg, #5b9dff, #8b6cf0); }
+  nav { display: flex; align-items: center; gap: 20px; font-size: 14.5px; }
+  nav a { color: var(--muted); text-decoration: none; }
+  nav a:hover { color: var(--ink); }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 10px; font-weight: 600; font-size: 15px; text-decoration: none; border: 1px solid transparent; }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.ghost { border-color: var(--line); color: var(--ink); background: var(--surface); }
+  .btn.ghost:hover { border-color: var(--accent); }
+  nav .btn { padding: 8px 14px; font-size: 14px; color: #fff; }
+  @media (max-width: 720px) { nav a:not(.btn) { display: none; } }
+
+  /* Abertura */
+  .hero { padding-block: 64px 40px; }
+  .hero-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 48px; align-items: center; }
+  .hero h1 { font-size: clamp(32px, 4vw, 48px); font-weight: 700; }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero .lead { margin-top: 18px; }
+  .ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+  .fine { margin-top: 16px; color: var(--muted); font-size: 13.5px; }
+  .shot { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); box-shadow: 0 24px 60px -24px var(--shot-ring), 0 2px 6px var(--shot-ring); background: #0d1117; }
+  @media (max-width: 900px) { .hero-grid { grid-template-columns: minmax(0, 1fr); gap: 32px; } }
+
+  /* Antes e depois */
+  .ba { display: grid; gap: 18px; margin-top: 32px; }
+  .ba-row { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 14px; align-items: stretch; }
+  .ba-tag { font: 500 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; padding-top: 14px; color: var(--muted); }
+  .ba-tag.after { color: var(--good); }
+  .sheet { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+  .sheet table { border-collapse: collapse; width: 100%; min-width: 760px; font: 14px var(--mono); font-variant-numeric: tabular-nums; }
+  .sheet th, .sheet td { text-align: left; padding: 10px 12px; border-right: 1px solid var(--line); white-space: nowrap; }
+  .sheet th { font: 500 11.5px var(--mono); color: var(--muted); background: var(--bg); border-bottom: 1px solid var(--line); }
+  .sheet th small { display: block; color: var(--accent); font-weight: 400; }
+  .sheet td:last-child, .sheet th:last-child { border-right: 0; }
+  .sheet.messy td { color: var(--warn); }
+  .sheet.clean td { color: var(--ink); }
+  .ba-notes { list-style: none; padding: 0; margin: 8px 0 0 106px; display: flex; flex-wrap: wrap; gap: 8px 22px; color: var(--muted); font-size: 14.5px; }
+  .ba-notes li::before { content: "✓ "; color: var(--good); }
+  @media (max-width: 720px) { .ba-row { grid-template-columns: minmax(0, 1fr); gap: 6px; } .ba-tag { padding-top: 0; } .ba-notes { margin-left: 0; } }
+
+  /* Recursos */
+  .features { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-top: 36px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .feature { background: var(--surface); padding: 26px 24px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .feature p { color: var(--muted); font-size: 15px; }
+  .feature .ex { margin-top: auto; padding-top: 6px; font: 13px var(--mono); color: var(--accent); }
+  @media (max-width: 900px) { .features { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 600px) { .features { grid-template-columns: minmax(0, 1fr); } }
+
+  /* Conversa */
+  .chat-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 4fr); gap: 48px; align-items: start; }
+  .chat-grid .shot { max-width: 380px; justify-self: end; }
+  .asks { list-style: none; padding: 0; margin: 28px 0 0; display: grid; gap: 12px; }
+  .asks li { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 14px 16px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+  .asks .q { font-family: var(--mono); font-size: 14.5px; color: var(--ink); }
+  .asks .a { color: var(--muted); font-size: 14.5px; }
+  @media (max-width: 900px) { .chat-grid { grid-template-columns: minmax(0, 1fr); } .chat-grid .shot { justify-self: start; } }
+
+  /* Áreas */
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 28px; }
+  .tabs button { font: 500 14.5px var(--body); padding: 8px 16px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; }
+  .tabs button[aria-selected="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+  .area { margin-top: 20px; }
+  .area p { color: var(--muted); margin-bottom: 16px; max-width: 70ch; }
+
+  /* Construção */
+  .build { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 48px; }
+  .stack { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--line); }
+  .stack li { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+  .stack b { font-weight: 600; }
+  .stack span { color: var(--muted); }
+  @media (max-width: 900px) { .build { grid-template-columns: minmax(0, 1fr); gap: 28px; } }
+  @media (max-width: 520px) { .stack li { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+
+  .closing { text-align: left; border-top: 1px solid var(--line); }
+  .closing .ctas { margin-top: 22px; }
+  footer { padding-block: 28px 40px; color: var(--muted); font-size: 13.5px; border-top: 1px solid var(--line); }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+
+<header>
+  <div class="wrap">
+    <a class="brand" href="#topo"><span class="mark">AG</span>Assistente de Gestão</a>
+    <nav aria-label="Seções">
+      <a href="#bagunca">Como funciona</a>
+      <a href="#areas">Áreas</a>
+      <a href="#construcao">Construção</a>
+      <a class="btn primary" href="app.html">Abrir demonstração</a>
+    </nav>
+  </div>
+</header>
+
+<main id="topo">
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <p class="eyebrow">Projeto pessoal · 2026</p>
+        <h1 style="margin-top:14px">Da planilha bagunçada ao <em>painel pronto</em>, numa conversa.</h1>
+        <p class="lead">Um assistente que lê o relatório exportado por qualquer sistema, arruma as colunas sozinho e monta cartões e gráficos a partir de pedidos escritos em português.</p>
+        <div class="ctas">
+          <a class="btn primary" href="app.html">Abrir demonstração</a>
+          <a class="btn ghost" href="#bagunca">Ver como funciona</a>
+        </div>
+        <p class="fine">A demonstração usa dados fictícios de vendas, manutenção, estoque e financeiro, e roda inteira no seu navegador.</p>
+      </div>
+      <img class="shot" src="img/painel-manutencao.jpg" width="2160" height="1350" alt="Painel de manutenção com cartões de O.S. abertas, tempo médio e custo, gráfico de O.S. abertas e fechadas por mês e custo por setor, com a conversa do assistente ao lado">
+    </div>
+  </section>
+
+  <section id="bagunca">
+    <div class="wrap">
+      <p class="eyebrow">Importação</p>
+      <h2 style="margin-top:10px">O arquivo chega como chegar.</h2>
+      <p class="lead" style="margin-top:14px">Relatórios exportados vêm com datas em três formatos, nomes em caixa alta, telefones sem máscara e valores com e sem “R$”. O assistente identifica o tipo de cada coluna e padroniza tudo antes de montar o painel.</p>
+      <div class="ba">
+        <div class="ba-row">
+          <span class="ba-tag">Antes</span>
+          <div class="sheet messy"><table>
+            <thead><tr><th>Data da venda</th><th>CLIENTE</th><th>e-mail</th><th>telefone</th><th>cidade</th><th>valor (R$)</th><th>status</th></tr></thead>
+            <tbody>
+              <tr><td>2026-01-27</td><td>ana souza</td><td>ANA.SOUZA@GMAIL.COM</td><td>11987654321</td><td>sao paulo</td><td>R$1700</td><td>PAGO</td></tr>
+              <tr><td>3/2/26</td><td>CARLA MENDES</td><td>carla.m@outlook.com</td><td>+55 21 98888-1234</td><td>SÃO PAULO</td><td>2.450,00</td><td>pendente</td></tr>
+              <tr><td>14 mar 2026</td><td>Bruno Lima</td><td>bruno@lima.com.br</td><td>(19) 99876-5432</td><td>campinas </td><td>890</td><td>Pago</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+        <div class="ba-row">
+          <span class="ba-tag after">Depois</span>
+          <div class="sheet clean"><table>
+            <thead><tr><th>Data da venda<small>Data</small></th><th>Cliente<small>Nome</small></th><th>E-mail<small>E-mail</small></th><th>Telefone<small>Telefone</small></th><th>Cidade<small>Categoria</small></th><th>Valor (R$)<small>Moeda</small></th><th>Status<small>Categoria</small></th></tr></thead>
+            <tbody>
+              <tr><td>27/01/2026</td><td>Ana Souza</td><td>ana.souza@gmail.com</td><td>(11) 98765-4321</td><td>São Paulo</td><td>R$ 1.700,00</td><td>Pago</td></tr>
+              <tr><td>03/02/2026</td><td>Carla Mendes</td><td>carla.m@outlook.com</td><td>(21) 98888-1234</td><td>São Paulo</td><td>R$ 2.450,00</td><td>Pendente</td></tr>
+              <tr><td>14/03/2026</td><td>Bruno Lima</td><td>bruno@lima.com.br</td><td>(19) 99876-5432</td><td>Campinas</td><td>R$ 890,00</td><td>Pago</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+        <ul class="ba-notes">
+          <li>Aceita .xlsx, .csv e PDF gerado pelo sistema</li>
+          <li>Ignora título, filtros, totais e rodapé do relatório</li>
+          <li>Remove linhas repetidas</li>
+          <li>Reconhece códigos como OS-4810 e datas do Excel como 46290</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <p class="eyebrow">O que ele faz</p>
+      <h2 style="margin-top:10px">Um painel que se monta sozinho e aceita ajustes em texto.</h2>
+      <div class="features">
+        <div class="feature"><h3>Painel automático</h3><p>Ao importar, cria cartões com os totais que importam e gráficos pelas colunas de data e categoria.</p><span class="ex">3 gráficos · 4 cartões · filtros</span></div>
+        <div class="feature"><h3>Pedidos em português</h3><p>Gráficos, cartões, filtros e tarefas saem de frases comuns, sem fórmulas nem menus.</p><span class="ex">custo por setor em agosto</span></div>
+        <div class="feature"><h3>Comparações</h3><p>Entende valores dentro das colunas e monta séries lado a lado.</p><span class="ex">O.S. abertas x fechadas por mês</span></div>
+        <div class="feature"><h3>Cartões com período livre</h3><p>Cada cartão aceita o período escrito do seu jeito e compara com o período anterior.</p><span class="ex">01/08 a 15/09 · últimos 30 dias</span></div>
+        <div class="feature"><h3>Conexão com sistemas</h3><p>Busca os dados direto de uma API (JSON ou CSV), com paginação e atualização automática.</p><span class="ex">…/api/ordens?page={pagina}</span></div>
+        <div class="feature"><h3>Dados com você</h3><p>Tudo fica no navegador, com backup em arquivo e uma versão que funciona sem internet.</p><span class="ex">fazer backup · restaurar</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap chat-grid">
+      <div>
+        <p class="eyebrow">Conversa</p>
+        <h2 style="margin-top:10px">Você escreve o que quer ver.</h2>
+        <p class="lead" style="margin-top:14px">O chat entende variações, plural, meses por extenso e valores da própria planilha. Quando aberto pelo Claude, pedidos mais livres também passam por um modelo de linguagem, que consulta os dados antes de responder.</p>
+        <ul class="asks">
+          <li><span class="q">gráfico de O.S. abertas x fechadas por mês</span><span class="a">Barras lado a lado, uma cor para cada situação.</span></li>
+          <li><span class="q">cartão de pedidos cancelados</span><span class="a">Novo cartão com o filtro Status = Cancelado.</span></li>
+          <li><span class="q">top 10 cliente</span><span class="a">Ranking dos clientes com mais pedidos.</span></li>
+          <li><span class="q">nova tarefa Ligar para fornecedor até 15/10</span><span class="a">Tarefa com prazo, que aparece no cartão de pendências.</span></li>
+        </ul>
+      </div>
+      <img class="shot" src="img/conversa.jpg" width="570" height="1350" alt="Conversa com o assistente: o pedido de gráfico de valor por região e o cartão de pedidos cancelados, cada um com a confirmação do assistente">
+    </div>
+  </section>
+
+  <section id="areas">
+    <div class="wrap">
+      <p class="eyebrow">Áreas</p>
+      <h2 style="margin-top:10px">Serve para qualquer planilha de gestão.</h2>
+      <div class="tabs" role="tablist" aria-label="Áreas da demonstração">
+        <button type="button" role="tab" id="t-vendas" aria-controls="area" aria-selected="true" data-area="vendas">Vendas</button>
+        <button type="button" role="tab" id="t-manutencao" aria-controls="area" aria-selected="false" data-area="manutencao">Manutenção</button>
+        <button type="button" role="tab" id="t-estoque" aria-controls="area" aria-selected="false" data-area="estoque">Estoque</button>
+        <button type="button" role="tab" id="t-financeiro" aria-controls="area" aria-selected="false" data-area="financeiro">Financeiro</button>
+      </div>
+      <div class="area" id="area" role="tabpanel" aria-labelledby="t-vendas">
+        <p id="areaText">448 pedidos de janeiro a setembro: faturamento, ticket médio, pedidos pendentes, valor por mês, por vendedor e por categoria.</p>
+        <img class="shot" id="areaImg" src="img/painel-vendas.jpg" width="2160" height="1350" alt="Painel de vendas com faturamento, ticket médio e gráficos por mês e por vendedor">
+      </div>
+    </div>
+  </section>
+
+  <section id="construcao">
+    <div class="wrap build">
+      <div>
+        <p class="eyebrow">Construção</p>
+        <h2 style="margin-top:10px">Um arquivo, sem servidor.</h2>
+        <p class="lead" style="margin-top:14px">O assistente inteiro é uma página HTML com JavaScript puro, que abre no computador, no iPad e no celular. Os dados desta demonstração são gerados por um script, sempre os mesmos, para que qualquer pessoa veja o mesmo painel.</p>
+      </div>
+      <ul class="stack">
+        <li><b>Interface</b><span>HTML, CSS e JavaScript, sem framework; tema escuro e layout para iPad e celular</span></li>
+        <li><b>Gráficos</b><span>Chart.js, com rótulos de valor, séries comparativas e ranking</span></li>
+        <li><b>Excel e PDF</b><span>SheetJS para planilhas; pdf.js para remontar tabelas de PDF pela posição do texto</span></li>
+        <li><b>Dados</b><span>IndexedDB no navegador, backup em arquivo e cópia em nuvem quando aberto pelo Claude</span></li>
+        <li><b>Linguagem natural</b><span>Interpretador próprio para pedidos em português; modelo de linguagem com ferramentas para os pedidos livres</span></li>
+        <li><b>Testes</b><span>Roteiros automatizados com Playwright, incluindo iPad e uso sem internet</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="closing">
+    <div class="wrap">
+      <h2>Teste com os dados fictícios ou com um arquivo seu.</h2>
+      <p class="lead" style="margin-top:12px">O arquivo que você importar na demonstração fica só no seu navegador.</p>
+      <div class="ctas"><a class="btn primary" href="app.html">Abrir demonstração</a></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">Assistente de Gestão · projeto pessoal. Todos os nomes, valores e registros da demonstração são fictícios.</div>
+</footer>
+
+<script>
+  const AREAS = {
+    vendas: ["img/painel-vendas.jpg", "448 pedidos de janeiro a setembro: faturamento, ticket médio, pedidos pendentes, valor por mês, por vendedor e por categoria.", "Painel de vendas com faturamento, ticket médio e gráficos por mês e por vendedor"],
+    manutencao: ["img/painel-manutencao.jpg", "324 ordens de serviço: O.S. abertas, tempo médio de atendimento, custo por setor e abertas x fechadas por mês.", "Painel de manutenção com O.S. abertas, tempo médio e custo por setor"],
+    estoque: ["img/painel-estoque.jpg", "28 itens: valor em estoque por categoria, itens abaixo do mínimo e os 10 itens de maior valor.", "Painel de estoque com valor por categoria e itens abaixo do mínimo"],
+    financeiro: ["img/painel-financeiro.jpg", "240 lançamentos: despesas por mês e por centro de custo, contas a vencer e contas vencidas.", "Painel financeiro com despesas por mês, por centro de custo e contas a vencer"],
+  };
+  const tabs = [...document.querySelectorAll("[data-area]")];
+  tabs.forEach(t => t.addEventListener("click", () => {
+    const [src, text, alt] = AREAS[t.dataset.area];
+    tabs.forEach(x => x.setAttribute("aria-selected", String(x === t)));
+    document.getElementById("area").setAttribute("aria-labelledby", t.id);
+    const img = document.getElementById("areaImg"); img.src = src; img.alt = alt;
+    document.getElementById("areaText").textContent = text;
+  }));
+  document.querySelector(".tabs").addEventListener("keydown", e => {
+    const i = tabs.indexOf(document.activeElement); if (i < 0 || !/Arrow(Left|Right)/.test(e.key)) return;
+    const n = tabs[(i + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length]; n.focus(); n.click();
+  });
+</script>

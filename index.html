@@ -136,9 +136,9 @@
 
   /* ---------- KPIs ---------- */
   .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
-  .kpi { padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .kpi { padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; container-type: inline-size; }
   .kpi .lbl { color: var(--text-2); font-size: 13px; line-height: 1.3; }
-  .kpi .val { font-size: 26px; font-weight: 650; letter-spacing: -.01em; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi .val { font-size: 26px; font-size: clamp(18px, 14.5cqi, 26px); font-weight: 650; letter-spacing: -.01em; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .kpi .delta { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
   .delta .up { color: var(--good); }
   .delta .down { color: var(--bad); }
@@ -548,6 +548,8 @@
     .mobile-nav button[aria-current="true"] { background: var(--accent-soft); color: var(--text); }
     .main-inner { padding: 16px 16px 90px; }
     .charts { grid-template-columns: minmax(0, 1fr); }
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .kpi { padding: 12px; }
     .chart-card .body { height: 240px; }
     .grid-wrap { max-height: 60vh; }
   }
@@ -662,6 +664,8 @@
   const nfBRL2 = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
   const nfCompact = new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 });
   const nfBRLCompact = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", notation: "compact", maximumFractionDigits: 2 });
+  // Página de demonstração (portfólio): abre com dados fictícios de várias áreas e não usa a nuvem. Definido por tools/build-demo.js.
+  const DEMO = window.ASSISTENTE_DEMO || null;
 
   function parseNum(v) {
     if (typeof v === "number") return v;
@@ -810,7 +814,7 @@
      no banco do próprio assistente (só o dono lê e grava) e é carregada ao abrir, em qualquer aparelho.
      O estado vai em partes de até 60 mil caracteres (limite do banco: 256 KiB por documento). */
   const CLOUD_CHUNK = 60000;
-  const dbReady = window.claude?.use ? window.claude.use("db").catch(() => null) : Promise.resolve(null);
+  const dbReady = !DEMO && window.claude?.use ? window.claude.use("db").catch(() => null) : Promise.resolve(null);
   let cloudDb = null, cloudChunks = [], cloudLast = "", cloudTimer = null, cloudBusy = false, cloudDirty = false, cloudOk = null;
   // Tokens de API não vão para a nuvem; ficam só no aparelho.
   const cloudText = () => JSON.stringify({ ...state, savedAt: undefined, sheets: state.sheets.map(sh => sh.api ? { ...sh, api: { ...sh.api, headers: "", lastError: "" } } : sh) });
@@ -1516,6 +1520,10 @@
         </div>
       </section>`;
   }
+  function demoBanner() {
+    if (!DEMO) return "";
+    return `<div class="banner" role="note"><span><b>Demonstração com dados fictícios.</b> O que você mudar ou importar fica só neste navegador.</span><span class="row"><button class="btn" data-run="reiniciar demonstração">Reiniciar demonstração</button><button class="btn primary" data-act="import">${ICONS.up}Testar com meu arquivo</button></span></div>`;
+  }
   function sampleBanner() {
     if (!hasSamples()) return "";
     return `<div class="banner" role="note"><span><b>Você está vendo dados de exemplo.</b> Apague-os para trabalhar só com os seus.</span><span class="row"><button class="btn primary" data-act="import">${ICONS.up}Importar meus dados</button><button class="btn" data-run="apagar exemplos">Apagar exemplos</button></span></div>`;
@@ -1524,12 +1532,17 @@
     const sh = sheet();
     const tcols = textCols(sh);
     const f = state.filter;
-    if (!tcols.includes(f.col)) f.col = tcols[1] ?? tcols[0] ?? null;
+    if (!tcols.includes(f.col)) {
+      // Filtro inicial: uma categoria curta (situação, tipo, setor...), não datas nem códigos.
+      const cats = tcols.filter(c => effType(sh, c) === "categoria" && c !== periodCol(sh) && !isIdCol(sh, c));
+      const uniq = c => new Set(sh.rows.map(r => r[c]).filter(Boolean)).size;
+      f.col = cats.find(c => /status|situacao|tipo|prioridade|categoria|setor/.test(norm(sh.columns[c])) && uniq(c) <= 12) ?? cats.find(c => uniq(c) <= 12) ?? tcols[1] ?? tcols[0] ?? null;
+    }
     const values = f.col != null ? [...new Set(sh.rows.map(r => r[f.col]).filter(Boolean))] : [];
     if (f.val && !values.includes(f.val)) f.val = "";
     const myCharts = state.charts.filter(c => c.sheetId === sh.id);
     const isSample = isSampleSheet(sh);
-    return `${sampleBanner()}${sheetTabs()}
+    return `${demoBanner()}${sampleBanner()}${sheetTabs()}
       <div class="topbar">
         <div><h1>Painel · ${esc(sh.name)}</h1><p>${sh.rows.length} linhas · ${sh.api ? `<span class="tag ${sh.api.lastError ? "bad" : "api"}" title="${esc(sh.api.url)}">API${sh.api.lastError ? " · falhou" : ""}</span> atualizado ${sh.api.lastAt ? new Date(sh.api.lastAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—"}` : "atualizado ao editar a planilha"} ${isSample ? '· <span class="tag">dados de exemplo</span>' : ""}</p></div>
         <div class="row">${sheetSelect()}${sh.api ? `<button class="btn primary" data-act="apiRefresh">${ICONS.refresh}Atualizar</button><button class="btn" data-act="apiEdit" aria-label="Editar conexão com a API" title="Editar conexão">${ICONS.link}</button>` : ""}<button class="btn" data-act="import">${ICONS.up}Importar dados</button><button class="btn danger" data-act="wipe">${ICONS.trash}Apagar dados</button></div>
@@ -1949,7 +1962,7 @@
       options: {
         responsive: true, maintainAspectRatio: false,
         indexAxis: horizontal ? "y" : "x",
-        layout: { padding: { right: horizontal && showLabels ? 56 : 8, top: !horizontal && showLabels ? 20 : 4 } },
+        layout: { padding: { right: horizontal && showLabels ? Math.max(56, 12 + 7 * Math.max(...datasets[0].data.map(v => fmt(v).length))) : 8, top: !horizontal && showLabels ? 20 : 4 } },
         interaction: { mode: round ? "nearest" : "index", intersect: round, axis: horizontal ? "y" : "x" },
         cutout: round ? "64%" : undefined,
         plugins: {
@@ -2244,6 +2257,10 @@
     }
     if (/^(fazer |salvar |criar |gerar )?(um )?backup$|^exportar tudo$|^(baixar|salvar) (todos os |meus )?dados$/.test(n)) return makeBackup();
     if (/^(baixar |salvar |gerar )?(a )?(vers[aã]o )?(reserva|offline|sem internet)$|^baixar (o )?assistente$/.test(n)) return downloadOffline();
+    if (DEMO && /^(reiniciar|recomecar|resetar|restaurar) (a )?demonstracao$/.test(n)) {
+      Object.assign(state, emptyState(), { chat: state.chat }); loadDemo(); render();
+      return say(`Demonstração reiniciada com os dados fictícios originais: ${state.sheets.map(s => `<b>${esc(s.name)}</b>`).join(", ")}.`);
+    }
     if (/^restaurar( um| o)? backup$|^(abrir|carregar) backup$/.test(n)) { $("#backupFile").click(); return say("Escolha o arquivo de backup (.json)."); }
     if (/^(armazenamento|espaco|quanto (espaco|ocupa)|onde (ficam|estao) (os )?(meus )?dados)/.test(n)) {
       const used = new Blob([JSON.stringify(state)]).size;
@@ -2803,6 +2820,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   const realSheets = () => state.sheets.filter(s => !isSampleSheet(s));
   function backupAge() { return state.lastBackupAt ? Math.floor((Date.now() - state.lastBackupAt) / DAY) : null; }
   function backupReminder() {
+    if (DEMO) return;
     if (!realSheets().length) return;
     const now = Date.now();
     if (!state.lastBackupAt && !state.backupSince) { state.backupSince = now; save(); return; }
@@ -2812,6 +2830,28 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
     state.backupRemindedAt = now; save();
     const days = Math.floor((now - since) / DAY);
     say(`🗂️ ${state.lastBackupAt ? `Seu último backup foi há <b>${days} dias</b>` : `Você ainda não fez nenhum backup (seus dados estão aqui há ${days} dias)`}. É a sua garantia caso o Claude fique fora do ar ou algo se perca. <button type="button" class="btn" data-run="fazer backup">Fazer backup agora</button>`);
+  }
+  // Monta a demonstração passando os dados fictícios pela mesma importação usada com arquivos reais.
+  function loadDemo() {
+    DEMO.sheets.forEach(d => {
+      const an = analyze(textToMatrix(d.csv)); if (!an) return;
+      const res = organize(an, { sortDate: true, addMonth: d.addMonth !== false });
+      const sh = { id: uid(), name: d.name, columns: res.columns, rows: res.rows, types: res.types, periodCol: res.periodCol, typesV: 3 };
+      if (sh.periodCol == null) sh.periodCol = periodCol(sh) ?? null;
+      state.sheets.push(sh); bust();
+      // Gráfico: texto como no chat, ou {agrupar, coluna, tipo, top} quando o texto seria ambíguo.
+      const chartOf = q => typeof q === "string" ? parseChartRequest(sh, norm(q)) : { type: q.tipo || "bar", label: findCol(sh, q.agrupar), values: [q.coluna ? findCol(sh, q.coluna) : -1], agg: "auto", top: q.top || 0, dateGroup: "mes" };
+      const charts = (d.charts || []).map(chartOf).filter(c => !c.error && c.label >= 0 && !c.values.includes(-2)).map(c => { const x = { id: uid(), sheetId: sh.id, ...c }; x.title = chartTitle(sh, x); return x; });
+      state.charts.push(...(charts.length ? charts : autoCharts(sh)));
+      // Cartões: {titulo, medida: "contagem"|"soma"|"media", coluna, filtro: [coluna, valor]}; comparar: false = sem comparação.
+      if (d.cards) sh.cards = [...d.cards.map(q => {
+        const col = q.coluna ? findCol(sh, q.coluna) : -1;
+        return { id: uid(), kind: "data", col, agg: col < 0 ? "count" : { soma: "sum", media: "avg" }[q.medida] || "sum", where: q.filtro ? { col: findCol(sh, q.filtro[0]), val: q.filtro[1] } : null, range: null, cmp: d.comparar === false ? "none" : "auto", title: q.titulo || "" };
+      }), { id: uid(), kind: "tasks" }];
+    });
+    const today = new Date();
+    state.tasks = (DEMO.tasks || []).map(([text, days, done]) => { const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + days); return { id: uid(), text, due: `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`, done: !!done }; });
+    state.activeSheet = state.sheets[0]?.id ?? null; state.view = "painel"; state.filter = { col: null, val: "" }; state.demoLoaded = true;
   }
   // Versão reserva: o mesmo assistente num arquivo só, que abre sem internet e sem o Claude.
   const isOfflineBuild = () => !!document.getElementById("lib-pdf"); // blocos ficam no fim do arquivo: checar só na hora do uso
@@ -4112,6 +4152,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
     saveNow();
   } else if (cloud) scheduleCloud();
   state.history = state.history || [];
+  if (DEMO && !state.sheets.length && !state.demoLoaded) loadDemo();
   migrateTypes();
   const hadChat = !!state.chat?.length;
   restoreChat();
@@ -4125,6 +4166,11 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   if (migrated.length) say(`Revisei suas planilhas: ${migrated.map(x => code(x)).join(", ")} ${migrated.length > 1 ? "estavam sendo tratadas" : "estava sendo tratada"} como dinheiro sem motivo claro e ${migrated.length > 1 ? "voltaram" : "voltou"} a ser número. Se for mesmo custo, diga ${code(`${migrated[0].split(" › ")[1].toLowerCase()} é custo`)}.`);
   backupReminder();
   if (hadChat) return; // conversa já existente: não repete as boas-vindas
+  if (DEMO) {
+    say(`Oi! 👋 Sou o assistente de gestão. Esta é uma <b>demonstração com dados fictícios</b> de ${state.sheets.length} áreas: ${state.sheets.map(s => `<b>${esc(s.name)}</b>`).join(", ")}. Troque de área nas abas <b>Minhas planilhas</b>, no topo do painel.`);
+    say(`Experimente escrever:<ul>${DEMO.tips.map(t => `<li>${code(t)}</li>`).join("")}</ul>Também dá para ${code("importar dados")} com um arquivo seu (.xlsx, .csv ou .pdf); ele fica só neste navegador.`);
+    return;
+  }
   if (fromCloud && !hadChat) say(`Carreguei suas ${state.sheets.length} planilha(s) salvas.`);
   if (hasSamples()) say(`Oi! 👋 Sou seu assistente de gestão. Pode falar comigo como no WhatsApp. O painel mostra <b>dados de exemplo</b>. Para usar os seus, digite ${code("apagar exemplos")} e depois ${code("importar dados")} (ou arraste o arquivo exportado do seu sistema para esta página).`);
   else say(`Oi! 👋 Sou seu assistente de gestão. Pode falar comigo como no WhatsApp: pergunte, peça gráficos, cartões ou tarefas. ${state.sheets.length ? `Suas planilhas estão carregadas. Digite ${code("resumo")} ou ${code("importar dados")}.` : `Para começar, digite ${code("importar dados")} ou arraste um arquivo .xlsx/.csv para a página.`}`);
