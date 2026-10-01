@@ -819,6 +819,7 @@
   const CLOUD_CHUNK = 60000;
   const dbReady = !DEMO && window.claude?.use ? window.claude.use("db").catch(() => null) : Promise.resolve(null);
   let cloudDb = null, cloudChunks = [], cloudLast = "", cloudTimer = null, cloudBusy = false, cloudDirty = false, cloudOk = null;
+  let cloudHadSheets = 0, userRemovedSheets = false; // trava contra apagar a nuvem por engano
   // Tokens de API não vão para a nuvem; ficam só no aparelho.
   // Token no endereço (?token=...) também é segredo: sai da cópia na nuvem e do backup, como os cabeçalhos.
   const stripUrlSecret = u => String(u || "").replace(/([?&](?:token|apikey|api_key|api-key|key|access_token|auth)=)[^&#]*/gi, "$1");
@@ -828,6 +829,7 @@
   async function cloudSave() {
     if (!cloudDb || !state) return;
     if (cloudBusy) { cloudDirty = true; return; }
+    if (!state.sheets.length && cloudHadSheets && !userRemovedSheets) return; // estado vazio não substitui planilhas salvas
     const txt = cloudText();
     if (txt === cloudLast) return;
     cloudBusy = true; cloudDirty = false;
@@ -837,7 +839,7 @@
       for (let i = 0; i < parts.length; i++) if (cloudChunks[i] !== parts[i]) { await cloudDb.doc(`nuvem/parte${i}`).set({ t: parts[i] }); cloudChunks[i] = parts[i]; }
       await cloudDb.doc("nuvem/meta").set({ n: parts.length, len: txt.length, savedAt: now, v: 1 });
       for (let i = parts.length; i < cloudChunks.length; i++) await cloudDb.doc(`nuvem/parte${i}`).delete().catch(() => {});
-      cloudChunks.length = parts.length; cloudLast = txt; cloudOk = true;
+      cloudChunks.length = parts.length; cloudLast = txt; cloudOk = true; cloudHadSheets = state.sheets.length;
       state.savedAt = now; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 500);
     } catch (e) { cloudOk = false; console.warn("nuvem:", e?.code || e); }
     finally { cloudBusy = false; updateStoreInfo(); if (cloudDirty) scheduleCloud(); }
@@ -845,17 +847,20 @@
   async function cloudLoad() {
     const db = await withTimeout(dbReady, 6000).catch(() => null);
     if (!db) return null;
-    cloudDb = db;
+    // Só passa a gravar na nuvem depois de conseguir LER o que já está lá; se a leitura falhar,
+    // esta sessão não grava nada (senão um estado vazio podia apagar a cópia boa).
     try {
       const meta = await withTimeout(db.doc("nuvem/meta").get(), 8000);
-      if (!meta.exists) { cloudOk = true; return { empty: true }; }
+      if (!meta.exists) { cloudDb = db; cloudOk = true; return { empty: true }; }
       const m = meta.data();
       const docs = await withTimeout(Promise.all(Array.from({ length: m.n }, (_, i) => db.doc(`nuvem/parte${i}`).get())), 15000);
-      if (docs.some(d => !d.exists)) return null;
+      if (docs.some(d => !d.exists)) { cloudOk = false; return null; }
       const parts = docs.map(d => d.data().t), txt = parts.join("");
-      if (m.len && txt.length !== m.len) return null; // cópia pela metade: fica com a do aparelho
-      cloudChunks = parts; cloudLast = txt; cloudOk = true;
-      return { state: JSON.parse(txt), savedAt: m.savedAt || 0 };
+      if (m.len && txt.length !== m.len) { cloudOk = false; return null; } // cópia pela metade: fica com a do aparelho e não grava
+      const parsed = JSON.parse(txt);
+      cloudChunks = parts; cloudLast = txt; cloudOk = true; cloudDb = db;
+      cloudHadSheets = (parsed.sheets || []).length;
+      return { state: parsed, savedAt: m.savedAt || 0 };
     } catch (e) { cloudOk = false; console.warn("nuvem:", e?.code || e); return null; }
   }
   addEventListener("pagehide", () => { if (saveTimer) saveNow(); });
@@ -896,6 +901,7 @@
     Object.assign(state, JSON.parse(undoSnap.data)); undoSnap = null; render(); return true;
   }
   function removeSheets(ids) {
+    userRemovedSheets = true;
     state.sheets = state.sheets.filter(s => !ids.includes(s.id));
     state.charts = state.charts.filter(c => !ids.includes(c.sheetId));
     if (!state.sheets.some(s => s.id === state.activeSheet)) state.activeSheet = state.sheets[0]?.id ?? null;
@@ -4184,7 +4190,8 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   state = await loadState();
   const cloud = await cloudLoad();
   let fromCloud = false;
-  if (cloud?.state && cloud.savedAt > (state.savedAt || 0)) {
+  const cloudSheets = cloud?.state?.sheets?.length || 0;
+  if (cloud?.state && cloud.savedAt > (state.savedAt || 0) && (cloudSheets || !state.sheets.length)) {
     // Mantém os tokens de API deste aparelho (não vão para a nuvem).
     const localApi = new Map(state.sheets.filter(s => s.api).map(s => [s.id, { headers: s.api.headers, url: s.api.url }]));
     state = cloud.state; state.savedAt = cloud.savedAt; fromCloud = true;
@@ -4199,6 +4206,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   chatReady = true;
   render();
   updateStoreInfo();
+  if (cloudOk === false && !state.sheets.length) say(`Não consegui acessar sua cópia na nuvem agora, por isso a tela está vazia. <b>Suas planilhas não foram apagadas.</b> Feche e abra o assistente de novo em alguns instantes.`, "bot", "err");
   if (movedFromLocal) { saveNow(); say(`Mudei seus dados para o armazenamento de maior capacidade do navegador. Antes o limite era de cerca de 5 MB; agora cabem relatórios bem maiores. Nada foi perdido.`); }
   if (storeMode === "local") say(`Este navegador não liberou o armazenamento maior; seus dados ficam no limitado (~5 MB). Faça ${code("backup")} de vez em quando.`, "bot", "err");
   if (storeMode === "memory" && !cloudOk) say(`Este navegador não está permitindo salvar dados (janela anônima ou bloqueio). Tudo funciona agora, mas some ao fechar. Use ${code("backup")} para guardar um arquivo.`, "bot", "err");
