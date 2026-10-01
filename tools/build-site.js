@@ -15,10 +15,11 @@ fs.writeFileSync(path.join(out, "index.html"), head + app);
 fs.writeFileSync(path.join(out, "manifest.webmanifest"), JSON.stringify({ name: "Assistente de Gestão", short_name: "Assistente", start_url: "./", display: "standalone", background_color: "#0d1117", theme_color: "#0d1117", icons: [{ src: "icone-180.png", sizes: "180x180", type: "image/png" }, { src: "icone-512.png", sizes: "512x512", type: "image/png" }] }, null, 2));
 cp("site/icone-180.png", "icone-180.png"); cp("site/icone-512.png", "icone-512.png");
 cp("assistente-offline.html", "assistente-offline.html");
-for (const f of fs.readdirSync(path.join(root, "api-teste"))) cp(`api-teste/${f}`, `api-teste/${f}`);
+const cpDir = (from, to) => { for (const f of fs.readdirSync(path.join(root, from))) fs.statSync(path.join(root, from, f)).isDirectory() ? cpDir(`${from}/${f}`, `${to}/${f}`) : cp(`${from}/${f}`, `${to}/${f}`); };
+cpDir("api-teste", "api-teste");
 for (const f of ["index.html", "app.html"]) cp(`docs/${f}`, `portfolio/${f}`);
 for (const f of fs.readdirSync(path.join(root, "docs", "img"))) cp(`docs/img/${f}`, `portfolio/img/${f}`);
-for (const f of fs.readdirSync(path.join(root, "docs", "api-teste"))) cp(`docs/api-teste/${f}`, `portfolio/api-teste/${f}`);
+cpDir("docs/api-teste", "portfolio/api-teste");
 fs.writeFileSync(path.join(out, ".nojekyll"), "");
 fs.writeFileSync(path.join(out, "README.md"), `# Assistente de Gestão
 

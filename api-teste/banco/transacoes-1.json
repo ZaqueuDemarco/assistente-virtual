@@ -1,0 +1,493 @@
+{
+  "data": [
+    {
+      "transactionId": "TX000007",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "POSTO EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "170.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-02T09:50:00.000Z"
+    },
+    {
+      "transactionId": "TX000009",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "FARMACIA EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "90.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-05T08:44:00.000Z"
+    },
+    {
+      "transactionId": "TX000002",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "ALUGUEL",
+      "type": "BOLETO",
+      "transactionAmount": {
+        "amount": "1455.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-05T13:53:00.000Z"
+    },
+    {
+      "transactionId": "TX000013",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "STREAMING EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "40.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-05T17:45:00.000Z"
+    },
+    {
+      "transactionId": "TX000001",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "CREDITO",
+      "transactionName": "SALARIO EMPRESA ALFA",
+      "type": "TED",
+      "transactionAmount": {
+        "amount": "5000.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-05T19:47:00.000Z"
+    },
+    {
+      "transactionId": "TX000006",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "MERCADO EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "85.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-06T16:28:00.000Z"
+    },
+    {
+      "transactionId": "TX000011",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "MERCADO EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "205.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-07T08:10:00.000Z"
+    },
+    {
+      "transactionId": "TX000020",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "POSTO EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "130.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-09T13:25:00.000Z"
+    },
+    {
+      "transactionId": "TX000025",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "MERCADO EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "230.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-09T19:27:00.000Z"
+    },
+    {
+      "transactionId": "TX000003",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "CONTA DE LUZ",
+      "type": "BOLETO",
+      "transactionAmount": {
+        "amount": "180.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-10T11:52:00.000Z"
+    },
+    {
+      "transactionId": "TX000019",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "POSTO EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "175.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-11T12:09:00.000Z"
+    },
+    {
+      "transactionId": "TX000012",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "RESTAURANTE EXEMPLO",
+      "type": "PIX",
+      "transactionAmount": {
+        "amount": "55.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-11T15:58:00.000Z"
+    },
+    {
+      "transactionId": "TX000004",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "CONTA DE AGUA",
+      "type": "BOLETO",
+      "transactionAmount": {
+        "amount": "90.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-12T15:18:00.000Z"
+    },
+    {
+      "transactionId": "TX000014",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "MERCADO EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "190.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-14T18:19:00.000Z"
+    },
+    {
+      "transactionId": "TX000018",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "ACADEMIA EXEMPLO",
+      "type": "BOLETO",
+      "transactionAmount": {
+        "amount": "100.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-14T19:13:00.000Z"
+    },
+    {
+      "transactionId": "TX000005",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "INTERNET E TELEFONE",
+      "type": "BOLETO",
+      "transactionAmount": {
+        "amount": "120.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-15T09:58:00.000Z"
+    },
+    {
+      "transactionId": "TX000023",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "POSTO EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "225.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-16T10:45:00.000Z"
+    },
+    {
+      "transactionId": "TX000021",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "STREAMING EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "40.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-17T11:46:00.000Z"
+    },
+    {
+      "transactionId": "TX000008",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "MERCADO EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "190.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-17T14:04:00.000Z"
+    },
+    {
+      "transactionId": "TX000016",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "STREAMING EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "40.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-18T18:39:00.000Z"
+    },
+    {
+      "transactionId": "TX000010",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "POSTO EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "195.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-19T15:11:00.000Z"
+    },
+    {
+      "transactionId": "TX000017",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "STREAMING EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "40.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-20T14:45:00.000Z"
+    },
+    {
+      "transactionId": "TX000026",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "ACADEMIA EXEMPLO",
+      "type": "BOLETO",
+      "transactionAmount": {
+        "amount": "100.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-23T10:57:00.000Z"
+    },
+    {
+      "transactionId": "TX000024",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "POSTO EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "215.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-24T10:42:00.000Z"
+    },
+    {
+      "transactionId": "TX000022",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "ACADEMIA EXEMPLO",
+      "type": "BOLETO",
+      "transactionAmount": {
+        "amount": "100.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-25T12:02:00.000Z"
+    },
+    {
+      "transactionId": "TX000015",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "APP DE TRANSPORTE",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "15.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-27T11:34:00.000Z"
+    },
+    {
+      "transactionId": "TX000027",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "FARMACIA EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "65.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-07-27T18:49:00.000Z"
+    },
+    {
+      "transactionId": "TX000037",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "RESTAURANTE EXEMPLO",
+      "type": "PIX",
+      "transactionAmount": {
+        "amount": "55.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-08-03T18:46:00.000Z"
+    },
+    {
+      "transactionId": "TX000046",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "FARMACIA EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "90.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-08-04T16:31:00.000Z"
+    },
+    {
+      "transactionId": "TX000058",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "ACADEMIA EXEMPLO",
+      "type": "BOLETO",
+      "transactionAmount": {
+        "amount": "100.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-08-05T10:37:00.000Z"
+    },
+    {
+      "transactionId": "TX000040",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "PIX ENVIADO FULANO DE TAL",
+      "type": "PIX",
+      "transactionAmount": {
+        "amount": "275.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-08-05T13:48:00.000Z"
+    },
+    {
+      "transactionId": "TX000030",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "ALUGUEL",
+      "type": "BOLETO",
+      "transactionAmount": {
+        "amount": "1445.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-08-05T16:53:00.000Z"
+    },
+    {
+      "transactionId": "TX000028",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "CREDITO",
+      "transactionName": "SALARIO EMPRESA ALFA",
+      "type": "TED",
+      "transactionAmount": {
+        "amount": "5000.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-08-05T17:32:00.000Z"
+    },
+    {
+      "transactionId": "TX000052",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "FARMACIA EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "65.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-08-07T08:14:00.000Z"
+    },
+    {
+      "transactionId": "TX000055",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "APP DE TRANSPORTE",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "40.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-08-07T09:07:00.000Z"
+    },
+    {
+      "transactionId": "TX000041",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "PADARIA EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "35.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-08-07T12:26:00.000Z"
+    },
+    {
+      "transactionId": "TX000047",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "APP DE TRANSPORTE",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "25.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-08-08T12:22:00.000Z"
+    },
+    {
+      "transactionId": "TX000051",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "FARMACIA EXEMPLO",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "110.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-08-09T09:41:00.000Z"
+    },
+    {
+      "transactionId": "TX000056",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "APP DE TRANSPORTE",
+      "type": "CARTAO",
+      "transactionAmount": {
+        "amount": "30.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-08-09T13:22:00.000Z"
+    },
+    {
+      "transactionId": "TX000059",
+      "completedAuthorisedPaymentType": "TRANSACAO_EFETIVADA",
+      "creditDebitType": "DEBITO",
+      "transactionName": "RESTAURANTE EXEMPLO",
+      "type": "PIX",
+      "transactionAmount": {
+        "amount": "145.00",
+        "currency": "BRL"
+      },
+      "transactionDateTime": "2026-08-10T09:18:00.000Z"
+    }
+  ],
+  "links": {
+    "self": "transacoes-1.json",
+    "next": "transacoes-2.json"
+  },
+  "meta": {
+    "totalRecords": 91,
+    "totalPages": 3,
+    "requestDateTime": "2026-10-01T12:00:00Z"
+  }
+}
