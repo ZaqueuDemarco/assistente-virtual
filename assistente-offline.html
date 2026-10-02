@@ -298,6 +298,8 @@
   .msg ul { margin: 6px 0 0; padding-left: 18px; }
   .msg li { margin: 2px 0; }
   .msg .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .menu-pick { display: block; width: 100%; margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--bg); color: var(--wa-text); border: 1px solid var(--accent); font: inherit; font-size: 14.5px; cursor: pointer; }
+  .menu-pick:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   .suggest { padding: 8px 12px; display: flex; gap: 6px; flex-wrap: wrap; background: var(--wa-bg); }
   .suggest:empty { display: none; }
   .suggest button {
@@ -1178,11 +1180,18 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     found.sort((a, b) => a.order - b.order);
     return { from: found[0].key, to: found[found.length - 1].key };
   }
+  // "soma de quantidade", "média de quantidade": coluna numérica cujo nome é uma palavra que normalmente significa contagem.
+  function explicitNumCol(sh, text) {
+    const m = text.match(/\b(?:soma|somar|total|media|medio|maior|menor|maximo|minimo)\s+(?:d[aeo]s?\s+)?(.+?)(?:\s+por\s+.*)?$/);
+    if (!m) return null;
+    const c = sh.columns.findIndex(x => norm(x).replace(/\s*\(.*?\)/g, "").trim() === m[1].trim());
+    return c >= 0 && numericCols(sh).includes(c) ? c : null;
+  }
   function parseCardRequest(sh, n, raw = "") {
     const text = n.replace(/^(criar|cria|novo|nova|adicionar|adiciona|quero|fazer)?\s*(um\s+)?(novo\s+)?(cartao|card|indicador|kpi)\s*(de|com|para|mostrando)?\s*/, "");
     const card = { kind: "data", col: -1, agg: "count", where: null, compare: true, title: "" };
     const nc = numericCols(sh);
-    const num = chartColsIn(sh, text).find(c => nc.includes(c));
+    const num = chartColsIn(sh, text).find(c => nc.includes(c)) ?? explicitNumCol(sh, text);
     if (num != null) {
       card.col = num;
       card.agg = /\bmedi[ao]s?\b/.test(text) ? "avg" : /\b(maior|maximo)\b/.test(text) ? "max" : /\b(menor|minimo)\b/.test(text) ? "min" : /\b(soma|total)\b/.test(text) ? "sum" : isAvgCol(sh, num) ? "avg" : "sum";
@@ -1199,6 +1208,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         if (hit) { card.where = { col: c, val: hit }; break outer; }
       }
     }
+    if (!card.where) { const vh = valuesIn(sh, text)[0]; if (vh) card.where = { col: vh.col, val: vh.vals[0] }; }
     const per = monthsIn(sh, text);
     if (per && per !== "all") card.range = per;
     if (card.col < 0 && !card.where && !card.range) return null;
@@ -1438,6 +1448,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     // Medida
     const avg = /\bmedi[ao]s?\b/.test(measureText), sum = /\b(soma|somar|total de|valor total)\b/.test(measureText);
     let nums = chartColsIn(sh, measureText).filter(c => numericCols(sh).includes(c) && c !== out.label);
+    if (!nums.length) { const ex = explicitNumCol(sh, measureText); if (ex != null && ex !== out.label) nums = [ex]; }
     // "variação %": entre colunas parecidas, prefere a que é percentual.
     if (/%|percent/.test(measureText)) { const pc = numericCols(sh).find(c => /%|percent/i.test(sh.columns[c]) && nums.some(x => stemPhrase(sh.columns[x]).split(" ")[0] === stemPhrase(sh.columns[c]).split(" ")[0])); if (pc != null) { const st = stemPhrase(sh.columns[pc]).split(" ")[0]; nums = [pc, ...nums.filter(x => x !== pc && stemPhrase(sh.columns[x]).split(" ")[0] !== st)]; } }
     // Citou uma coluna numérica (custo, tempo, peças...) -> mede essa coluna; senão, conta registros.
@@ -1470,6 +1481,51 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     return out;
   }
   // Exemplos de pedidos usando as colunas reais da planilha.
+  /* Menu de pedidos: sem IA (versão offline / link próprio), mostra o que dá para pedir com as colunas desta planilha.
+     Cada item é um comando que o interpretador já entende; escolher no menu executa na hora. */
+  function menuOptions(sh) {
+    if (!sh) return [];
+    const cl = countLabel(sh) === "O.S." ? "O.S." : "registros", pc = periodCol(sh);
+    const hasPeriod = pc != null || dateColOf(sh) >= 0;
+    const nm = c => sh.columns[c].replace(/\s*\(.*?\)\s*/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+    const counts = c => { const m = new Map(); sh.rows.forEach(r => { const v = r[c]; if (v) m.set(v, (m.get(v) || 0) + 1); }); return [...m].sort((a, b) => b[1] - a[1]).map(x => x[0]); };
+    const nc = numericCols(sh).filter(c => !isIdCol(sh, c));
+    const cats = sh.columns.map((_, i) => i).filter(i => effType(sh, i) === "categoria" && i !== pc && !isIdCol(sh, i) && counts(i).length >= 2).sort((a, b) => counts(a).length - counts(b).length);
+    const statusCol = cats.find(c => /status|situacao|tipo|prioridade|etapa|fase/.test(norm(sh.columns[c])) && counts(c).length <= 8) ?? cats.find(c => counts(c).length <= 6);
+    const small = cats.filter(c => counts(c).length <= 30), big = cats.find(c => counts(c).length > 8);
+    const numTxt = c => isAvgCol(sh, c) ? `média de ${nm(c)}` : `soma de ${nm(c)}`;
+    const G = [], add = (group, label, cmd) => { let g = G.find(x => x.group === group); if (!g) G.push(g = { group, items: [] }); if (!g.items.some(i => i[1] === cmd) && g.items.length < 10) g.items.push([label, cmd]); };
+    const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+    // Gráficos
+    small.slice(0, 4).forEach(c => add("Gráficos", `Quantidade de ${cl} por ${nm(c)}`, `gráfico de quantidade de ${cl} por ${nm(c)}`));
+    if (hasPeriod) add("Gráficos", `${cap(cl)} por mês`, `gráfico de ${cl} por mês`);
+    if (statusCol != null && hasPeriod) { const [a, b] = counts(statusCol); if (a && b) add("Gráficos", `${a} x ${b} por mês`, `gráfico de ${cl} ${a.toLowerCase()} x ${b.toLowerCase()} por mês`); }
+    nc.slice(0, 2).forEach(n => { if (small[0] != null) add("Gráficos", `${cap(numTxt(n))} por ${nm(small[0])}`, `gráfico de ${numTxt(n)} por ${nm(small[0])}`); if (hasPeriod) add("Gráficos", `${cap(numTxt(n))} por mês`, `gráfico de ${numTxt(n)} por mês`); });
+    const pie = cats.find(c => counts(c).length <= 8); if (pie != null) add("Gráficos", `Pizza: ${cl} por ${nm(pie)}`, `gráfico de pizza de ${cl} por ${nm(pie)}`);
+    if (big != null) add("Gráficos", `Top 10 ${nm(big)}`, `top 10 ${nm(big)}`);
+    // Cartões
+    if (statusCol != null) counts(statusCol).slice(0, 4).forEach(v => add("Cartões", `${cap(cl)}: ${v}`, `cartão de ${cl} ${v.toLowerCase()}`));
+    nc.slice(0, 3).forEach(n => { add("Cartões", `Média de ${nm(n)}`, `cartão de média de ${nm(n)}`); if (!isAvgCol(sh, n)) add("Cartões", `Total de ${nm(n)}`, `cartão de soma de ${nm(n)}`); });
+    // Análises
+    add("Análises", "Resumo da planilha", "resumo"); add("Análises", "Como cada coluna é calculada", "verificar");
+    nc.slice(0, 3).forEach(n => { add("Análises", `Maior ${nm(n)}`, `maior ${nm(n)}`); add("Análises", `Média de ${nm(n)}`, `média de ${nm(n)}`); if (!isAvgCol(sh, n)) add("Análises", `Somar ${nm(n)}`, `somar ${nm(n)}`); });
+    // Filtros
+    [statusCol, small.find(c => c !== statusCol)].filter(c => c != null).forEach(c => counts(c).slice(0, 4).forEach(v => add("Filtrar o painel", `${sh.columns[c]} = ${v}`, `filtrar ${nm(c)} = ${v}`)));
+    if (G.some(g => g.group === "Filtrar o painel")) add("Filtrar o painel", "Tirar o filtro", "limpar filtro");
+    // Planilha
+    add("Planilha", "Abrir a planilha", "mostrar planilha");
+    if (nc[0] != null) add("Planilha", `Ordenar por ${nm(nc[0])} (maior primeiro)`, `ordenar por ${nm(nc[0])} desc`);
+    add("Planilha", "Baixar em Excel", "exportar excel"); add("Planilha", "Baixar em CSV", "exportar csv"); add("Planilha", "Fazer backup", "fazer backup");
+    return G;
+  }
+  function menuHtml(sh) {
+    const G = menuOptions(sh); if (!G.length) return "";
+    return `<select class="menu-pick" data-menu="1" data-sheet="${esc(sh.id)}" aria-label="Menu de pedidos para ${esc(sh.name)}"><option value="">Escolha um pedido…</option>${G.map(g => `<optgroup label="${esc(g.group)}">${g.items.map(([l, c]) => `<option value="${esc(c)}">${esc(l)}</option>`).join("")}</optgroup>`).join("")}</select>`;
+  }
+  function showMenu(sh) {
+    if (!sh) return say(`Ainda não há planilhas. Digite ${code("importar dados")} ou arraste um arquivo para a página.`);
+    say(`📋 <b>O que você quer ver em ${esc(sh.name)}?</b> Escolha no menu e eu faço na hora.${menuHtml(sh)}<small style="display:block;margin-top:6px;color:var(--wa-meta)">O menu fica guardado aqui na conversa. Para abrir de novo, toque em <b>📋 Menu de pedidos</b> ou digite ${code("menu")}.</small>`);
+  }
   function chartExamples(sh) {
     if (!sh) return [];
     const cl = countLabel(sh) === "O.S." ? "O.S." : "registros";
@@ -2264,6 +2320,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     const sh = sheet();
     let m;
 
+    if (/^(menu|menu de pedidos|opcoes|o que (eu )?posso pedir|pedidos)\b/.test(n)) return showMenu(sh);
     if (/^(ajuda|help|\?|comandos|o que (voce )?(faz|sabe))/.test(n)) return say(helpText());
     if (/^limpar (conversa|chat|historico)/.test(n)) { log.innerHTML = ""; lastDay = ""; aiTurns = []; state.chat = []; return say("Conversa limpa."); }
     // Conversa: cumprimentos, agradecimentos e despedidas
@@ -2574,7 +2631,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
      ===================================================================== */
   const sampleReady = window.claude?.use ? window.claude.use("sample").catch(() => null) : Promise.resolve(null);
   let aiOff = "", aiTurns = [], aiCtl = null;
-  sampleReady.then(async sample => { if (!sample) return; try { if ((await sample.limits())?.tools) $("#cmdInput").placeholder = "Pergunte ou peça o que quiser sobre seus dados"; } catch {} });
+  let aiReady = false; // pedidos livres disponíveis (só no link do Claude)
+  sampleReady.then(async sample => { if (!sample) return; try { if ((await sample.limits())?.tools) { aiReady = true; $("#cmdInput").placeholder = "Pergunte ou peça o que quiser sobre seus dados"; if (state) renderSuggest(); } } catch {} });
   const AI_FIRST = /\?\s*$|^(qual|quais|quem|onde|quando|como|por ?que|o que|existe|existem|teve|houve|tem algum|tem alguma|me (diga|diz|explica|explique|fala|conta|ajuda|ajude|mostra|mostre|mostrar)|poderia|pode|podes|consegue|gostaria|queria|preciso|analis|compar|expliq|avali|identifiq|sugir|sugest|recomend|verifique se|descubra|calcule|calcula)/;
   const BLOCKED_CMD = /^(apagar|apaga|excluir|exclui|remover|remove|limpar|limpa|desconectar|restaurar|esvaziar|zerar|deletar)\b/;
   function aiCol(sh, name) {
@@ -3658,6 +3716,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
       <li>${newCharts.length ? `Montei ${newCharts.length} gráfico(s) no painel: ${newCharts.map(c => esc(c.title.toLowerCase())).join("; ")}.` : "Não havia colunas numéricas ou categorias para gráficos automáticos."}</li>
     </ul>${api ? `Conectada à API: para trazer dados novos, clique em <b>Atualizar</b> no painel ou digite ${code("atualizar")}${api.every ? ` (também atualizo sozinho a cada ${api.every >= 60 ? api.every / 60 + " hora(s)" : api.every + " min"} enquanto a página estiver aberta)` : ""}. ` : ""}Próximos passos: ${code("resumo")}${firstCat >= 0 ? `, ${code(`filtrar ${sh.columns[firstCat].toLowerCase()} = ${sh.rows.find(r => r[firstCat])?.[firstCat] || ""}`)}` : ""}${newCharts.length ? "" : `, ${code(`criar gráfico de registros por ${sh.columns[0].toLowerCase()}`)}`}.`);
     renderSuggest();
+    if (!aiReady) showMenu(sh); // sem pedidos livres: já mostra o que dá para pedir
   }
 
   // Exemplo propositalmente desorganizado para demonstrar a identificação.
@@ -4060,6 +4119,12 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
       say(`Coluna ${code(sh.columns[c])} agora é <b>${esc(TYPE_LABEL[t.value])}</b>. Painel e gráficos atualizados.`);
     }
     else if (t.dataset.hcol) { sheet().columns[+t.dataset.hcol] = t.value || "Coluna"; render(); }
+    else if (t.dataset.menu && t.value) {
+      // Menu de pedidos: executa na planilha para a qual o menu foi feito.
+      const cmd = t.value, sid = t.dataset.sheet; t.value = "";
+      if (sid && sid !== state.activeSheet && state.sheets.some(s => s.id === sid)) { state.activeSheet = sid; state.filter = { col: null, val: "" }; selCell = null; render(); }
+      run(cmd);
+    }
   });
 
   // Edição de células: mostra a fórmula ao focar, recalcula ao sair
@@ -4181,9 +4246,9 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
     else if (sh && !isSampleSheet(sh)) {
       const cat = (sh.types || []).findIndex((t, i) => t === "categoria" && i !== sh.periodCol);
       const num = numericCols(sh)[0];
-      list = [...chartExamples(sh).slice(0, 3), "verificar", "resumo", hasSamples() ? "apagar exemplos" : null, "ajuda"].filter(Boolean);
+      list = [aiReady ? null : "📋 Menu de pedidos", ...chartExamples(sh).slice(0, 3), "verificar", "resumo", hasSamples() ? "apagar exemplos" : null, "ajuda"].filter(Boolean);
     } else list = ["apagar exemplos", "importar dados", "resumo", "criar gráfico de receita por categoria", "ajuda"];
-    $("#suggest").innerHTML = list.map(s => `<button type="button" data-suggest="${esc(s)}">${esc(s)}</button>`).join("");
+    $("#suggest").innerHTML = list.map(s => `<button type="button" data-suggest="${esc(s.startsWith("📋") ? "menu" : s)}">${esc(s)}</button>`).join("");
   }
   $("#suggest").innerHTML = ["importar dados", "resumo", "criar gráfico de receita por categoria", "maior lucro", "filtrar categoria = Serviços", "listar tarefas", "ajuda"]
     .map(s => `<button type="button" data-suggest="${esc(s)}">${esc(s)}</button>`).join("");
