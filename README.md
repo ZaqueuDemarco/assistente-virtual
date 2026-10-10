@@ -73,7 +73,7 @@ Gráficos comparativos e com filtro (funcionam também sem a IA):
 - `gráfico de O.S. corretivas por setor em agosto` → filtro por valor e por mês;
 - `gráfico de custo por setor de julho a agosto` → intervalo de meses.
 
-O assistente reconhece valores das colunas (aberta, fechada, corretiva, UTI...) pelo radical, sem ligar para plural ou gênero. Quando um pedido de gráfico ou cartão tem palavras que ele não conhece, ou várias partes ("um gráfico por setor e outro por mês"), ele passa o pedido para a IA.
+O assistente reconhece valores das colunas (aberta, fechada, corretiva, Produção...) pelo radical, sem ligar para plural ou gênero. Quando um pedido de gráfico ou cartão tem palavras que ele não conhece, ou várias partes ("um gráfico por setor e outro por mês"), ele passa o pedido para a IA.
 
 ## Conectar à API do seu sistema
 
@@ -120,7 +120,7 @@ Os cartões do topo são simples: título, valor e a variação em relação ao 
 
 - **Lápis** em cada cartão abre o editor. Todos os campos são **texto livre**, com sugestões enquanto digita, e embaixo de cada um aparece o que o assistente entendeu:
   - *O que mostrar*: "quantidade de O.S.", "custo total", "tempo médio", "maior custo";
-  - *Considerar só*: "abertas", "corretivas da UTI Adulto", "abertas e em andamento" (valores da mesma coluna = um OU outro; de colunas diferentes = todos juntos);
+  - *Considerar só*: "abertas", "corretivas da Produção", "abertas e em andamento" (valores da mesma coluna = um OU outro; de colunas diferentes = todos juntos);
   - *Período*: deixe **vazio** (ou "nenhum") para não usar período nem comparação; ou escreva "todo o período", "último mês", "agosto", "julho a setembro", "01/08 a 15/09", "desde 01/09", "até 31/07", "últimos 30 dias", "últimos 3 meses", "esta semana", "este ano", "2026";
   - *Comparar com*: "período anterior", "julho", "não comparar";
   - *Título* (opcional) e posição.
