@@ -2759,8 +2759,8 @@
       }
       return { text: "Parei: o pedido precisou de passos demais. Tente algo mais específico.", truncated: true };
     },
-    async gemini(system, msgs, tools, signal) {
-      const model = cfg.models.gemini;
+    async gemini(system, msgs, tools, signal, modelOverride) {
+      const model = modelOverride || cfg.models.gemini;
       if (!model) throw { code: "model" };
       // O Gemini usa os tipos em maiúsculas (OBJECT, STRING...) nas declarações de função.
       const up = s => !s || typeof s !== "object" ? s : Array.isArray(s) ? s.map(up) : Object.fromEntries(Object.entries(s).map(([k, v]) => [k, k === "type" && typeof v === "string" ? v.toUpperCase() : k === "properties" ? Object.fromEntries(Object.entries(v).map(([pk, pv]) => [pk, up(pv)])) : up(v)]));
@@ -2768,7 +2768,9 @@
       const contents = msgs.map(m => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: textOfTurns(m) }] }));
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(cfg.keys.gemini)}`;
       for (let round = 0; round < 10; round++) {
-        const r = await aiFetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents, ...(decls.length ? { tools: [{ functionDeclarations: decls }] } : {}) }) }, signal);
+        let r;
+        try { r = await aiFetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents, ...(decls.length ? { tools: [{ functionDeclarations: decls }] } : {}) }) }, signal); }
+        catch (e) { if (e && typeof e === "object") e.round = round; throw e; } // round 0 = nada foi executado ainda
         const cand = r.candidates?.[0];
         if (!cand?.content) { if (r.promptFeedback?.blockReason || cand?.finishReason === "SAFETY") throw { code: "refused" }; return { text: "", truncated: false }; }
         contents.push(cand.content); // devolve a resposta sem alterar (mantém as assinaturas de raciocínio)
@@ -2781,6 +2783,24 @@
       return { text: "Parei: o pedido precisou de passos demais. Tente algo mais específico.", truncated: true };
     },
   };
+  // Pedido livre. No Gemini grátis, cada modelo tem a própria cota: se a de um acabar, tenta outro "flash".
+  let geminiNow = ""; // modelo que está respondendo nesta sessão (quando o escolhido ficou sem cota)
+  async function aiChatRun(id, system, msgs, tools, signal) {
+    if (id !== "gemini") return AI_CHAT[id](system, msgs, tools, signal);
+    const chosen = cfg.models.gemini, start = geminiNow || chosen;
+    const run = async m => { const r = await AI_CHAT.gemini(system, msgs, tools, signal, m); if (m !== chosen) r.note = `Respondido pelo modelo ${m}: a cota grátis do ${chosen} acabou por agora.`; return r; };
+    try { return await run(start); }
+    catch (e) {
+      if (e?.code !== "rate_limited" || e.round !== 0) throw e; // se já executou algo, não repete
+      let list = cfgModels.gemini;
+      if (!list?.length) { try { list = cfgModels.gemini = await listAiModels("gemini", cfg.keys.gemini); } catch { throw e; } }
+      for (const m of geminiOrder(list).filter(x => x !== start).slice(0, 4)) {
+        try { const r = await run(m); geminiNow = m; return r; }
+        catch (e2) { if (!["rate_limited", "model"].includes(e2?.code) || e2.round !== 0) throw e2; }
+      }
+      throw e;
+    }
+  }
   // Lista os modelos que a chave pode usar, para escolher na tela de configurações.
   async function listAiModels(id, key) {
     if (id === "claude") { const r = await aiFetch("https://api.anthropic.com/v1/models?limit=100", { headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" } }); return (r.data || []).map(m => m.id); }
@@ -2797,7 +2817,7 @@
     return {
       auth: `${who} recusou a chave (erro ${e.status}${e.detail ? `: ${esc(e.detail)}` : ""}). Confira se copiou a chave inteira, sem espaços.${provider === "gemini" ? " Se acabou de criar, espere 1 ou 2 minutos e tente de novo." : ""}`,
       rate_limited: provider === "gemini"
-        ? (/limit: ?0\b|free.?tier/i.test(e.detail || "") ? `Esse modelo não tem cota grátis na sua conta do Google. Em ⚙️ Configurações, escolha outro modelo com <b>flash</b> no nome e toque em Testar conexão.` : `O Gemini pediu para esperar: o plano grátis tem limite de pedidos por minuto e por dia. Espere 1 minuto e tente de novo; se continuar, a cota do dia acabou (volta no dia seguinte).`) + (e.detail ? ` <small>(${esc(e.detail.slice(0, 160))})</small>` : "")
+        ? (/limit: ?0\b/i.test(e.detail || "") ? `Esse modelo não tem cota grátis na sua conta do Google. Em ⚙️ Configurações, escolha outro modelo com <b>flash</b> no nome e toque em Testar conexão.` : `O Gemini pediu para esperar: o plano grátis tem limite de pedidos por minuto e por dia. Espere 1 minuto e tente de novo; se continuar, a cota do dia acabou: ela volta à meia-noite do horário da Califórnia (por volta de 4h ou 5h da manhã em Brasília). Enquanto isso, o menu de pedidos e os comandos continuam funcionando, sem gastar cota.`) + (e.detail ? ` <small>(${esc(e.detail.slice(0, 160))})</small>` : "")
         : `${who} pediu para esperar: limite de uso ou créditos esgotados. Confira os créditos da sua conta e tente de novo em alguns minutos.`,
       model: `O modelo escolhido não existe ou não está liberado para essa chave. Em ⚙️ Configurações, toque em <b>Buscar modelos</b> e escolha outro.`,
       bad_request: `${who} não aceitou o pedido (erro 400)${e.detail ? `: ${esc(e.detail)}` : ""}. Tente outro modelo em ⚙️ Configurações.`,
@@ -2847,7 +2867,7 @@
     readCfgForm();
     if (a === "show") { const k = $("#cfgKey"); if (k) k.type = k.type === "password" ? "text" : "password"; return; }
     if (a === "save") {
-      cfg = d; cfgDraft = null; saveCfg(); if (dlg.open) dlg.close();
+      cfg = d; cfgDraft = null; geminiNow = ""; saveCfg(); if (dlg.open) dlg.close();
       const e = aiEngine();
       say(!cfg.online ? "📴 <b>Modo offline ligado.</b> Não busco nada na internet; use o menu de pedidos e os comandos." : `🌐 <b>Modo online.</b> ${e ? `Pedidos livres com ${e.kind === "sample" ? "o Claude do link" : AI_PROVIDERS[e.id].name}.` : AI_PROVIDERS[cfg.ai] && !cfg.keys[cfg.ai] ? "Falta colar a chave da IA em ⚙️ Configurações." : "IA desligada: use o menu de pedidos e os comandos."}`);
       return;
@@ -2878,7 +2898,7 @@
       catch (e) {
         // Gemini sem cota grátis para esse modelo: tenta os outros "flash" da lista antes de desistir.
         let last = e;
-        if (id === "gemini" && e?.code === "rate_limited" && /limit: ?0\b|free.?tier/i.test(e.detail || "")) {
+        if (id === "gemini" && e?.code === "rate_limited" && /limit: ?0\b/i.test(e.detail || "")) {
           const first = d.models.gemini;
           for (const m of geminiOrder(cfgModels.gemini || []).filter(x => x !== first).slice(0, 4)) {
             renderCfg(`O modelo ${esc(first)} não tem cota grátis. Testando ${esc(m)}…`);
@@ -2887,7 +2907,7 @@
             catch (e2) { last = e2; if (!(e2?.code === "rate_limited" || e2?.code === "model")) break; }
           }
         }
-        const noFree = id === "gemini" && last?.code === "rate_limited" && /limit: ?0\b|free.?tier/i.test(last.detail || "") && last !== e;
+        const noFree = id === "gemini" && last?.code === "rate_limited" && /limit: ?0\b/i.test(last.detail || "") && last !== e;
         if (last) renderCfg(noFree ? `Nenhum modelo do Gemini liberou cota grátis para essa chave. Isso costuma acontecer quando a chave foi criada num projeto do Google Cloud sem o plano grátis. No AI Studio, crie uma chave nova escolhendo <b>Criar em um novo projeto</b>, espere 1 ou 2 minutos e teste de novo.` : aiErrorText(last, id) || "Não funcionou.", false);
       }
       finally { cfg = keep; }
@@ -3123,10 +3143,10 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
     const turns = [{ role: "user", content: `${AI_RULES}\n\nDADOS ATUAIS:\n${aiContext()}` }, ...aiTurns.slice(-8), { role: "user", content: raw }];
     aiChanged = false;
     try {
-      const { text, truncated } = engine.kind === "sample"
+      const { text, truncated, note } = engine.kind === "sample"
         ? await sample(turns, { tools, signal: ctl.signal, modelTier: "default", onText: ({ text }) => { txt.innerHTML = aiFormat(text); log.scrollTop = log.scrollHeight; } })
-        : await AI_CHAT[engine.id](`${AI_RULES}\n\nDADOS ATUAIS:\n${aiContext()}`, [...aiTurns.slice(-8), { role: "user", content: raw }], tools, ctl.signal);
-      txt.innerHTML = aiFormat(text) + (truncated ? `<br><small style="color:var(--muted)">(resposta cortada; peça algo mais específico)</small>` : "");
+        : await aiChatRun(engine.id, `${AI_RULES}\n\nDADOS ATUAIS:\n${aiContext()}`, [...aiTurns.slice(-8), { role: "user", content: raw }], tools, ctl.signal);
+      txt.innerHTML = aiFormat(text) + (truncated ? `<br><small style="color:var(--muted)">(resposta cortada; peça algo mais específico)</small>` : "") + (note ? `<br><small style="color:var(--muted)">(${esc(note)})</small>` : "");
       aiTurns.push({ role: "user", content: raw }, { role: "assistant", content: text.slice(0, 2000) });
       aiTurns = aiTurns.slice(-8);
     } catch (e) {
