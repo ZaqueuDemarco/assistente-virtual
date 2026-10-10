@@ -265,7 +265,7 @@
   .assist-head .who { min-width: 0; }
   .assist-head b { font-size: 14.5px; display: block; }
   .assist-head small { color: var(--wa-meta); display: block; font-size: 12.5px; }
-  .assist-head .icon-btn { margin-left: auto; }
+  .assist-head .icon-btn:first-of-type { margin-left: auto; }
   .log {
     flex: 1; overflow-y: auto; padding: 14px 5%; display: flex; flex-direction: column; gap: 4px;
     background-color: var(--wa-bg);
@@ -301,6 +301,18 @@
   .msg ul { margin: 6px 0 0; padding-left: 18px; }
   .msg li { margin: 2px 0; }
   .msg .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  dialog.cfg { width: min(560px, calc(100vw - 32px)); }
+  .cfg-net { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cfg-net button { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left; padding: 12px 14px; border-radius: 10px; cursor: pointer; background: var(--raised); border: 1px solid var(--border-strong); color: var(--text); font: inherit; }
+  .cfg-net button span { color: var(--muted); font-size: 12.5px; line-height: 1.35; }
+  .cfg-net button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+  .cfg-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .cfg-row .ctl { flex: 1; min-width: 160px; }
+  .cfg-status { font-size: 13px; min-height: 1.2em; }
+  .cfg-status.ok { color: var(--good); } .cfg-status.err { color: var(--bad); }
+  .cfg-note { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+  .net-pill { font-size: 12px; padding: 5px 8px; }
+  @media (max-width: 520px) { .cfg-net { grid-template-columns: 1fr; } }
   .menu-pick { display: block; width: 100%; margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--bg); color: var(--wa-text); border: 1px solid var(--accent); font: inherit; font-size: 14.5px; cursor: pointer; }
   .menu-pick:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   .suggest { padding: 8px 12px; display: flex; gap: 6px; flex-wrap: wrap; background: var(--wa-bg); }
@@ -576,6 +588,7 @@
     </div>
     <div class="side-foot">
       <div class="store" id="storeInfo"><div class="store-line">Carregando dados…</div></div>
+      <div class="store-actions"><button type="button" class="btn ghost net-pill" id="netPill" data-act="settings">🌐 Online</button></div>
       <div class="store-actions"><button type="button" class="btn ghost" data-run="fazer backup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Fazer backup</button><button type="button" class="btn ghost" data-act="restore"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V5M7 10l5-5 5 5M5 20h14"/></svg>Restaurar</button></div>
       <input type="file" id="backupFile" accept=".json,application/json" hidden>
       <div>Digite <kbd>/</kbd> para comandos ou <kbd>Ctrl</kbd> + <kbd>K</kbd> para focar o assistente.</div>
@@ -588,6 +601,7 @@
     <div class="assist-head">
       <span class="avatar" aria-hidden="true">AG<i></i></span>
       <div class="who"><b>Assistente de Gestão</b><small id="assistStatus">online</small></div>
+      <button class="icon-btn" data-act="settings" title="Configurações: internet e IA" aria-label="Configurações: internet e IA" style="margin-left:auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
       <button class="icon-btn" id="closeAssist" title="Fechar assistente" aria-label="Fechar assistente">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
@@ -630,6 +644,13 @@
   </div>
   <div class="imp-body" id="chartDlgBody"></div>
   <div class="imp-foot"><span class="grow"></span><button class="btn" type="button" data-bact="cancel">Cancelar</button><button class="btn primary" type="button" data-bact="save" id="chartDlgSave">Adicionar ao painel</button></div>
+</dialog>
+<dialog class="imp builder cfg" id="cfgDlg" aria-labelledby="cfgDlgTitle">
+  <div class="imp-head"><h2 id="cfgDlgTitle">Configurações</h2>
+    <button class="icon-btn" type="button" data-cfg="cancel" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="imp-body" id="cfgBody"></div>
+  <div class="imp-foot"><span class="grow"></span><button class="btn" type="button" data-cfg="cancel">Cancelar</button><button class="btn primary" type="button" data-cfg="save">Salvar</button></div>
 </dialog>
 <dialog class="imp builder" id="cardDlg" aria-labelledby="cardDlgTitle">
   <div class="imp-head"><h2 id="cardDlgTitle">Novo cartão</h2>
@@ -2165,6 +2186,10 @@
     ["verificar", "Mostra como cada coluna é calculada"],
     ["backup", "Baixa um arquivo com todos os seus dados"],
     ["restaurar backup", "Carrega um backup salvo"],
+    ["configurações", "Internet (online/offline) e escolha da IA"],
+    ["modo offline", "Não busca nada na internet"],
+    ["modo online", "Volta a usar APIs e IA"],
+    ["menu", "Menu de pedidos prontos"],
     ["baixar versão reserva", "Baixa o assistente num arquivo que abre sem internet e sem o Claude"],
     ["armazenamento", "Mostra quanto espaço os dados ocupam"],
     ["tempo não é custo", "Corrige uma coluna tratada como dinheiro"],
@@ -2289,6 +2314,9 @@
     let m;
 
     if (/^(menu|menu de pedidos|opcoes|o que (eu )?posso pedir|pedidos)\b/.test(n)) return showMenu(sh);
+    if (/^(configuracoes|configuracao|configurar|ajustes|config|configurar (a )?ia|escolher (a )?ia)$/.test(n)) { openCfg(); return say("Abri as configurações de internet e IA."); }
+    if (/^(modo offline|ficar offline|desligar (a )?internet|sem internet)$/.test(n)) { cfg.online = false; saveCfg(); return say("📴 <b>Modo offline ligado.</b> Não busco nada na internet; APIs e IA ficam desligadas. Para voltar: " + code("modo online") + "."); }
+    if (/^(modo online|ficar online|ligar (a )?internet)$/.test(n)) { cfg.online = true; saveCfg(); const e = aiEngine(); return say(`🌐 <b>Modo online.</b> ${e ? `IA: ${e.kind === "sample" ? "Claude do link" : AI_PROVIDERS[e.id].name}.` : "IA desligada; para ligar, abra ⚙️ Configurações."}`); }
     if (/^(ajuda|help|\?|comandos|o que (voce )?(faz|sabe))/.test(n)) return say(helpText());
     if (/^limpar (conversa|chat|historico)/.test(n)) { log.innerHTML = ""; lastDay = ""; aiTurns = []; state.chat = []; return say("Conversa limpa."); }
     // Conversa: cumprimentos, agradecimentos e despedidas
@@ -2589,7 +2617,7 @@
     }
 
     if (!nested && await askAI(raw)) return;
-    say(`Não entendi “${esc(raw)}”. Tente ${code("ajuda")} ou um destes: ${code("resumo")}, ${code("criar gráfico de receita por mês")}, ${code("nova tarefa ...")}.${!nested && !(await sampleReady) ? " <small>(Pedidos livres, em linguagem natural, funcionam quando o assistente é aberto pelo link do Claude.)</small>" : ""}`, "bot", "err");
+    say(`Não entendi “${esc(raw)}”. Tente ${code("ajuda")} ou um destes: ${code("resumo")}, ${code("criar gráfico de receita por mês")}, ${code("nova tarefa ...")}.${!nested && !aiOn() ? ` <small>(Para pedidos livres, ligue uma IA em ⚙️ Configurações, ou use o ${code("menu")} de pedidos.)</small>` : ""}`, "bot", "err");
   }
 
   /* =====================================================================
@@ -2599,8 +2627,204 @@
      ===================================================================== */
   const sampleReady = window.claude?.use ? window.claude.use("sample").catch(() => null) : Promise.resolve(null);
   let aiOff = "", aiTurns = [], aiCtl = null;
-  let aiReady = false; // pedidos livres disponíveis (só no link do Claude)
-  sampleReady.then(async sample => { if (!sample) return; try { if ((await sample.limits())?.tools) { aiReady = true; $("#cmdInput").placeholder = "Pergunte ou peça o que quiser sobre seus dados"; if (state) renderSuggest(); } } catch {} });
+  let sampleOk = false; // IA do próprio link do Claude disponível
+  sampleReady.then(async sample => { if (!sample) return; try { if ((await sample.limits())?.tools) { sampleOk = true; updateNetUI(); if (state) renderSuggest(); } } catch {} });
+
+  /* ---------- Configurações: internet e IA ----------
+     Ficam só neste aparelho (localStorage), nunca na nuvem nem no backup: as chaves de API são segredos. */
+  const CFG_KEY = "assistente-config";
+  const AI_PROVIDERS = {
+    claude: { name: "Claude (Anthropic)", short: "Claude", keyUrl: "https://console.anthropic.com/settings/keys", model: "claude-opus-5-5" },
+    openai: { name: "ChatGPT (OpenAI)", short: "ChatGPT", keyUrl: "https://platform.openai.com/api-keys", model: "" },
+    gemini: { name: "Gemini (Google)", short: "Gemini", keyUrl: "https://aistudio.google.com/apikey", model: "" },
+  };
+  let cfg = { online: true, ai: "auto", keys: {}, models: {} };
+  try { const c = JSON.parse(localStorage.getItem(CFG_KEY) || "null"); if (c) cfg = { ...cfg, ...c, keys: { ...(c.keys || {}) }, models: { ...(c.models || {}) } }; } catch {}
+  const saveCfg = () => { try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); } catch {} updateNetUI(); if (state) renderSuggest(); };
+  // Qual IA responde: a do link do Claude (grátis) ou uma com chave própria. Modo offline desliga tudo.
+  function aiEngine() {
+    if (!cfg.online || cfg.ai === "off") return null;
+    if (AI_PROVIDERS[cfg.ai]) return cfg.keys[cfg.ai] && !window.claude?.use ? { kind: "ext", id: cfg.ai } : null; // dentro do Claude, sites externos são bloqueados
+    return sampleOk ? { kind: "sample" } : null; // "auto"
+  }
+  const aiOn = () => !!aiEngine();
+  addEventListener("online", () => updateNetUI()); addEventListener("offline", () => updateNetUI());
+  function updateNetUI() {
+    const e = aiEngine(), lbl = !cfg.online ? "Offline" : navigator.onLine === false ? "Online · sem sinal agora" : `Online · IA: ${!e ? "desligada" : e.kind === "sample" ? "Claude do link" : AI_PROVIDERS[e.id].short}`;
+    const pill = $("#netPill"); if (pill) { pill.textContent = (cfg.online ? "🌐 " : "📴 ") + lbl; pill.title = "Internet e inteligência artificial"; }
+    const inp = $("#cmdInput"); if (inp) inp.placeholder = e ? "Pergunte ou peça o que quiser sobre seus dados" : "Mensagem (ou digite menu)";
+  }
+
+  // Chamada a uma API de IA com mensagens de erro em português.
+  async function aiFetch(url, init, signal) {
+    let res;
+    try { res = await fetch(url, { ...init, signal }); }
+    catch (e) { if (e?.name === "AbortError") throw { code: "cancelled" }; throw { code: "network" }; }
+    let data = null; try { data = await res.json(); } catch {}
+    if (!res.ok) throw { code: res.status === 401 || res.status === 403 ? "auth" : res.status === 429 ? "rate_limited" : res.status === 404 ? "model" : res.status === 400 ? "bad_request" : "server", status: res.status, detail: String(data?.error?.message || data?.[0]?.error?.message || "").slice(0, 200) };
+    return data;
+  }
+  // Executa uma ferramenta pedida pela IA e devolve texto (JSON) para ela.
+  async function runAiTool(tools, name, input) {
+    const t = tools.find(x => x.name === name);
+    if (!t) return { text: `Ferramenta “${name}” não existe.`, error: true };
+    try { const r = await t.execute(input || {}); return { text: typeof r === "string" ? r : JSON.stringify(r) }; }
+    catch (e) { return { text: `Erro: ${e?.message || e}`, error: true }; }
+  }
+  const textOfTurns = m => typeof m.content === "string" ? m.content : "";
+  // Laço de ferramentas de cada provedor: a IA pede consultas/ações, o assistente executa e devolve, até a resposta final.
+  const AI_CHAT = {
+    async claude(system, msgs, tools, signal) {
+      const model = cfg.models.claude || AI_PROVIDERS.claude.model;
+      const headers = { "content-type": "application/json", "x-api-key": cfg.keys.claude, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" };
+      // Nos modelos mais novos, se o pedido for recusado por um filtro de segurança, a própria API tenta outro modelo.
+      const fallback = /^claude-(opus-5|fable-5|sonnet-5-5)/.test(model);
+      if (fallback) headers["anthropic-beta"] = "server-side-fallback-2026-07-01";
+      const defs = tools.map(t => ({ name: t.name, description: t.description, input_schema: t.inputSchema || { type: "object", properties: {} } }));
+      const messages = msgs.map(m => ({ role: m.role, content: textOfTurns(m) }));
+      for (let round = 0; round < 10; round++) {
+        const r = await aiFetch("https://api.anthropic.com/v1/messages", { method: "POST", headers, body: JSON.stringify({ model, max_tokens: 16000, system, ...(defs.length ? { tools: defs } : {}), messages, ...(fallback ? { fallbacks: "default" } : {}) }) }, signal);
+        if (r.stop_reason === "refusal") throw { code: "refused" };
+        messages.push({ role: "assistant", content: r.content }); // devolve o conteúdo inteiro, sem alterar (inclui blocos de raciocínio)
+        const uses = (r.content || []).filter(b => b.type === "tool_use");
+        if (r.stop_reason !== "tool_use" || !uses.length) return { text: (r.content || []).filter(b => b.type === "text").map(b => b.text).join("\n"), truncated: r.stop_reason === "max_tokens" };
+        const results = [];
+        for (const u of uses) { const o = await runAiTool(tools, u.name, u.input); results.push({ type: "tool_result", tool_use_id: u.id, content: o.text, ...(o.error ? { is_error: true } : {}) }); }
+        messages.push({ role: "user", content: results });
+      }
+      return { text: "Parei: o pedido precisou de passos demais. Tente algo mais específico.", truncated: true };
+    },
+    async openai(system, msgs, tools, signal) {
+      const model = cfg.models.openai;
+      if (!model) throw { code: "model" };
+      const headers = { "content-type": "application/json", authorization: `Bearer ${cfg.keys.openai}` };
+      const defs = tools.map(t => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.inputSchema || { type: "object", properties: {} } } }));
+      const messages = [{ role: "system", content: system }, ...msgs.map(m => ({ role: m.role, content: textOfTurns(m) }))];
+      for (let round = 0; round < 10; round++) {
+        const r = await aiFetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers, body: JSON.stringify({ model, messages, ...(defs.length ? { tools: defs } : {}) }) }, signal);
+        const ch = r.choices?.[0] || {}, msg = ch.message || { role: "assistant", content: "" };
+        messages.push(msg);
+        if (!msg.tool_calls?.length) { if (msg.refusal) throw { code: "refused" }; return { text: msg.content || "", truncated: ch.finish_reason === "length" }; }
+        for (const tc of msg.tool_calls) {
+          let args = {}; try { args = JSON.parse(tc.function?.arguments || "{}"); } catch {}
+          const o = await runAiTool(tools, tc.function?.name, args);
+          messages.push({ role: "tool", tool_call_id: tc.id, content: o.text });
+        }
+      }
+      return { text: "Parei: o pedido precisou de passos demais. Tente algo mais específico.", truncated: true };
+    },
+    async gemini(system, msgs, tools, signal) {
+      const model = cfg.models.gemini;
+      if (!model) throw { code: "model" };
+      // O Gemini usa os tipos em maiúsculas (OBJECT, STRING...) nas declarações de função.
+      const up = s => !s || typeof s !== "object" ? s : Array.isArray(s) ? s.map(up) : Object.fromEntries(Object.entries(s).map(([k, v]) => [k, k === "type" && typeof v === "string" ? v.toUpperCase() : k === "properties" ? Object.fromEntries(Object.entries(v).map(([pk, pv]) => [pk, up(pv)])) : up(v)]));
+      const decls = tools.map(t => ({ name: t.name, description: t.description, parameters: up(t.inputSchema || { type: "object", properties: {} }) }));
+      const contents = msgs.map(m => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: textOfTurns(m) }] }));
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(cfg.keys.gemini)}`;
+      for (let round = 0; round < 10; round++) {
+        const r = await aiFetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents, ...(decls.length ? { tools: [{ functionDeclarations: decls }] } : {}) }) }, signal);
+        const cand = r.candidates?.[0];
+        if (!cand?.content) { if (r.promptFeedback?.blockReason || cand?.finishReason === "SAFETY") throw { code: "refused" }; return { text: "", truncated: false }; }
+        contents.push(cand.content); // devolve a resposta sem alterar (mantém as assinaturas de raciocínio)
+        const calls = (cand.content.parts || []).filter(x => x.functionCall);
+        if (!calls.length) return { text: (cand.content.parts || []).filter(x => x.text && !x.thought).map(x => x.text).join(""), truncated: cand.finishReason === "MAX_TOKENS" };
+        const parts = [];
+        for (const c of calls) { const o = await runAiTool(tools, c.functionCall.name, c.functionCall.args); parts.push({ functionResponse: { name: c.functionCall.name, response: o.error ? { error: o.text } : { result: o.text } } }); }
+        contents.push({ role: "user", parts });
+      }
+      return { text: "Parei: o pedido precisou de passos demais. Tente algo mais específico.", truncated: true };
+    },
+  };
+  // Lista os modelos que a chave pode usar, para escolher na tela de configurações.
+  async function listAiModels(id, key) {
+    if (id === "claude") { const r = await aiFetch("https://api.anthropic.com/v1/models?limit=100", { headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" } }); return (r.data || []).map(m => m.id); }
+    if (id === "openai") { const r = await aiFetch("https://api.openai.com/v1/models", { headers: { authorization: `Bearer ${key}` } }); return (r.data || []).map(m => m.id).filter(x => /^(gpt|o\d|chatgpt)/.test(x) && !/audio|realtime|tts|transcri|image|search|embed|instruct|moderation/.test(x)).sort().reverse(); }
+    const r = await aiFetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${encodeURIComponent(key)}`, {});
+    return (r.models || []).filter(m => (m.supportedGenerationMethods || []).includes("generateContent")).map(m => m.name.replace(/^models\//, "")).filter(x => /^gemini/.test(x)).sort().reverse();
+  }
+  const pickModel = (id, list) => id === "claude" ? (list.includes("claude-opus-5-5") ? "claude-opus-5-5" : list[0]) : id === "openai" ? (list.find(x => /^gpt-\d/.test(x) && !/-\d{4}-\d\d-\d\d$/.test(x)) || list[0]) : (list.find(x => /flash/.test(x) && !/lite|preview|exp|tts|image/.test(x)) || list[0]);
+  function aiErrorText(e, provider) {
+    const who = provider ? AI_PROVIDERS[provider].short : "a IA";
+    return {
+      auth: `${who} recusou a chave (erro ${e.status}). Confira a chave em ⚙️ Configurações.`,
+      rate_limited: `${who} pediu para esperar: limite de uso ou créditos esgotados. Confira os créditos da sua conta e tente de novo em alguns minutos.`,
+      model: `O modelo escolhido não existe ou não está liberado para essa chave. Em ⚙️ Configurações, toque em <b>Buscar modelos</b> e escolha outro.`,
+      bad_request: `${who} não aceitou o pedido (erro 400)${e.detail ? `: ${esc(e.detail)}` : ""}. Tente outro modelo em ⚙️ Configurações.`,
+      network: `Não consegui falar com ${who}. Confira a internet. Se estiver numa rede de empresa, ela pode bloquear esse acesso.`,
+      server: `${who} está com instabilidade agora (erro ${e.status}). Tente de novo em alguns minutos.`,
+      refused: "Não consegui responder esse pedido. Tente escrever de outro jeito.",
+    }[e?.code];
+  }
+
+  // ---------- Tela de configurações ----------
+  let cfgDraft = null, cfgModels = {};
+  function openCfg() {
+    cfgDraft = JSON.parse(JSON.stringify(cfg));
+    renderCfg();
+    const d = $("#cfgDlg"); try { d.showModal(); } catch { d.setAttribute("open", ""); }
+  }
+  function renderCfg(status = "", ok = true) {
+    const d = cfgDraft, p = AI_PROVIDERS[d.ai], inC = !!window.claude?.use;
+    const models = [...new Set([...(cfgModels[d.ai] || []), d.models[d.ai] || (p && p.model) || ""].filter(Boolean))];
+    $("#cfgBody").innerHTML = `
+      <div class="bfield"><label>Internet</label>
+        <div class="cfg-net" role="group" aria-label="Internet">
+          <button type="button" data-net="on" aria-pressed="${d.online}"><b>🌐 Online</b><span>Busca dados de APIs e usa a IA escolhida para pedidos livres.</span></button>
+          <button type="button" data-net="off" aria-pressed="${!d.online}"><b>📴 Offline</b><span>Nada sai deste aparelho. APIs e IA ficam desligadas; use o menu de pedidos.</span></button>
+        </div></div>
+      <div class="bfield"><label for="cfgAi">Inteligência artificial (pedidos livres)</label>
+        <select class="ctl" id="cfgAi" ${d.online ? "" : "disabled"}>
+          <option value="off" ${d.ai === "off" ? "selected" : ""}>Desligada (só comandos e menu de pedidos)</option>
+          ${sampleOk || d.ai === "auto" ? `<option value="auto" ${d.ai === "auto" ? "selected" : ""}>Claude do link (grátis, só no link do Claude)</option>` : ""}
+          ${Object.entries(AI_PROVIDERS).map(([k, v]) => `<option value="${k}" ${d.ai === k ? "selected" : ""}>${v.name}, com chave própria</option>`).join("")}
+        </select></div>
+      ${p && d.online ? `
+        <div class="bfield"><label for="cfgKey">Chave da API do ${esc(p.short)}</label>
+          <div class="cfg-row"><input class="ctl" id="cfgKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Cole aqui a sua chave" value="${esc(d.keys[d.ai] || "")}"><button type="button" class="btn ghost" data-cfg="show">Mostrar</button></div>
+          <p class="cfg-note">Não tem? Crie em <a href="${p.keyUrl}" target="_blank" rel="noopener">${esc(p.keyUrl.replace(/^https:\/\//, ""))}</a>. O uso é cobrado pelo ${esc(p.short)} na sua conta; defina um limite de gasto lá.</p></div>
+        <div class="bfield"><label for="cfgModel">Modelo</label>
+          <div class="cfg-row"><select class="ctl" id="cfgModel">${models.length ? models.map(m => `<option ${m === (d.models[d.ai] || p.model) ? "selected" : ""}>${esc(m)}</option>`).join("") : `<option value="">Toque em “Buscar modelos”</option>`}</select><button type="button" class="btn" data-cfg="models">Buscar modelos</button></div></div>
+        <div class="cfg-row"><button type="button" class="btn" data-cfg="test">Testar conexão</button><span class="cfg-status ${ok ? "ok" : "err"}" id="cfgStatus">${status}</span></div>
+        <p class="cfg-note">Ao usar a IA, a descrição das colunas e os resultados das consultas são enviados ao ${esc(p.short)}. A chave fica guardada só neste aparelho: não vai para a nuvem, para o backup nem para o GitHub.${inC ? ` <b style="color:var(--warn)">Dentro do link do Claude, sites externos são bloqueados: a IA com chave própria funciona no link do GitHub e na versão offline.</b>` : ""}</p>` : ""}
+      ${d.online && d.ai === "auto" ? `<p class="cfg-note">${sampleOk ? "Usa o Claude do seu link, sem custo extra." : "A IA do link só existe quando o assistente é aberto pelo link do Claude. Aqui, escolha um provedor com chave própria."}</p>` : ""}
+      ${!d.online ? `<p class="cfg-note">No modo offline, painel, gráficos, cartões, importação de arquivos e o menu de pedidos continuam funcionando normalmente.</p>` : ""}`;
+  }
+  const readCfgForm = () => { const d = cfgDraft; if (!d) return; const ai = $("#cfgAi"); if (ai) d.ai = ai.value; const k = $("#cfgKey"); if (k) d.keys[d.ai] = k.value.trim(); const m = $("#cfgModel"); if (m && m.value) d.models[d.ai] = m.value; };
+  async function cfgAction(a) {
+    const d = cfgDraft, dlg = $("#cfgDlg");
+    if (a === "cancel") { cfgDraft = null; if (dlg.open) dlg.close(); return; }
+    readCfgForm();
+    if (a === "show") { const k = $("#cfgKey"); if (k) k.type = k.type === "password" ? "text" : "password"; return; }
+    if (a === "save") {
+      cfg = d; cfgDraft = null; saveCfg(); if (dlg.open) dlg.close();
+      const e = aiEngine();
+      say(!cfg.online ? "📴 <b>Modo offline ligado.</b> Não busco nada na internet; use o menu de pedidos e os comandos." : `🌐 <b>Modo online.</b> ${e ? `Pedidos livres com ${e.kind === "sample" ? "o Claude do link" : AI_PROVIDERS[e.id].name}.` : AI_PROVIDERS[cfg.ai] && !cfg.keys[cfg.ai] ? "Falta colar a chave da IA em ⚙️ Configurações." : "IA desligada: use o menu de pedidos e os comandos."}`);
+      return;
+    }
+    const id = d.ai, key = d.keys[id];
+    if (!AI_PROVIDERS[id]) return;
+    if (!key) return renderCfg("Cole a chave primeiro.", false);
+    if (a === "models") {
+      renderCfg("Buscando modelos…");
+      try { const list = await listAiModels(id, key); cfgModels[id] = list; if (!list.includes(d.models[id])) d.models[id] = pickModel(id, list); renderCfg(list.length ? `${list.length} modelo(s) encontrados.` : "Nenhum modelo encontrado para essa chave.", !!list.length); }
+      catch (e) { renderCfg(aiErrorText(e, id) || "Não consegui buscar os modelos.", false); }
+      return;
+    }
+    if (a === "test") {
+      if (!d.models[id] && !AI_PROVIDERS[id].model) return renderCfg("Escolha um modelo (toque em Buscar modelos).", false);
+      renderCfg("Testando…");
+      const keep = cfg; cfg = { ...d, online: true };
+      try { const r = await AI_CHAT[id]("Responda apenas com a palavra: ok", [{ role: "user", content: "Teste de conexão." }], [], undefined); renderCfg(`Funcionou! ${AI_PROVIDERS[id].short} respondeu: “${esc(String(r.text).trim().slice(0, 40))}”.`); }
+      catch (e) { renderCfg(aiErrorText(e, id) || "Não funcionou.", false); }
+      finally { cfg = keep; }
+    }
+  }
+  $("#cfgDlg").addEventListener("click", e => {
+    const n = e.target.closest("[data-net]"); if (n && cfgDraft) { readCfgForm(); cfgDraft.online = n.dataset.net === "on"; renderCfg(); return; }
+    const b = e.target.closest("[data-cfg]"); if (b) cfgAction(b.dataset.cfg);
+  });
+  $("#cfgDlg").addEventListener("change", e => { if (e.target.id === "cfgAi" && cfgDraft) { readCfgForm(); renderCfg(); } });
+  $("#cfgDlg").addEventListener("close", () => { cfgDraft = null; });
   const AI_FIRST = /\?\s*$|^(qual|quais|quem|onde|quando|como|por ?que|o que|existe|existem|teve|houve|tem algum|tem alguma|me (diga|diz|explica|explique|fala|conta|ajuda|ajude|mostra|mostre|mostrar)|poderia|pode|podes|consegue|gostaria|queria|preciso|analis|compar|expliq|avali|identifiq|sugir|sugest|recomend|verifique se|descubra|calcule|calcula)/;
   const BLOCKED_CMD = /^(apagar|apaga|excluir|exclui|remover|remove|limpar|limpa|desconectar|restaurar|esvaziar|zerar|deletar)\b/;
   function aiCol(sh, name) {
@@ -2793,11 +3017,10 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   }
   // true = tratou (ou tentou); false = IA indisponível, seguir com as regras.
   async function askAI(raw) {
-    if (aiOff) return false;
-    const sample = await sampleReady;
-    if (!sample) return false;
-    let caps = null; try { caps = await sample.limits(); } catch {}
-    if (!caps?.tools) return false;
+    await sampleReady.catch(() => null);
+    const engine = aiEngine();
+    if (!engine || (engine.kind === "sample" && aiOff)) return false;
+    const sample = engine.kind === "sample" ? await sampleReady : null;
     if (aiCtl) aiCtl.abort();
     const ctl = aiCtl = new AbortController();
     const t0 = Date.now(); daySep(t0);
@@ -2810,7 +3033,9 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
     const turns = [{ role: "user", content: `${AI_RULES}\n\nDADOS ATUAIS:\n${aiContext()}` }, ...aiTurns.slice(-8), { role: "user", content: raw }];
     aiChanged = false;
     try {
-      const { text, truncated } = await sample(turns, { tools, signal: ctl.signal, modelTier: "default", onText: ({ text }) => { txt.innerHTML = aiFormat(text); log.scrollTop = log.scrollHeight; } });
+      const { text, truncated } = engine.kind === "sample"
+        ? await sample(turns, { tools, signal: ctl.signal, modelTier: "default", onText: ({ text }) => { txt.innerHTML = aiFormat(text); log.scrollTop = log.scrollHeight; } })
+        : await AI_CHAT[engine.id](`${AI_RULES}\n\nDADOS ATUAIS:\n${aiContext()}`, [...aiTurns.slice(-8), { role: "user", content: raw }], tools, ctl.signal);
       txt.innerHTML = aiFormat(text) + (truncated ? `<br><small style="color:var(--muted)">(resposta cortada; peça algo mais específico)</small>` : "");
       aiTurns.push({ role: "user", content: raw }, { role: "assistant", content: text.slice(0, 2000) });
       aiTurns = aiTurns.slice(-8);
@@ -2824,8 +3049,8 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
         session_expired: "Sua sessão do Claude expirou. Entre de novo e repita o pedido.",
         refused: "Não consegui responder esse pedido. Tente escrever de outro jeito.",
         prompt_too_large: "A planilha é grande demais para esse pedido. Tente algo mais específico.",
-      }[e?.code] || "Não consegui responder agora (falha de conexão com o Claude). Tente de novo.";
-      if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed", "tools_unavailable"].includes(e?.code)) aiOff = e.code;
+      }[engine.kind === "sample" ? e?.code : "-"] || (engine.kind === "ext" && e?.code !== "cancelled" && aiErrorText(e, engine.id)) || (e?.code === "cancelled" ? "Parei." : "Não consegui responder agora (falha de conexão com o Claude). Tente de novo.");
+      if (engine.kind === "sample" && ["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed", "tools_unavailable"].includes(e?.code)) aiOff = e.code;
       el.classList.toggle("err", e?.code !== "cancelled");
       txt.innerHTML = (e?.code === "refused" ? "" : partial) + msg;
     } finally {
@@ -2928,7 +3153,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   // Versão reserva: o mesmo assistente num arquivo só, que abre sem internet e sem o Claude.
   const isOfflineBuild = () => !!document.getElementById("lib-pdf"); // blocos ficam no fim do arquivo: checar só na hora do uso
   async function downloadOffline() {
-    if (isOfflineBuild()) return say("Você já está usando a <b>versão reserva</b> (funciona sem internet e sem o Claude).");
+    if (isOfflineBuild() && !window.ASSISTENTE_SITE) return say("Você já está usando a <b>versão reserva</b> (funciona sem internet e sem o Claude).");
     say("Preparando a versão reserva…");
     let blob;
     try {
@@ -3684,7 +3909,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
       <li>${newCharts.length ? `Montei ${newCharts.length} gráfico(s) no painel: ${newCharts.map(c => esc(c.title.toLowerCase())).join("; ")}.` : "Não havia colunas numéricas ou categorias para gráficos automáticos."}</li>
     </ul>${api ? `Conectada à API: para trazer dados novos, clique em <b>Atualizar</b> no painel ou digite ${code("atualizar")}${api.every ? ` (também atualizo sozinho a cada ${api.every >= 60 ? api.every / 60 + " hora(s)" : api.every + " min"} enquanto a página estiver aberta)` : ""}. ` : ""}Próximos passos: ${code("resumo")}${firstCat >= 0 ? `, ${code(`filtrar ${sh.columns[firstCat].toLowerCase()} = ${sh.rows.find(r => r[firstCat])?.[firstCat] || ""}`)}` : ""}${newCharts.length ? "" : `, ${code(`criar gráfico de registros por ${sh.columns[0].toLowerCase()}`)}`}.`);
     renderSuggest();
-    if (!aiReady) showMenu(sh); // sem pedidos livres: já mostra o que dá para pedir
+    if (!aiOn()) showMenu(sh); // sem pedidos livres: já mostra o que dá para pedir
   }
 
   // Exemplo propositalmente desorganizado para demonstrar a identificação.
@@ -3863,6 +4088,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
     return `Não consegui me conectar a <b>${esc(host)}</b>. Possíveis motivos:<ul>${tips.map(t => `<li>${t}</li>`).join("")}</ul>`;
   }
   async function fetchOnce(conn, url) {
+    if (!cfg.online) throw Object.assign(new Error("x"), { html: "O <b>modo offline</b> está ligado, então não busco nada na internet. Para usar a API, ligue o modo online em ⚙️ Configurações." });
     if (!/^https?:\/\//i.test(url)) throw Object.assign(new Error("x"), { html: "O endereço precisa começar com <b>https://</b>." });
     const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 30000);
     const method = conn.method === "POST" ? "POST" : "GET";
@@ -3998,7 +4224,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   }
   // Atualização automática: confere a cada minuto quais conexões estão vencidas.
   setInterval(() => {
-    if (!state || document.hidden) return;
+    if (!state || document.hidden || !cfg.online) return;
     state.sheets.forEach(sh => { if (sh.api?.every > 0 && Date.now() - (sh.api.lastAt || 0) >= sh.api.every * 60000) refreshApi(sh, true); });
   }, 60000);
 
@@ -4059,6 +4285,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
     if (t.dataset.fval !== undefined) { state.filter.val = t.dataset.fval; render(); return; }
     if (t.dataset.deltask) { state.tasks = state.tasks.filter(x => x.id !== t.dataset.deltask); render(); return; }
     if (t.dataset.act === "import") { openImport(); return; }
+    if (t.dataset.act === "settings") { openCfg(); return; }
     if (t.dataset.act === "apiRefresh") { openAssist(); refreshApi(sheet()); return; }
     if (t.dataset.act === "apiEdit") { openApi(sheet()); return; }
     if (t.dataset.act === "restore") { $("#backupFile").click(); return; }
@@ -4214,7 +4441,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
     else if (sh && !isSampleSheet(sh)) {
       const cat = (sh.types || []).findIndex((t, i) => t === "categoria" && i !== sh.periodCol);
       const num = numericCols(sh)[0];
-      list = [aiReady ? null : "📋 Menu de pedidos", ...chartExamples(sh).slice(0, 3), "verificar", "resumo", hasSamples() ? "apagar exemplos" : null, "ajuda"].filter(Boolean);
+      list = [aiOn() ? null : "📋 Menu de pedidos", ...chartExamples(sh).slice(0, 3), "verificar", "resumo", hasSamples() ? "apagar exemplos" : null, "ajuda"].filter(Boolean);
     } else list = ["apagar exemplos", "importar dados", "resumo", "criar gráfico de receita por categoria", "ajuda"];
     $("#suggest").innerHTML = list.map(s => `<button type="button" data-suggest="${esc(s.startsWith("📋") ? "menu" : s)}">${esc(s)}</button>`).join("");
   }
@@ -4271,6 +4498,9 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   chatReady = true;
   render();
   updateStoreInfo();
+  updateNetUI();
+  // Link próprio (GitHub Pages): guarda o assistente no aparelho para abrir mesmo sem internet.
+  if (window.ASSISTENTE_SITE && "serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) navigator.serviceWorker.register("sw.js").catch(() => {});
   if (cloudOk === false && !state.sheets.length) say(`Não consegui acessar sua cópia na nuvem agora, por isso a tela está vazia. <b>Suas planilhas não foram apagadas.</b> Feche e abra o assistente de novo em alguns instantes.`, "bot", "err");
   if (movedFromLocal) { saveNow(); say(`Mudei seus dados para o armazenamento de maior capacidade do navegador. Antes o limite era de cerca de 5 MB; agora cabem relatórios bem maiores. Nada foi perdido.`); }
   if (storeMode === "local") say(`Este navegador não liberou o armazenamento maior; seus dados ficam no limitado (~5 MB). Faça ${code("backup")} de vez em quando.`, "bot", "err");
