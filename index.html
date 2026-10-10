@@ -2704,7 +2704,10 @@
     try { res = await fetch(url, { ...init, signal }); }
     catch (e) { if (e?.name === "AbortError") throw { code: "cancelled" }; throw { code: "network" }; }
     let data = null; try { data = await res.json(); } catch {}
-    if (!res.ok) throw { code: res.status === 401 || res.status === 403 ? "auth" : res.status === 429 ? "rate_limited" : res.status === 404 ? "model" : res.status === 400 ? "bad_request" : "server", status: res.status, detail: String(data?.error?.message || data?.[0]?.error?.message || "").slice(0, 200) };
+    const detail = String(data?.error?.message || data?.[0]?.error?.message || "").slice(0, 200);
+    // O Google responde 400 para chave inválida: tratar como problema de chave, não de pedido.
+    if (!res.ok && res.status === 400 && /api.?key|API_KEY/i.test(detail + JSON.stringify(data?.error?.details || ""))) throw { code: "auth", status: res.status, detail };
+    if (!res.ok) throw { code: res.status === 401 || res.status === 403 ? "auth" : res.status === 429 ? "rate_limited" : res.status === 404 ? "model" : res.status === 400 ? "bad_request" : "server", status: res.status, detail };
     return data;
   }
   // Executa uma ferramenta pedida pela IA e devolve texto (JSON) para ela.
@@ -2789,11 +2792,11 @@
   function aiErrorText(e, provider) {
     const who = provider ? AI_PROVIDERS[provider].short : "a IA";
     return {
-      auth: `${who} recusou a chave (erro ${e.status}). Confira a chave em ⚙️ Configurações.`,
+      auth: `${who} recusou a chave (erro ${e.status}${e.detail ? `: ${esc(e.detail)}` : ""}). Confira se copiou a chave inteira, sem espaços.${provider === "gemini" ? " Se acabou de criar, espere 1 ou 2 minutos e tente de novo." : ""}`,
       rate_limited: `${who} pediu para esperar: limite de uso ou créditos esgotados. Confira os créditos da sua conta e tente de novo em alguns minutos.`,
       model: `O modelo escolhido não existe ou não está liberado para essa chave. Em ⚙️ Configurações, toque em <b>Buscar modelos</b> e escolha outro.`,
       bad_request: `${who} não aceitou o pedido (erro 400)${e.detail ? `: ${esc(e.detail)}` : ""}. Tente outro modelo em ⚙️ Configurações.`,
-      network: `Não consegui falar com ${who}. Confira a internet. Se estiver numa rede de empresa, ela pode bloquear esse acesso.`,
+      network: `Não consegui falar com ${who}. Confira a internet. ${window.claude?.use ? "Aqui no link do Claude, sites externos são bloqueados: abra o assistente pelo link do GitHub ou pela versão offline." : "Se estiver numa rede de empresa (ou Wi-Fi com bloqueio), ela pode impedir esse acesso; teste no 4G."}`,
       server: `${who} está com instabilidade agora (erro ${e.status}). Tente de novo em alguns minutos.`,
       refused: "Não consegui responder esse pedido. Tente escrever de outro jeito.",
     }[e?.code];
@@ -2832,7 +2835,7 @@
       ${d.online && d.ai === "auto" ? `<p class="cfg-note">${sampleOk ? "Usa o Claude do seu link, sem custo extra." : "A IA do link só existe quando o assistente é aberto pelo link do Claude. Aqui, escolha um provedor com chave própria."}</p>` : ""}
       ${!d.online ? `<p class="cfg-note">No modo offline, painel, gráficos, cartões, importação de arquivos e o menu de pedidos continuam funcionando normalmente.</p>` : ""}`;
   }
-  const readCfgForm = () => { const d = cfgDraft; if (!d) return; const ai = $("#cfgAi"); if (ai) d.ai = ai.value; const k = $("#cfgKey"); if (k) d.keys[d.ai] = k.value.trim(); const m = $("#cfgModel"); if (m && m.value) d.models[d.ai] = m.value; };
+  const readCfgForm = () => { const d = cfgDraft; if (!d) return; const ai = $("#cfgAi"); if (ai) d.ai = ai.value; const k = $("#cfgKey"); if (k) d.keys[d.ai] = k.value.replace(/\s+/g, "").replace(/^["'“”]+|["'“”]+$/g, ""); const m = $("#cfgModel"); if (m && m.value) d.models[d.ai] = m.value; };
   async function cfgAction(a) {
     const d = cfgDraft, dlg = $("#cfgDlg");
     if (a === "cancel") { cfgDraft = null; if (dlg.open) dlg.close(); return; }
@@ -2847,6 +2850,13 @@
     const id = d.ai, key = d.keys[id];
     if (!AI_PROVIDERS[id]) return;
     if (!key) return renderCfg("Cole a chave primeiro.", false);
+    if (window.claude?.use) return renderCfg("Aqui no link do Claude, sites externos são bloqueados. Abra o assistente pelo link do GitHub ou pela versão offline e cole a chave lá.", false);
+    if (a === "test" && !d.models[id] && !AI_PROVIDERS[id].model) {
+      // Sem modelo escolhido: busca a lista e escolhe um sozinho antes de testar.
+      renderCfg("Buscando modelos…");
+      try { const list = await listAiModels(id, key); cfgModels[id] = list; d.models[id] = pickModel(id, list); }
+      catch (e) { return renderCfg(aiErrorText(e, id) || "Não consegui buscar os modelos.", false); }
+    }
     if (a === "models") {
       renderCfg("Buscando modelos…");
       try { const list = await listAiModels(id, key); cfgModels[id] = list; if (!list.includes(d.models[id])) d.models[id] = pickModel(id, list); renderCfg(list.length ? `${list.length} modelo(s) encontrados.` : "Nenhum modelo encontrado para essa chave.", !!list.length); }
@@ -2862,11 +2872,27 @@
       finally { cfg = keep; }
     }
   }
+  // Buscar modelos e testar rodam um de cada vez, para uma resposta não sobrescrever a outra.
+  let cfgQueue = Promise.resolve(), cfgTried = "";
+  const cfgRun = a => a === "models" || a === "test" ? (cfgQueue = cfgQueue.then(() => cfgDraft && cfgAction(a)).catch(() => {})) : cfgAction(a);
   $("#cfgDlg").addEventListener("click", e => {
     const n = e.target.closest("[data-net]"); if (n && cfgDraft) { readCfgForm(); cfgDraft.online = n.dataset.net === "on"; renderCfg(); return; }
-    const b = e.target.closest("[data-cfg]"); if (b) cfgAction(b.dataset.cfg);
+    const b = e.target.closest("[data-cfg]"); if (b) cfgRun(b.dataset.cfg);
   });
-  $("#cfgDlg").addEventListener("change", e => { if (e.target.id === "cfgAi" && cfgDraft) { readCfgForm(); renderCfg(); } });
+  $("#cfgDlg").addEventListener("change", e => {
+    if (e.target.id === "cfgAi" && cfgDraft) { readCfgForm(); renderCfg(); }
+  });
+  // Colou a chave: já busca os modelos, sem precisar tocar no botão.
+  let cfgKeyTimer = 0;
+  $("#cfgDlg").addEventListener("input", e => {
+    if (e.target.id !== "cfgKey") return;
+    clearTimeout(cfgKeyTimer);
+    cfgKeyTimer = setTimeout(() => {
+      if (!cfgDraft || !$("#cfgKey")) return; readCfgForm();
+      const k = cfgDraft.keys[cfgDraft.ai];
+      if (k && k.length >= 20 && k !== cfgTried && !(cfgModels[cfgDraft.ai] || []).length) { cfgTried = k; cfgRun("models"); }
+    }, 700);
+  });
   $("#cfgDlg").addEventListener("close", () => { cfgDraft = null; });
   const AI_FIRST = /\?\s*$|^(qual|quais|quem|onde|quando|como|por ?que|o que|existe|existem|teve|houve|tem algum|tem alguma|me (diga|diz|explica|explique|fala|conta|ajuda|ajude|mostra|mostre|mostrar)|poderia|pode|podes|consegue|gostaria|queria|preciso|analis|compar|expliq|avali|identifiq|sugir|sugest|recomend|verifique se|descubra|calcule|calcula)/;
   const BLOCKED_CMD = /^(apagar|apaga|excluir|exclui|remover|remove|limpar|limpa|desconectar|restaurar|esvaziar|zerar|deletar)\b/;
