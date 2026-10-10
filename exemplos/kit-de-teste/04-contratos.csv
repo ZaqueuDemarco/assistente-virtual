@@ -1,0 +1,11 @@
+﻿Contrato;Fornecedor;Serviço;Início;Fim;Valor mensal;Reajuste;Situação;Gestor
+CT-2024;Fornecedor Alfa;Manutenção de elevadores;01/09/2026;31/08/2027;R$ 11.800,00;IPCA;Ativo;Fulana de Tal
+CT-2025;Distribuidora Beta;Manutenção de ar-condicionado;01/02/2026;31/01/2027;R$ 12.250,00;IGP-M;Ativo;Fulano de Tal
+CT-2026;Casa das Peças Gama;Fornecimento de peças;01/11/2026;31/10/2028;R$ 15.550,00;IPCA;Ativo;Ciclano da Silva
+CT-2027;Delta Industrial;Limpeza predial;01/05/2024;30/04/2025;R$ 15.800,00;Sem reajuste;Vencido;Ciclano da Silva
+CT-2028;Elevadores Épsilon;Vigilância;01/08/2026;31/07/2027;R$ 2.250,00;Sem reajuste;Ativo;Beltrano Souza
+CT-2029;Clima Zeta Refrigeração;Manutenção de geradores;01/05/2025;30/04/2027;R$ 12.100,00;IGP-M;Ativo;Fulano de Tal
+CT-2030;Limpeza Ômega;Jardinagem;01/05/2026;30/04/2028;R$ 12.200,00;Sem reajuste;Ativo;Beltrano Souza
+CT-2031;Segurança Sigma;Dedetização;01/10/2026;30/09/2028;R$ 4.200,00;IGP-M;Ativo;Beltrano Souza
+CT-2032;Energia Kappa;Manutenção de caldeira;01/11/2025;31/10/2027;R$ 1.650,00;IGP-M;Ativo;Beltrano Souza
+CT-2033;Jardinagem Lambda;Locação de empilhadeira;01/02/2024;31/01/2026;R$ 3.200,00;Sem reajuste;Vencido;Beltrano Souza

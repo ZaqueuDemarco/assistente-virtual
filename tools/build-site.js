@@ -31,6 +31,8 @@ fs.writeFileSync(path.join(out, "manifest.webmanifest"), JSON.stringify({ name: 
 cp("site/icone-180.png", "icone-180.png"); cp("site/icone-512.png", "icone-512.png");
 cp("assistente-offline.html", "assistente-offline.html");
 for (const f of fs.readdirSync(path.join(root, "api-teste"))) cp(`api-teste/${f}`, `api-teste/${f}`);
+for (const f of fs.readdirSync(path.join(root, "exemplos", "kit-de-teste"))) cp(`exemplos/kit-de-teste/${f}`, `kit-de-teste/${f}`);
+cp("exemplos/kit-de-teste.zip", "kit-de-teste.zip");
 for (const f of ["index.html", "app.html"]) cp(`docs/${f}`, `portfolio/${f}`);
 for (const f of fs.readdirSync(path.join(root, "docs", "img"))) cp(`docs/img/${f}`, `portfolio/img/${f}`);
 for (const f of fs.readdirSync(path.join(root, "docs", "api-teste"))) cp(`docs/api-teste/${f}`, `portfolio/api-teste/${f}`);
@@ -42,6 +44,7 @@ Assistente de gestão que transforma planilhas e dados de APIs em painéis, cart
 - **Assistente:** \`index.html\` (abre no navegador; os dados ficam no próprio aparelho)
 - **Portfólio e demonstração com dados fictícios:** \`portfolio/\`
 - **API de teste (fictícia):** \`api-teste/\`
+- **Kit de teste (planilhas, CSV, JSON e PDF fictícios):** \`kit-de-teste.zip\` ou a pasta \`kit-de-teste/\``
 
 Tudo roda no navegador, sem servidor. Bibliotecas: Chart.js, SheetJS e pdf.js.
 `);

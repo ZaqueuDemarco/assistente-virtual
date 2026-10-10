@@ -35,6 +35,10 @@ Para gerar de novo depois de mudar o `index.html` ou a página: `node tools/buil
 
 Para publicar no GitHub Pages: Settings → Pages → "Deploy from a branch", escolha o branch e a pasta `/docs`. Em repositório privado, o Pages exige plano pago do GitHub.
 
+## Kit de teste
+
+`exemplos/kit-de-teste/` (ou `exemplos/kit-de-teste.zip`) tem arquivos fictícios para testar o assistente: ordens de serviço, estoque de peças, plano de preventivas, contratos (CSV), orçamento x realizado (duas abas), consumo de energia (CSV), chamados (JSON), uma exportação "bagunçada" e um relatório em PDF. O arquivo `00-COMO-TESTAR.txt` lista pedidos para cada um. Para gerar de novo: `node tools/build-kit-teste.js`.
+
 ## O que já funciona
 
 - **Importar e organizar dados**: cole dados (do Excel, Google Sheets, CSV, e-mail) ou arraste um arquivo `.xlsx`, `.xls`, `.csv`, `.txt` ou `.pdf`. O assistente:

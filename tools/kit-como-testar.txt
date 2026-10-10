@@ -1,0 +1,70 @@
+KIT DE TESTE DO ASSISTENTE DE GESTÃO
+Todos os dados são fictícios: a empresa, as pessoas (Fulano de Tal, Ciclano da Silva...) e os valores foram inventados.
+
+COMO USAR
+1. Abra o assistente (link do GitHub ou versão offline).
+2. Toque em "Importar dados" e escolha um arquivo deste kit. Confira a prévia e toque em "Criar planilha".
+3. Digite os pedidos abaixo no chat, ou digite "menu" para ver as opções prontas.
+   Os pedidos abaixo funcionam SEM IA (modo offline também). Com a IA ligada, pergunte do seu jeito.
+
+01-ordens-de-servico.xlsx (360 ordens de serviço, 12 meses)
+   gráfico de O.S. por mês
+   gráfico de custo peças por setor
+   gráfico de horas por técnico
+   cartão de O.S. abertas
+   cartão de custo peças das corretivas
+   filtrar tipo corretiva        (depois: limpar filtros)
+   Com IA: "qual setor gastou mais com peças?", "quantas O.S. urgentes estão abertas?"
+
+02-estoque-de-pecas.xlsx (26 peças, com quantidade e estoque mínimo)
+   gráfico de quantidade por categoria
+   cartão de quantidade dos rolamentos
+   gráfico de custo unitário por fornecedor
+   filtrar categoria elétrica
+   Com IA: "quais peças estão abaixo do estoque mínimo?"
+
+03-plano-de-preventivas.xlsx (60 preventivas: vencidas, a vencer e em dia)
+   gráfico de preventivas por status
+   cartão de preventivas vencidas
+   cartão de preventivas a vencer
+   gráfico por responsável
+   filtrar status vencida
+
+04-contratos.csv (10 contratos, formato brasileiro com ponto e vírgula)
+   gráfico de valor mensal por fornecedor
+   cartão de valor mensal dos contratos ativos
+   filtrar situação vencido
+   Com IA: "quais contratos vencem nos próximos 6 meses?"
+
+05-orcamento-x-realizado.xlsx (duas abas: resumo mensal e lançamentos)
+   gráfico de realizado por centro de custo
+   gráfico de orçado por mês
+   cartão de realizado da frota
+   Com IA: "em quais meses o realizado passou do orçado?"
+
+06-consumo-energia-agua.csv (180 dias, 3 prédios)
+   gráfico de energia por mês
+   gráfico de energia por prédio
+   cartão de água do galpão
+
+07-chamados.json (80 chamados, como viria de uma API)
+   gráfico de chamados por categoria
+   cartão de chamados abertos
+   gráfico de nota satisfação por local
+
+08-relatorio-baguncado.xlsx (exportação "suja": título, linhas em branco, repetidas, datas e valores misturados, total e rodapé)
+   Veja na prévia o que o assistente corrigiu sozinho.
+   gráfico de custo por setor
+   cartão de O.S. abertas
+
+09-relatorio-setembro.pdf (relatório em PDF com tabela)
+   gráfico de custo por equipamento
+   cartão de custo das corretivas
+
+OUTRAS COISAS PARA TESTAR
+- API de teste (fictícia), no link do GitHub: Importar dados > Conectar API > "Usar a API de teste".
+- API pública do Banco Central (taxa Selic), sem chave:
+  https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/20?formato=json
+- Backup: digite "fazer backup" e depois restaure o arquivo baixado.
+- Modo offline: digite "modo offline" e confira que tudo acima continua funcionando.
+- Várias planilhas: importe dois arquivos e troque entre eles na barra lateral.

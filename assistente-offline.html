@@ -1248,6 +1248,9 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
   // "soma de quantidade", "média de quantidade": coluna numérica cujo nome é uma palavra que normalmente significa contagem.
   function explicitNumCol(sh, text) {
+    // Planilha com uma coluna numérica chamada "Quantidade" (ex.: estoque): "quantidade" é essa coluna, não a contagem de linhas.
+    const q = /\bquantidade\b(?!\s+d[eao]s?\s+(registros|linhas|o\.?\s?s\.?|ordens|chamados|vezes)\b)/.test(text) && numericCols(sh).find(c => /^(quantidade|qtd|qtde)\b/.test(norm(sh.columns[c])));
+    if (q != null && q !== false) return q;
     const m = text.match(/\b(?:soma|somar|total|media|medio|maior|menor|maximo|minimo)\s+(?:d[aeo]s?\s+)?(.+?)(?:\s+por\s+.*)?$/);
     if (!m) return null;
     const c = sh.columns.findIndex(x => norm(x).replace(/\s*\(.*?\)/g, "").trim() === m[1].trim());
@@ -2577,7 +2580,16 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
     // Filtros
     if (/^(limpar|remover|tirar)\s+filtros?/.test(n)) { state.filter.val = ""; render(); return say("Filtro removido."); }
-    if ((m = raw.match(/^filtr(?:ar|e|a)\s+(?:por\s+)?(.+?)\s*(?:=|:|igual a|é)\s*(.+)$/i))) {
+    // "filtrar tipo corretiva" (sem "="): descobre onde termina o nome da coluna; "filtrar corretiva": acha a coluna pelo valor.
+    if (!/[=:]/.test(raw) && (m = raw.match(/^filtr(?:ar|e|a)\s+(?:por\s+)?(.+)$/i)) && !/\s(igual a|é)\s/i.test(m[1])) {
+      const w = m[1].trim().split(/\s+/), hasVal = (c, v) => sh.rows.some(r => norm(r[c]) === norm(v));
+      let hit = null;
+      for (let k = w.length - 1; k >= 1 && !hit; k--) { const c = findCol(sh, w.slice(0, k).join(" ")), v = w.slice(k).join(" "); if (c >= 0 && hasVal(c, v)) hit = [c, v]; }
+      if (!hit) { const c = sh.columns.findIndex((_, i) => hasVal(i, m[1].trim())); if (c >= 0) hit = [c, m[1].trim()]; }
+      if (hit) m = [null, sh.columns[hit[0]], hit[1]];
+      else return say(`Não entendi o filtro. Use assim: ${code(`filtrar ${sh.columns[0].toLowerCase()} = valor`)}.`, "bot", "err");
+    } else m = raw.match(/^filtr(?:ar|e|a)\s+(?:por\s+)?(.+?)(?:\s*[=:]\s*|\s+(?:igual a|é)\s+)(.+)$/i);
+    if (m) {
       const c = findCol(sh, m[1]);
       if (c < 0) return say(`Não achei a coluna “${esc(m[1])}”.`, "bot", "err");
       const val = sh.rows.map(r => r[c]).find(v => norm(v) === norm(m[2]));
@@ -4127,11 +4139,16 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   });
   $("#backupFile").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) readBackup(f); });
   async function handleFile(file) {
-    if (/\.json$/i.test(file.name)) { closeImport(); return readBackup(file); }
+    // .json: backup do assistente vai para Restaurar; qualquer outro JSON (ex.: resposta salva de uma API) vira planilha.
+    let json = null;
+    if (/\.json$/i.test(file.name)) {
+      try { json = JSON.parse(await file.text()); } catch { if (!imp) openImport(); return renderStep1("Esse arquivo .json está com erro de formato e não consegui ler."); }
+      if (json?.app === "assistente-gestao") { closeImport(); return readBackup(file); }
+    }
     if (!imp) openImport();
     impContent.innerHTML = `<div class="imp-body"><p class="lead">Lendo <b>${esc(file.name)}</b>${/\.pdf$/i.test(file.name) ? "… PDFs grandes podem levar alguns segundos" : "…"}</p></div>`;
     try {
-      const { matrix, note, pdfBuf } = await fileToMatrix(file);
+      const { matrix, note, pdfBuf } = json ? { matrix: recordsToMatrix(findRecords(json, "").list) } : await fileToMatrix(file);
       const fname = file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
       loadMatrix(matrix, fname.charAt(0).toUpperCase() + fname.slice(1), { note });
       if (pdfBuf && imp) { imp.pdf = { buf: pdfBuf, align: "auto" }; renderStep2(); }
@@ -4144,7 +4161,7 @@ Comandos do assistente: ${COMMANDS.map(c => c[0]).join(" | ")}`;
   // A conexão fica guardada na planilha (sh.api) para atualizar depois com um clique ou sozinha.
   const inClaude = !!window.claude?.use;
   // Nomes de campos de API sem acento ("situacao", "tecnico") ganham a grafia em português.
-  const KEY_PT = { numero: "número", situacao: "situação", tecnico: "técnico", patrimonio: "patrimônio", descricao: "descrição", codigo: "código", servico: "serviço", manutencao: "manutenção", solicitacao: "solicitação", responsavel: "responsável", previsao: "previsão", conclusao: "conclusão", orcamento: "orçamento", preco: "preço", endereco: "endereço", observacao: "observação", criacao: "criação", ultima: "última", periodo: "período", funcionario: "funcionário", usuario: "usuário" };
+  const KEY_PT = { numero: "número", situacao: "situação", tecnico: "técnico", patrimonio: "patrimônio", descricao: "descrição", codigo: "código", servico: "serviço", manutencao: "manutenção", solicitacao: "solicitação", responsavel: "responsável", previsao: "previsão", conclusao: "conclusão", orcamento: "orçamento", preco: "preço", endereco: "endereço", observacao: "observação", criacao: "criação", ultima: "última", periodo: "período", funcionario: "funcionário", usuario: "usuário", ate: "até", satisfacao: "satisfação", sla: "SLA", media: "média", horario: "horário" };
   const humanKey = k => String(k).split(".").map(p => {
     const s = p.replace(/([a-zà-ÿ])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").trim().split(" ").map(w => KEY_PT[w.toLowerCase()] || w).join(" ");
     return s.charAt(0).toUpperCase() + s.slice(1);
